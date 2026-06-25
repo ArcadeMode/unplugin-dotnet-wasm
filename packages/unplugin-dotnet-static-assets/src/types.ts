@@ -28,12 +28,6 @@ export interface DotnetAssetsOptions {
   targetFramework?: string;
 
   /**
-   * Runtime identifier (`bin/<Configuration>/<TargetFramework>/<RuntimeIdentifier>/...`).
-   * Auto-detected when exactly one RID directory exists; required otherwise.
-   */
-  runtimeIdentifier?: string;
-
-  /**
    * Absolute or workspace-relative path to {Project}.staticwebassets.runtime.json.
    * When set, bypasses discovery entirely.
    */
