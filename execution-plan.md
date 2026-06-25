@@ -1,0 +1,250 @@
+# Execution Plan: `unplugin-dotnet-static-assets`
+
+Companion to `plan.md`. The spec describes the full target system; this file is the **build order**. Each milestone is small enough to ship and verify on its own. We stop at M3 and decide whether to continue, change scope, or rip something out.
+
+## Anchor fixture
+
+`./Library/` — `Microsoft.NET.Sdk.WebAssembly` project (`net10.0`) using **default SDK conventions**:
+
+- Standard output layout: `Library/bin/<Configuration>/<TargetFramework>/` (so after `dotnet build` the manifests land at `Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json` and `….staticwebassets.endpoints.json`). The plugin must handle this canonical path on day one.
+- `WasmBundlerFriendlyBootConfig=true` → `_framework/dotnet.js` emits native `import dotnet_native_wasm from "./dotnet.native.wasm"` etc. This is the bundler-friendly path the plugin exists to support.
+- `WasmFingerprintAssets=false` and `CompressionEnabled=false` → no `.br/.gz` siblings, no hashed filenames in this fixture. Both of those are deferred features.
+- Two content roots: `Library/wwwroot/` (source) and `Library/bin/Debug/net10.0/wwwroot/` (build output). They overlap on `main.ts`, `wasm-bootstrap.ts`, `TypeShimProvider.tsx`; `typeshim.ts` and the whole `_framework/` runtime exist only in the bin root. **Cross-root resolution is required from the first commit.**
+- `Patterns: [{ ContentRootIndex: 0, Pattern: "**", Depth: 0 }]` → glob fall-through to source root for files not enumerated.
+
+End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.ts`, `vite build` succeeds, and `dist/_framework/dotnet.native.wasm` (and every other assembly the runtime asks for) is present with correct bytes.
+
+---
+
+## M1 — Vite + Mode A + `dotnet build` only
+
+**Outcome:** `pnpm --filter consumer build` produces a working WASM-loading bundle from the `Library/` fixture. Zero dev-server, zero endpoints, zero IDE emission, zero other bundlers.
+
+### M1.1 — Repo scaffolding
+
+- pnpm workspace at repo root: `packages/unplugin-dotnet-static-assets`, `test/fixtures/library-build` (Vite consumer), `test/integration`.
+- TypeScript strict, ESM, Node 20 target, `tsup` for the package build.
+- Vitest as the runner. ESLint + Prettier minimal config.
+- One npm script per workspace: `build`, `test`, `typecheck`.
+- `.gitignore` covers `dist/`, `node_modules/`, `node_modules/.dotnet-vfs/`, plus the `Library/bin/` and `Library/obj/` (we keep `Library/wwwroot/` source under version control; the build output is a regenerated artifact).
+
+**Done when:** `pnpm install && pnpm -r build && pnpm -r test` exits 0 with an empty test suite.
+
+### M1.2 — Runtime-manifest parser
+
+- File: `src/core/manifest-runtime.ts`.
+- Zod schemas mirroring the real shape: `ContentRoots: string[]`, `Root: Node` with `Children | null`, `Asset: { ContentRootIndex; SubPath } | null`, `Patterns: { ContentRootIndex; Pattern; Depth }[] | null`.
+- `parseRuntimeManifest(buffer | string): RuntimeManifest` with friendly errors that point at the offending JSON path.
+- Unit test reads `Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json` verbatim and asserts: two content roots, `_framework/dotnet.d.ts` belongs to root 0, `_framework/dotnet.js` and `_framework/Library.wasm` to root 1, fall-through pattern is present.
+
+**Done when:** `vitest run` parses the real manifest with zero allocations of `any`.
+
+### M1.3 — Discovery (standard `bin/<Configuration>/<TargetFramework>/[<RID>/]` layout)
+
+- File: `src/core/discover.ts`.
+- `discoverRuntimeManifest(opts): { manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework, resolvedRuntimeIdentifier? }`.
+- **Explicit options exposed from M1** (mirrors `plan.md` §8):
+  - `projectRoot: string` — required for M1; the .NET project directory (the one containing the `.csproj`).
+  - `configuration?: string` — default `'Debug'`. The full default-resolution chain (env var, bundler mode, etc.) lands in M2.4.
+  - `targetFramework?: string` — if omitted, the discovery globs `<projectRoot>/bin/<configuration>/*/` and requires exactly one TFM directory; else hard-fail with the enumerated candidates.
+  - `runtimeIdentifier?: string` — same single-candidate rule applied one level deeper; omitting it when there's a single RID subdir is fine, ambiguous when there's more than one.
+  - `manifestPath?: string` — if set, used verbatim and the other axes are ignored.
+- Algorithm for M1:
+  1. If `manifestPath` is set, take it verbatim.
+  2. Otherwise construct `<projectRoot>/bin/<configuration>/<targetFramework>[/<runtimeIdentifier>]` from supplied/defaulted options, filling each unset axis with the unique-directory rule above. Glob `*.staticwebassets.runtime.json` inside it.
+  3. On zero hits, throw with a clear message naming the directory searched and the resolved axes.
+  4. On multiple hits in the *same* directory (unlikely but possible), throw with the candidate list.
+- Ranking across siblings (e.g. Debug vs Release both present), mtime-based staleness warnings, env-var resolution: **deferred to M2.4**. M1 just needs deterministic behaviour given the options.
+
+**Done when:** unit tests prove:
+- Default options (`{ projectRoot: 'Library' }`) resolve to `Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json` against the fixture.
+- Explicit `{ configuration: 'Debug', targetFramework: 'net10.0' }` resolves identically.
+- A synthetic fixture with two TFMs under `bin/Debug/` fails with a message enumerating them and hinting at the `targetFramework` option.
+- A missing manifest fails with a message naming the searched directory.
+
+### M1.4 — VFS builder + lookup
+
+- File: `src/core/vfs.ts`.
+- `buildVfs(manifest): VirtualFileSystem` returning:
+  ```ts
+  {
+    contentRoots: string[];               // POSIX, trailing slash
+    lookup: Map<string, ResolvedAsset>;   // O(1) virtual → physical
+    list(virtualDir: string): string[];   // for dir listings later
+    resolve(virtualPath: string): ResolvedAsset | undefined;
+  }
+  ```
+- POSIX normalisation internally, case-insensitive lookup key (lowercase), case-preserving `physicalPath`.
+- Extension probe order **hard-coded for M1**: `['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json']`. `index.<ext>` lookup uses the same list. (Configurable in M3.)
+- `.ts` shadows `.d.ts` rule (one-shot debug log per pair).
+- Pattern fall-through: when literal walk + extension probe miss, evaluate each `Pattern` against the remaining path; if matched, return `join(ContentRoots[i], remainder)` if that file exists on disk.
+
+**Done when:** tests prove:
+- `resolve('_framework/dotnet.js')` → root 1 absolute path.
+- `resolve('_framework/dotnet.d.ts')` → root 0 absolute path.
+- `resolve('wasm-bootstrap')` (extensionless) → `wwwroot/wasm-bootstrap.ts`.
+- `resolve('typeshim')` → `bin/Debug/net10.0/wwwroot/typeshim.ts` (file only exists in the bin root).
+- `resolve('main')` → `wwwroot/main.ts` (when both roots have it, source root wins because root 0 is listed first in `ContentRoots`).
+- An unlisted user file dropped under `wwwroot/foo.txt` resolves via the fall-through `Patterns` entry.
+
+### M1.5 — Vite unplugin shell
+
+- Files: `src/unplugin/index.ts`, `src/vite.ts`.
+- Use `unplugin@^2` to wrap a single factory; only the Vite adapter is exported in M1.
+- Hooks:
+  - `buildStart`: run discovery + VFS construction; throw if it fails.
+  - `resolveId(source, importer)`:
+    1. If `importer` is a VFS-owned absolute path, virtualise it (find its content root, derive its virtual path, treat the request as virtual-relative). Otherwise treat `source` as a workspace-relative request only when it begins with `./Library/wwwroot/` (or the configured `projectRoot`).
+    2. Walk the VFS; on hit, return the absolute physical path.
+    3. On miss, return `null` so the host resolver carries on.
+  - `load(id)`: only handles binary extensions (`.wasm`, `.dat`, `.pdb`). For those, read bytes and return via Vite's standard asset API (`this.emitFile({ type: 'asset' })` then `export default __VITE_ASSET__<hash>`). Text files (`.ts`, `.tsx`, `.js`, `.json`) flow through unchanged so Vite's own transformers handle them.
+- Options exposed in M1 (all forwarded to `discoverRuntimeManifest`; defaults documented in M1.3):
+  - `projectRoot: string` — required for now; we don't auto-walk above the consumer yet.
+  - `configuration?: string` — explicit override; default `'Debug'`.
+  - `targetFramework?: string` — explicit override; auto-detected when exactly one TFM directory exists.
+  - `runtimeIdentifier?: string` — explicit override; auto-detected when exactly one RID directory exists.
+  - `manifestPath?: string` — absolute-or-relative bypass; when set, the discovery skips path construction entirely.
+
+**Done when:** a consumer with:
+```ts
+// test/fixtures/library-build/src/entry.ts
+import { createWasmRuntime } from '../../../Library/wwwroot/wasm-bootstrap';
+createWasmRuntime();
+```
+…builds without errors.
+
+### M1.6 — E2E integration test
+
+- File: `test/integration/m1-vite-build.test.ts`.
+- Programmatically invoke `vite build` (via `vite`'s Node API) against the fixture; assert:
+  - exit 0, no warnings about unresolved ids;
+  - `dist/_framework/dotnet.native.wasm` exists and its byte length matches the source;
+  - the emitted main chunk contains a reference to a `_framework/*.wasm` URL;
+  - at least 20 distinct `.wasm` assets land in `dist/_framework/`;
+  - `_framework/Library.wasm` is present (proves user-assembly emission, not just runtime).
+- Headless-browser boot test is **out of scope for M1** — adding Playwright is heavy and we want to keep M1 focused on bundling correctness.
+
+**Done when:** the integration test is green in CI on Windows and Linux runners (case-sensitivity smoke).
+
+### M1 acceptance summary
+
+- One bundler (Vite), one mode (Manifest), one fixture (`Library/`), zero dev-server.
+- A reviewer can clone the repo, run `pnpm install && pnpm test`, and see a real `dotnet`-built WASM project compile through Vite.
+- ~1 200 LOC of plugin code + tests.
+
+---
+
+## M2 — Mode B (`dotnet publish`) + discovery hardening
+
+**Outcome:** the same Vite consumer can be pointed at a consolidated publish output and build with `mode: 'consolidated'` (or auto-detected). Discovery handles multi-config layouts and produces useful errors.
+
+### M2.1 — Generate a publish fixture
+
+- `dotnet publish ./Library -c Release -o ./test/fixtures/library-publish` (committed as a fixture, regenerated occasionally; the runtime manifest is typically absent, the endpoints manifest typically present).
+- Verify the layout matches what `Microsoft.NET.Sdk.WebAssembly` actually emits on publish (flat directory containing `_framework/`, `*.staticwebassets.endpoints.json`, possibly the app's HTML).
+
+### M2.2 — Mode option + consolidated resolver path
+
+- Add `mode: 'auto' | 'manifest' | 'consolidated'` and `publishDir?: string` to options. `publishDir` is the .NET-flavoured name for the consolidated assets directory (it is the same concept the spec previously called `assetsDir`; the rename matches what `dotnet publish -o` produces and is the obvious term for a .NET developer).
+- New file: `src/core/resolver-consolidated.ts` exposing the same `resolve()`/`list()` shape as the VFS but backed by a single-directory `fs.statSync` probe with the same extension list.
+- The unplugin layer dispatches once at `buildStart`; downstream hooks don't know which mode is active.
+
+### M2.3 — Auto mode detection
+
+- If `mode === 'auto'` (default): run `discoverRuntimeManifest`; on hit → Mode A. On miss, look for a `_framework/` directory under `publishDir ?? <projectRoot>/bin/<configuration>/<targetFramework>/publish/` (or the path the publish fixture justifies); on hit → Mode B.
+- Hard-fail on ambiguity (both manifest AND a sibling flat `_framework/` present in different places).
+
+### M2.4 — Discovery hardening (ranking, fallback defaults, staleness)
+
+The option *surface* (`configuration`, `targetFramework`, `runtimeIdentifier`) was already exposed in M1.3, but M1 keeps the algorithm strict: unique-candidate-or-fail. M2.4 makes the algorithm intelligent when options are partial or absent:
+
+- Implement the ranked search from `plan.md` §2.2: explicit-tightest-path → loose glob with axis ranking → mtime tiebreaker.
+- Expand the `configuration` default-resolution chain: option ▸ `process.env.DOTNET_CONFIGURATION` ▸ Vite `config.mode === 'production' ? 'Release' : 'Debug'` ▸ `Debug` fallback.
+- Staleness warning when the chosen manifest's mtime is older than a sibling under `bin/`.
+- New synthetic fixtures (no real builds needed): `bin/Debug/net8.0/…/runtime.json`, `bin/Release/net8.0/…/runtime.json` (newer), multi-TFM (`net8.0 + net9.0`), RID-specific (`browser-wasm/`).
+
+### M2.5 — E2E integration test for Mode B
+
+- New consumer fixture `test/fixtures/library-publish-consumer` that points the plugin at the publish dir via `publishDir: '../library-publish'`.
+- Same assertions as M1.6, plus: starting in Mode B, then deleting the publish dir, then re-running, fails with the expected error (not a stack trace).
+
+### M2 acceptance summary
+
+- Both `dotnet build` and `dotnet publish` outputs work.
+- Discovery makes good choices in standard repos and complains clearly when it can't.
+- Still: no endpoints.json behaviour, no dev server, no IDE emission, still Vite-only.
+
+---
+
+## M3 — Endpoints manifest (build-time only) + ergonomics polish
+
+**Outcome:** the endpoints manifest is consumed where it materially affects the production build (SRI hashes propagated to emitted `<script>` / `<link>` tags). No dev-server work yet. Plus the small bits of polish that make a public release usable.
+
+### M3.1 — Endpoints parser
+
+- File: `src/core/manifest-endpoints.ts`. Zod schema for `Version`, `ManifestType`, `Endpoints[]` (`Route`, `AssetFile`, `Selectors`, `ResponseHeaders`, `EndpointProperties`).
+- `buildEndpointsIndex`: `Map<route, Endpoint>` plus reverse index `Map<assetFile, Endpoint[]>` for fingerprinted variants.
+- Auto-discover alongside the runtime manifest / assets dir; `endpointsPath?: string | false` option.
+
+### M3.2 — SRI propagation in the production bundle
+
+- Pull `EndpointProperties.integrity` for each asset that the plugin emits, store it on the asset's metadata.
+- Vite-only path for now: hook `transformIndexHtml` to add `integrity` and `crossorigin` to emitted `<script>` / `<link>` tags when the URL maps to a known endpoint.
+- Integration test: assert the produced `index.html` contains the expected `integrity="sha256-…"` attribute for `dotnet.js`.
+
+### M3.3 — Configurable resolveExtensions + public API freeze
+
+- Add `resolveExtensions?: string[]` option; default unchanged.
+- Document the API surface (TS doc comments + a generated `api.md`); freeze it for `0.1.0`.
+
+### M3.4 — Readme + sample consumer
+
+- A short README with the M1 Mode A and M2 Mode B recipes (the spec already drafts these).
+- Wire the npm workspaces fixture from `plan.md` §9.3 if it can be built in <50 LOC of glue.
+
+### M3 acceptance summary
+
+- Endpoints metadata participates in production output (SRI), but no runtime/dev coupling.
+- API is stable enough to publish a `0.1.0`.
+
+---
+
+## ⏸ Checkpoint — decide before M4
+
+After M3 we have a usable production-only plugin for Vite. Before we keep going, we pick from the open backlog. Possible next bites, **roughly in order of likely value**:
+
+- **M4 — Dev server (Vite first)**: `configureServer` middleware that streams VFS files with the right `Content-Type` (`application/wasm` etc.), applies `ResponseHeaders` from endpoints.json verbatim (with stale-`Content-Length` recomputation), and handles fingerprinted route aliases.
+- **M5 — Change detection / watch**: `addWatchFile` for every VFS asset, debounced manifest re-read on change, dev HMR invalidation when `dotnet build` rewrites the bin output.
+- **M6 — Webpack adapter**: second bundler, requires `asset/resource` rule injection and chunk-splitting opt-out. Validates the unplugin abstraction.
+- **M7 — IDE-parity emission**: the quiet `node_modules/.dotnet-vfs/` cache with `tsconfig.json` + `dotnet-vfs.d.ts`; Mode-flip cleanup; one-shot info-level `extends` hint.
+- **M8 — Preload `<link>` injection**: emit preload tags from `EndpointProperties.Preload*` for the `webassembly` group, ordered by `PreloadOrder`.
+- **M9 — Compression sibling pass-through** (`.br` / `.gz` next to each asset).
+- **M10 — Boot-manifest rewrite** when the host bundler hashes `.wasm`/`.dll` outputs (`blazor.boot.json` / `mono-config.json`).
+- **M11 — Rollup / esbuild / Rspack adapters**.
+- **M12 — Playwright E2E**: headless-Chromium boot that proves the runtime actually executes a managed call.
+- **M13 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition.
+
+Each of these is its own milestone-sized chunk. **Plan out M4/M5/M6 (or whichever combination we want) at that checkpoint** — we'll know more once M1–M3 are real code.
+
+---
+
+## What we are deliberately *not* doing in M1–M3
+
+- Webpack, Rollup, esbuild, Rspack — Vite only.
+- Dev server, MIME headers, HMR.
+- IDE-parity emission (`node_modules/.dotnet-vfs/`).
+- Preload `<link>` tags.
+- Boot-manifest rewriting.
+- Compression siblings.
+- npm-package synthesis from emitted `package.json` (see Non-Goals in spec).
+- Playwright browser boot tests.
+
+Documented as "out of scope for now" in every PR description, with a link back to this file.
+
+---
+
+## Operating mode for the implementation
+
+- One PR per sub-milestone (M1.1, M1.2, …). Each PR ships passing tests for *its* slice.
+- After M3, we re-read `plan.md` and this file together, prune anything that didn't survive contact with reality, and pick the next milestone.
+- Whenever a real-world quirk shows up that the spec didn't anticipate (very likely — see `OutputPath=./bin/` flat layout already), the discovery in M1.3 becomes the test case for M2.4's hardened version.
