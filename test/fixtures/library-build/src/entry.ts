@@ -1,3 +1,12 @@
-// M1.5 entry point — will import from the Library fixture once resolveId is wired up.
-// For M1.1 this file just needs to exist and typecheck.
-export {};
+import { dotnet } from './_framework/dotnet';
+import { TypeShimInitializer } from './typeshim';
+
+async function initializeWasmRuntime(): Promise<void> {
+  const runtimeInfo = await dotnet.create();
+  await TypeShimInitializer.initialize(runtimeInfo);
+  runtimeInfo.runMain();
+  console.log('WASM runtime initialized successfully.');
+}
+
+initializeWasmRuntime();
+

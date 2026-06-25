@@ -15,8 +15,9 @@ const MANIFEST_PATH = resolve(
   'bin/Debug/net10.0/Library.staticwebassets.runtime.json',
 );
 // Physical roots — join() handles the trailing separator.
-const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');                       // source (ContentRoot 0)
-const ROOT1 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot'); // build output (ContentRoot 1)
+const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');                                        // source (ContentRoot 0)
+const ROOT_OBJ1 = resolve(LIBRARY_ROOT, 'obj', 'Debug', 'net10.0', 'TypeShim', 'staticwebassets', 'wwwroot'); // TypeShim generated (ContentRoot 1)
+const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');             // build output (ContentRoot 2)
 
 // ---------------------------------------------------------------------------
 // Real fixture — core resolution scenarios
@@ -32,7 +33,7 @@ describe('buildVfs — real fixture', () => {
   // ── contentRoots ──────────────────────────────────────────────────────────
 
   it('contentRoots are POSIX with trailing slash', () => {
-    expect(vfs.contentRoots).toHaveLength(2);
+    expect(vfs.contentRoots).toHaveLength(3);
     for (const r of vfs.contentRoots) {
       expect(r, 'must not contain backslashes').not.toContain('\\');
       expect(r.at(-1), 'must end with /').toBe('/');
@@ -41,11 +42,11 @@ describe('buildVfs — real fixture', () => {
 
   // ── manifest-explicit assets (cross-root resolution) ──────────────────────
 
-  it('resolve _framework/dotnet.js → root 1 (build output)', () => {
+  it('resolve _framework/dotnet.js → root 2 (build output)', () => {
     const asset = vfs.resolve('_framework/dotnet.js');
     expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toBe(join(ROOT1, '_framework', 'dotnet.js'));
-    expect(asset!.contentRootIndex).toBe(1);
+    expect(asset!.physicalPath).toBe(join(ROOT2, '_framework', 'dotnet.js'));
+    expect(asset!.contentRootIndex).toBe(2);
   });
 
   it('resolve _framework/dotnet.d.ts → root 0 (source root)', () => {
@@ -97,12 +98,13 @@ describe('buildVfs — real fixture', () => {
     expect(vfs.resolve('_framework/nonexistent.wasm')).toBeUndefined();
   });
 
-  it('returns undefined for typeshim (not enumerated, lives outside root 0)', () => {
-    // typeshim.ts only exists at bin/Debug/net10.0/wwwroot/typeshim.ts (root 1)
-    // and is not enumerated in the manifest.  Pattern fallthrough only points
-    // at root 0, so the VFS cannot reach it.  The bundler will resolve it
-    // natively when imported by a file that is also in root 1.
-    expect(vfs.resolve('typeshim')).toBeUndefined();
+  it('resolve typeshim (extensionless) → typeshim.ts in root 1 (TypeShim obj dir)', () => {
+    // typeshim.ts is explicitly enumerated in the manifest at ContentRootIndex 1
+    // (the generated obj/Debug/net10.0/TypeShim/staticwebassets/wwwroot/ directory).
+    const asset = vfs.resolve('typeshim');
+    expect(asset).toBeDefined();
+    expect(asset!.physicalPath).toBe(join(ROOT_OBJ1, 'typeshim.ts'));
+    expect(asset!.contentRootIndex).toBe(1);
   });
 
   // ── performance ───────────────────────────────────────────────────────────

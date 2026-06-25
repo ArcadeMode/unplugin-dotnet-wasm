@@ -1,9 +1,166 @@
-import { describe, it, expect } from 'vitest';
-import { dotnetStaticAssets } from '../unplugin/index.js';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { join, resolve } from 'node:path';
+import { dotnetStaticAssets } from './index.js';
 
-// M1.1 placeholder — real tests land in M1.2 onward.
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts the handler function from a hook that may be either a plain
+ * function or a Rollup v4 `{ order, handler }` descriptor object.
+ */
+function handler<T extends (...args: any[]) => any>(
+  hook: T | { handler: T; order?: string } | null | undefined,
+): T | undefined {
+  if (!hook) return undefined;
+  if (typeof hook === 'function') return hook;
+  return (hook as { handler: T }).handler;
+}
+
+async function callBuildStart(plugin: any): Promise<void> {
+  await handler(plugin.buildStart)?.call({});
+}
+
+function callResolveId(plugin: any, source: string): string | null | undefined {
+  return handler(plugin.resolveId)?.call({}, source, undefined, {});
+}
+
+function callLoad(
+  plugin: any,
+  id: string,
+  emitFileMock = vi.fn().mockReturnValue('ref-id'),
+): any {
+  return handler(plugin.load)?.call({ emitFile: emitFileMock }, id);
+}
+
+// ---------------------------------------------------------------------------
+// Fixture paths
+// ---------------------------------------------------------------------------
+
+const LIBRARY_ROOT = resolve(__dirname, '../../../../Library');
+const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');
+const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
+
+// ---------------------------------------------------------------------------
+// Smoke test
+// ---------------------------------------------------------------------------
+
 describe('dotnetStaticAssets', () => {
   it('exports a plugin factory', () => {
     expect(typeof dotnetStaticAssets.vite).toBe('function');
   });
 });
+
+// ---------------------------------------------------------------------------
+// resolveId — virtual-path lookup
+// ---------------------------------------------------------------------------
+
+describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
+  let plugin: any;
+
+  beforeAll(async () => {
+    plugin = dotnetStaticAssets.rollup({
+      projectRoot: LIBRARY_ROOT,
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+    });
+    await callBuildStart(plugin);
+  });
+
+  it('resolves _framework/dotnet.js to its physical path in root 2', () => {
+    const result = callResolveId(plugin, '_framework/dotnet.js');
+    expect(result).toBe(join(ROOT2, '_framework', 'dotnet.js'));
+  });
+
+  it('resolves ./_framework/dotnet.js (leading ./) to the same path', () => {
+    const result = callResolveId(plugin, './_framework/dotnet.js');
+    expect(result).toBe(join(ROOT2, '_framework', 'dotnet.js'));
+  });
+
+  it('resolves /_framework/dotnet.js (leading /) to the same path', () => {
+    const result = callResolveId(plugin, '/_framework/dotnet.js');
+    expect(result).toBe(join(ROOT2, '_framework', 'dotnet.js'));
+  });
+
+  it('resolves _framework/dotnet.d.ts to root 0 (source)', () => {
+    const result = callResolveId(plugin, '_framework/dotnet.d.ts');
+    expect(result).toBe(join(ROOT0, '_framework', 'dotnet.d.ts'));
+  });
+
+  it('resolves typeshim (extensionless) to the generated typeshim.ts in the obj dir', () => {
+    const result = callResolveId(plugin, 'typeshim');
+    expect(typeof result).toBe('string');
+    expect(result).toMatch(/typeshim\.ts$/);
+    expect(result).toMatch(/TypeShim/);
+  });
+
+  it('resolves ./typeshim (leading ./) to the same path', () => {
+    const result = callResolveId(plugin, './typeshim');
+    expect(result).toMatch(/typeshim\.ts$/);
+  });
+
+  it('returns null for an unrecognized bare specifier (react)', () => {
+    const result = callResolveId(plugin, 'react');
+    expect(result).toBeNull();
+  });
+
+  it('returns null for a specifier with no manifest entry', () => {
+    const result = callResolveId(plugin, 'does-not-exist.ts');
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// load — binary asset handler
+// ---------------------------------------------------------------------------
+
+describe('dotnetStaticAssets — load', () => {
+  let plugin: any;
+
+  beforeAll(async () => {
+    plugin = dotnetStaticAssets.rollup({
+      projectRoot: LIBRARY_ROOT,
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+    });
+    await callBuildStart(plugin);
+  });
+
+  it('returns null for a .ts file (falls through to Vite transformer)', () => {
+    const result = callLoad(plugin, join(ROOT0, 'main.ts'));
+    expect(result).toBeNull();
+  });
+
+  it('returns null for a .js file', () => {
+    const result = callLoad(plugin, join(ROOT2, '_framework', 'dotnet.js'));
+    expect(result).toBeNull();
+  });
+
+  it('emits a .wasm file as an asset and returns an import.meta.ROLLUP_FILE_URL reference', () => {
+    const wasmPath = join(ROOT2, '_framework', 'dotnet.native.wasm');
+    const emitFile = vi.fn().mockReturnValue('wasm-ref-abc');
+    const result = callLoad(plugin, wasmPath, emitFile);
+    expect(emitFile).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'asset', name: 'dotnet.native.wasm' }),
+    );
+    expect(result).toBe('export default import.meta.ROLLUP_FILE_URL_wasm-ref-abc;');
+  });
+
+  it('emits a .dat file as an asset', () => {
+    const datPath = join(ROOT2, '_framework', 'icudt_CJK.dat');
+    const emitFile = vi.fn().mockReturnValue('dat-ref-xyz');
+    const result = callLoad(plugin, datPath, emitFile);
+    expect(emitFile).toHaveBeenCalled();
+    expect(result).toContain('import.meta.ROLLUP_FILE_URL_dat-ref-xyz');
+  });
+
+  it('emits a .pdb file as an asset', () => {
+    const pdbPath = join(ROOT2, '_framework', 'Library.pdb');
+    const emitFile = vi.fn().mockReturnValue('pdb-ref');
+    const result = callLoad(plugin, pdbPath, emitFile);
+    expect(emitFile).toHaveBeenCalled();
+    expect(result).toContain('import.meta.ROLLUP_FILE_URL_pdb-ref');
+  });
+});
+

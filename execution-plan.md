@@ -35,23 +35,22 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 - File: `src/core/manifest-runtime.ts`.
 - Zod schemas mirroring the real shape: `ContentRoots: string[]`, `Root: Node` with `Children | null`, `Asset: { ContentRootIndex; SubPath } | null`, `Patterns: { ContentRootIndex; Pattern; Depth }[] | null`.
 - `parseRuntimeManifest(buffer | string): RuntimeManifest` with friendly errors that point at the offending JSON path.
-- Unit test reads `Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json` verbatim and asserts: two content roots, `_framework/dotnet.d.ts` belongs to root 0, `_framework/dotnet.js` and `_framework/Library.wasm` to root 1, fall-through pattern is present.
+- Unit test reads `Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json` verbatim and asserts: three content roots, `_framework/dotnet.d.ts` belongs to root 0, `typeshim.ts` to root 1 (generated `obj/Debug/net10.0/TypeShim/staticwebassets/wwwroot/` dir), `_framework/dotnet.js` and `_framework/Library.wasm` to root 2, fall-through pattern at the root node points at root 0.
 
 **Done when:** `vitest run` parses the real manifest with zero allocations of `any`.
 
-### M1.3 — Discovery (standard `bin/<Configuration>/<TargetFramework>/[<RID>/]` layout)
+### M1.3 — Discovery (standard `bin/<Configuration>/<TargetFramework>/` layout)
 
 - File: `src/core/discover.ts`.
-- `discoverRuntimeManifest(opts): { manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework, resolvedRuntimeIdentifier? }`.
+- `discoverRuntimeManifest(opts): { manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework }`.
 - **Explicit options exposed from M1** (mirrors `plan.md` §8):
   - `projectRoot: string` — required for M1; the .NET project directory (the one containing the `.csproj`).
   - `configuration?: string` — default `'Debug'`. The full default-resolution chain (env var, bundler mode, etc.) lands in M2.4.
   - `targetFramework?: string` — if omitted, the discovery globs `<projectRoot>/bin/<configuration>/*/` and requires exactly one TFM directory; else hard-fail with the enumerated candidates.
-  - `runtimeIdentifier?: string` — same single-candidate rule applied one level deeper; omitting it when there's a single RID subdir is fine, ambiguous when there's more than one.
   - `manifestPath?: string` — if set, used verbatim and the other axes are ignored.
 - Algorithm for M1:
   1. If `manifestPath` is set, take it verbatim.
-  2. Otherwise construct `<projectRoot>/bin/<configuration>/<targetFramework>[/<runtimeIdentifier>]` from supplied/defaulted options, filling each unset axis with the unique-directory rule above. Glob `*.staticwebassets.runtime.json` inside it.
+  2. Otherwise construct `<projectRoot>/bin/<configuration>/<targetFramework>` from supplied/defaulted options, filling each unset axis with the unique-directory rule above. Glob `*.staticwebassets.runtime.json` inside it.
   3. On zero hits, throw with a clear message naming the directory searched and the resolved axes.
   4. On multiple hits in the *same* directory (unlikely but possible), throw with the candidate list.
 - Ranking across siblings (e.g. Debug vs Release both present), mtime-based staleness warnings, env-var resolution: **deferred to M2.4**. M1 just needs deterministic behaviour given the options.
@@ -82,10 +81,10 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 - Pattern fallthrough: when the map lookup + probes miss, evaluate each `Patterns` entry against the remaining virtual path; for each match, do **one `statSync`** against `join(ContentRoots[i], candidate)` (literal + per probe extension + `index.<ext>`). Hits are cached back into `lookup`. **No directory enumeration anywhere** — the plugin never lists a directory; it only reads files the manifest names or the patterns point at.
 
 **Done when:** tests prove:
-- `resolve('_framework/dotnet.js')` → root 1 absolute path.
+- `resolve('_framework/dotnet.js')` → root 2 absolute path.
 - `resolve('_framework/dotnet.d.ts')` → root 0 absolute path.
 - `resolve('wasm-bootstrap')` (extensionless) → `wwwroot/wasm-bootstrap.ts`.
-- `resolve('typeshim')` → `undefined` (the file exists at `bin/Debug/net10.0/wwwroot/typeshim.ts` but is unenumerated and the `**` pattern only points at root 0; the bundler will resolve it natively when an importer in the same build-output directory references it).
+- `resolve('typeshim')` → root 1 absolute path (`typeshim.ts` is explicitly enumerated in the manifest at ContentRootIndex 1, the generated `obj/Debug/net10.0/TypeShim/staticwebassets/wwwroot/` directory).
 - `resolve('main')` → `wwwroot/main.ts` (root 0, as declared in the manifest).
 - An unlisted user file dropped under `wwwroot/foo.txt` resolves via the fall-through `Patterns` entry (single stat against root 0).
 
@@ -104,16 +103,25 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
   - `projectRoot: string` — required for now; we don't auto-walk above the consumer yet.
   - `configuration?: string` — explicit override; default `'Debug'`.
   - `targetFramework?: string` — explicit override; auto-detected when exactly one TFM directory exists.
-  - `runtimeIdentifier?: string` — explicit override; auto-detected when exactly one RID directory exists.
   - `manifestPath?: string` — absolute-or-relative bypass; when set, the discovery skips path construction entirely.
+- The Vite adapter registers with `enforce: 'pre'` so the importer-blind overlay runs before Vite's built-in resolvers; otherwise virtual specifiers like `./_framework/dotnet` would be resolved against the importer's physical directory and miss the build-output root.
 
 **Done when:** a consumer with:
 ```ts
 // test/fixtures/library-build/src/entry.ts
-import { createWasmRuntime } from '../../../Library/wwwroot/wasm-bootstrap';
-createWasmRuntime();
+import { dotnet } from './_framework/dotnet';
+import { TypeShimInitializer } from './typeshim';
+
+async function initializeWasmRuntime(): Promise<void> {
+  const runtimeInfo = await dotnet.create();
+  await TypeShimInitializer.initialize(runtimeInfo);
+  runtimeInfo.runMain();
+  console.log('WASM runtime initialized successfully.');
+}
+
+initializeWasmRuntime();
 ```
-…builds without errors.
+…builds without errors. `./_framework/dotnet` and `./typeshim` are importer-blind virtual specifiers: the plugin strips the leading `./`, and the VFS resolves them to `bin/Debug/net10.0/wwwroot/_framework/dotnet.js` (root 2) and `obj/Debug/net10.0/TypeShim/staticwebassets/wwwroot/typeshim.ts` (root 1) respectively — even though neither directory exists next to `entry.ts`.
 
 ### M1.6 — E2E integration test
 
@@ -158,12 +166,12 @@ createWasmRuntime();
 
 ### M2.4 — Discovery hardening (ranking, fallback defaults, staleness)
 
-The option *surface* (`configuration`, `targetFramework`, `runtimeIdentifier`) was already exposed in M1.3, but M1 keeps the algorithm strict: unique-candidate-or-fail. M2.4 makes the algorithm intelligent when options are partial or absent:
+The option *surface* (`configuration`, `targetFramework`) was already exposed in M1.3, but M1 keeps the algorithm strict: unique-candidate-or-fail. M2.4 makes the algorithm intelligent when options are partial or absent:
 
 - Implement the ranked search from `plan.md` §2.2: explicit-tightest-path → loose glob with axis ranking → mtime tiebreaker.
 - Expand the `configuration` default-resolution chain: option ▸ `process.env.DOTNET_CONFIGURATION` ▸ Vite `config.mode === 'production' ? 'Release' : 'Debug'` ▸ `Debug` fallback.
 - Staleness warning when the chosen manifest's mtime is older than a sibling under `bin/`.
-- New synthetic fixtures (no real builds needed): `bin/Debug/net8.0/…/runtime.json`, `bin/Release/net8.0/…/runtime.json` (newer), multi-TFM (`net8.0 + net9.0`), RID-specific (`browser-wasm/`).
+- New synthetic fixtures (no real builds needed): `bin/Debug/net8.0/…/runtime.json`, `bin/Release/net8.0/…/runtime.json` (newer), multi-TFM (`net8.0 + net9.0`).
 
 ### M2.5 — E2E integration test for Mode B
 

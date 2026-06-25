@@ -22,9 +22,9 @@ describe('parseRuntimeManifest', () => {
     expect(() => parseRuntimeManifest(raw)).not.toThrow();
   });
 
-  it('returns exactly two content roots', () => {
+  it('returns exactly three content roots', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots).toHaveLength(2);
+    expect(manifest.ContentRoots).toHaveLength(3);
   });
 
   it('content root 0 ends with Library/wwwroot/', () => {
@@ -32,9 +32,14 @@ describe('parseRuntimeManifest', () => {
     expect(manifest.ContentRoots[0]).toMatch(/Library[/\\]wwwroot[/\\]$/);
   });
 
-  it('content root 1 ends with bin/Debug/net10.0/wwwroot/', () => {
+  it('content root 1 is the TypeShim generated assets directory (obj/…/TypeShim/…/wwwroot/)', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots[1]).toMatch(/bin[/\\]Debug[/\\]net10\.0[/\\]wwwroot[/\\]$/);
+    expect(manifest.ContentRoots[1]).toMatch(/TypeShim[/\\]staticwebassets[/\\]wwwroot[/\\]$/);
+  });
+
+  it('content root 2 ends with bin/Debug/net10.0/wwwroot/', () => {
+    const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
+    expect(manifest.ContentRoots[2]).toMatch(/bin[/\\]Debug[/\\]net10\.0[/\\]wwwroot[/\\]$/);
   });
 
   it('_framework/dotnet.d.ts is an asset in content root 0 (source)', () => {
@@ -47,19 +52,19 @@ describe('parseRuntimeManifest', () => {
     expect(asset?.SubPath).toBe('_framework/dotnet.d.ts');
   });
 
-  it('_framework/dotnet.js is an asset in content root 1 (build output)', () => {
+  it('_framework/dotnet.js is an asset in content root 2 (build output)', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const asset = manifest.Root.Children?.['_framework']?.Children?.['dotnet.js']?.Asset;
     expect(asset).not.toBeNull();
-    expect(asset?.ContentRootIndex).toBe(1);
+    expect(asset?.ContentRootIndex).toBe(2);
     expect(asset?.SubPath).toBe('_framework/dotnet.js');
   });
 
-  it('_framework/Library.wasm is an asset in content root 1', () => {
+  it('_framework/Library.wasm is an asset in content root 2', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const asset = manifest.Root.Children?.['_framework']?.Children?.['Library.wasm']?.Asset;
     expect(asset).not.toBeNull();
-    expect(asset?.ContentRootIndex).toBe(1);
+    expect(asset?.ContentRootIndex).toBe(2);
   });
 
   it('root has a fall-through Pattern pointing at content root 0', () => {

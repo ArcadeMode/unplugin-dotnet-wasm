@@ -36,25 +36,23 @@ This plugin handles **both** shapes, presenting them to JavaScript bundlers (Vit
 
 ### 2.2 Build configuration & target-framework discovery
 
-`.NET` writes its outputs to `bin/<Configuration>/<TargetFramework>[/<RuntimeIdentifier>][/publish]/…`, so any search under `bin/` faces four orthogonal axes:
+`.NET` writes its outputs to `bin/<Configuration>/<TargetFramework>[/publish]/…`, so any search under `bin/` faces three orthogonal axes:
 
 | Axis              | Examples                       | Source of truth                                                                          |
 |-------------------|--------------------------------|------------------------------------------------------------------------------------------|
 | Configuration     | `Debug`, `Release`, `Staging`  | `options.configuration` ▸ `process.env.DOTNET_CONFIGURATION` ▸ bundler mode ▸ `Debug`    |
 | Target framework  | `net8.0`, `net9.0`             | `options.targetFramework` ▸ unique match ▸ fail                                          |
-| Runtime ID        | `browser-wasm`, *(empty)*      | `options.runtimeIdentifier` ▸ unique match ▸ fail                                        |
 | Build vs Publish  | `…/net8.0/` vs `…/net8.0/publish/` | Mode A prefers non-`publish/`, Mode B prefers `publish/`. Overridable.               |
 
 Resolution proceeds top-down, first hit wins:
 
 1. **Explicit override.** If `options.manifestPath` / `options.publishDir` is set, use it verbatim — no globbing, no ranking.
-2. **Tight candidate path.** Construct `<projectRoot>/bin/<configuration>/<targetFramework>[/<runtimeIdentifier>][/publish]` from whatever options are provided. Glob inside it for `*.staticwebassets.runtime.json` (Mode A) or a `_framework/` directory (Mode B).
+2. **Tight candidate path.** Construct `<projectRoot>/bin/<configuration>/<targetFramework>[/publish]` from whatever options are provided. Glob inside it for `*.staticwebassets.runtime.json` (Mode A) or a `_framework/` directory (Mode B).
 3. **Loose search.** If any axis is unset, scan `<projectRoot>/bin/**` for candidates and **rank**:
    1. exact `configuration` match (case-insensitive);
    2. exact `targetFramework` match;
-   3. exact `runtimeIdentifier` match;
-   4. mode preference for `publish/` vs not;
-   5. **mtime descending** ("most recently built") as the final tiebreaker.
+   3. mode preference for `publish/` vs not;
+   4. **mtime descending** ("most recently built") as the final tiebreaker.
 4. **Hard fail** with the enumerated candidate list when the top two are still indistinguishable, or when a required axis is ambiguous (e.g. multi-TFM project with no `targetFramework` set). Same posture as `dotnet run` on a multi-target project.
 
 #### Default `configuration` resolution
@@ -484,12 +482,6 @@ export interface DotnetAssetsOptions {
   targetFramework?: string;
 
   /**
-   * Runtime identifier (`bin/<Configuration>/<TargetFramework>/<RuntimeIdentifier>/...`).
-   * Required when the project produces RID-specific output (e.g. `browser-wasm`).
-   */
-  runtimeIdentifier?: string;
-
-  /**
    * Apply `ResponseHeaders` from endpoints.json in the dev middleware.
    * Default: true when endpoints.json is found.
    */
@@ -677,11 +669,10 @@ export default {
 | 11 | Mode misdetection in monorepos / nested publish folders          | Hard fail with an actionable message when both runtime.json and a flat `_framework/` exist.             |
 | 12 | Wrong `bin/<Configuration>` chosen (Debug vs Release vs custom)  | Ranked discovery (§2.2) with `configuration` option, `DOTNET_CONFIGURATION` env, bundler-mode signal, and mtime-based staleness warning. |
 | 13 | Multi-TFM project (`net8.0` + `net9.0`) ambiguous                | Require `targetFramework`; fail loudly with the enumerated candidate list, like `dotnet run` does.       |
-| 14 | RID-specific output (`browser-wasm/`, `linux-x64/`) silently picked | Require `runtimeIdentifier` when more than one RID directory is present.                              |
-| 15 | Generated IDE-parity files leaking into PRs                       | Default emission to `node_modules/.dotnet-vfs/`; never auto-patch user tsconfig; auto-gitignore when `vfsOutDir` is inside source. |
-| 16 | Stale `paths` from a previous Mode A run breaking a Mode B build  | On every run, delete the cache directory when mode is `consolidated`, when `emitTypeScriptPaths: false`, or when the source manifests disappear. |
-| 17 | `projectRoot` resolved against the monorepo root in a workspace setup | Default `projectRoot` to the consuming workspace (Vite `config.root` / Webpack `context`); document the sibling-package recipe (§9.3). |
-| 18 | Extensionless import where both `.ts` and `.d.ts` exist for the same name | `.ts` wins; emitted `paths` orders the implementation first; one-shot `debug` warning per shadowed pair. |
+| 14 | Generated IDE-parity files leaking into PRs                       | Default emission to `node_modules/.dotnet-vfs/`; never auto-patch user tsconfig; auto-gitignore when `vfsOutDir` is inside source. |
+| 15 | Stale `paths` from a previous Mode A run breaking a Mode B build  | On every run, delete the cache directory when mode is `consolidated`, when `emitTypeScriptPaths: false`, or when the source manifests disappear. |
+| 16 | `projectRoot` resolved against the monorepo root in a workspace setup | Default `projectRoot` to the consuming workspace (Vite `config.root` / Webpack `context`); document the sibling-package recipe (§9.3). |
+| 17 | Extensionless import where both `.ts` and `.d.ts` exist for the same name | `.ts` wins; emitted `paths` orders the implementation first; one-shot `debug` warning per shadowed pair. |
 
 ## 11. Test Strategy
 
@@ -698,7 +689,7 @@ export default {
 - **Resolution suite** — extensionless imports resolve via `resolveExtensions`; `import './some-dir'` resolves to `some-dir/index.ts` when present; custom `resolveExtensions` order is respected; bare specifiers we don't own are passed through to the host resolver untouched.
 - **`.ts` / `.d.ts` shadowing** — fixture with both `foo.ts` and `foo.d.ts` at the same virtual path. Assert the bundler loads `foo.ts`, the emitted `tsconfig` `paths` list it first, the language-service "Go to Definition" lands in `foo.ts`, and a `debug`-level shadowing warning is emitted exactly once.
 - **Workspaces fixture** — monorepo with `web/` (the consuming workspace) and `dotnet-lib/` (sibling with `bin/Debug/net8.0/wwwroot/{runtime,endpoints}.json`). Assert the plugin loads when invoked from `web/`, writes only `web/node_modules/.dotnet-vfs/`, leaves the monorepo root untouched, and that bare-specifier imports of `@me/dotnet-lib` are *not* intercepted (npm's workspace symlink does the resolution).
-- **Discovery state machine** — fixtures with `bin/Debug/net8.0/` only, `bin/Release/net8.0/` only, both (newer Release), multi-TFM (`net8.0` + `net9.0`), and RID-specific (`browser-wasm/`). Assert correct selection, correct hard-failure messages, and that the staleness warning fires when an older configuration is forced.
+- **Discovery state machine** — fixtures with `bin/Debug/net8.0/` only, `bin/Release/net8.0/` only, both (newer Release), and multi-TFM (`net8.0` + `net9.0`). Assert correct selection, correct hard-failure messages, and that the staleness warning fires when an older configuration is forced.
 - **Performance** — 10 000-lookup budget of 50 ms, tracked in CI.
 
 ## 12. Compatibility Matrix
