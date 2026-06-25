@@ -132,15 +132,19 @@ Virtual siblings routinely originate from **different physical roots**:
 
 ### 3.2 Resolution algorithm (Mode A)
 
-Given a request `(source, importer)`:
-1. Normalise `source` to a virtual path. If `importer` is itself virtual, join against the importer's **virtual** directory — not its physical location.
-2. Walk `Root.Children` segment-by-segment using the literal path.
-3. If the literal walk lands on a node without an `Asset`, or no node is found, **probe extensions** in the configured `resolveExtensions` order (default: `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.json`), then try `${source}/index.<ext>`.
-4. If the matched node has an `Asset` → return `join(ContentRoots[Asset.ContentRootIndex], Asset.SubPath)`.
-5. Else if any ancestor `Patterns` entry matches the remaining path → expand against that pattern's content root (with the same extension/index probing).
-6. Else delegate to the host bundler's default resolver — we never claim ids we don't recognise, so consuming-project imports and node module resolution are untouched.
+The VFS describes **only what the manifest declares to be virtual**. Everything else — unlisted files, source-tree files, `node_modules`, the consuming project — is the host bundler's problem and is reached through its native resolver.
 
-**`.ts` shadows `.d.ts`.** If steps 3–5 yield both a `.ts`/`.tsx` *and* a sibling `.d.ts` for the same bare specifier, the implementation file wins for the bundler **and** the language service (the emitted `paths` entry lists it first). A `debug`-level warning is logged once per shadowed pair. The lone `.d.ts + .js` pair seen with framework files (`_framework/dotnet.d.ts` + `_framework/dotnet.js`) is the happy path and is left alone.
+Given a request `source` (the importer is *not* consulted; see the rationale below):
+
+1. **Normalise.** Strip a leading `./` and any leading `/`; convert to POSIX; lowercase for the lookup key.
+2. **Flat map lookup.** Probe the precomputed `Map<virtualPath, ResolvedAsset>` built from every explicit `Asset` node in the manifest tree.
+3. **Extension / index probing (bare specifiers only).** If `source` has no file extension, retry the lookup against the same map with each `resolveExtensions` suffix appended (default: `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.json`), then against `${source}/index.<ext>`.
+4. **Pattern fallthrough.** For each `Patterns` entry whose virtual prefix matches `source`, `statSync` the candidate physical path `join(ContentRoots[i], source)` once. Bare specifiers retry per probe extension and per `index.<ext>` suffix. **Successful hits are cached back into the map** so subsequent calls are O(1); negative results are not cached so a file dropped between rebuilds is picked up the next call. **There is never a directory scan** — only targeted single-file stats.
+5. **Miss → hand back to the bundler.** Return `undefined`. The bundler's native resolver then walks relative to the importer's physical directory, which is the right behaviour for everything that isn't a static-web-asset (consuming-project imports, `node_modules`, sibling build-output files imported from within the same build-output directory).
+
+**Why the importer is not consulted.** When `import './_framework/dotnet.js'` runs from `wwwroot/main.ts`, the plugin's only contribution is *"is `_framework/dotnet.js` a virtual path in the manifest?"* — the answer is yes, and it returns the absolute path the manifest points at. From that point on, `dotnet.js` (now a real file on disk) does its own `import './dotnet.native.wasm'` and the bundler resolves it natively against `dotnet.js`'s physical directory. The plugin only re-engages when another virtual lookup is asked for. This keeps the plugin a pure overlay and avoids fighting the bundler for ownership of relative-path semantics.
+
+**`.ts` shadows `.d.ts`.** If steps 2–3 yield both a `.ts`/`.tsx` *and* a sibling `.d.ts` for the same bare specifier, the implementation file wins for the bundler **and** the language service (the emitted `paths` entry lists it first). A `debug`-level warning is logged once per shadowed pair. The lone `.d.ts + .js` pair seen with framework files (`_framework/dotnet.d.ts` + `_framework/dotnet.js`) is the happy path and is left alone.
 
 Casing: **case-insensitive lookup, case-preserving emit**. Defuses Windows ↔ Linux drift without breaking strict-case servers.
 
@@ -373,7 +377,7 @@ Tasks:
 **Goal:** Single `unplugin` factory consumed by every bundler, dispatching on mode.
 
 Tasks:
-1. `resolveId(source, importer)` — virtual-relative resolution in Mode A; plain directory lookup in Mode B.
+1. `resolveId(source, _importer)` — importer-blind manifest lookup in Mode A (see §3.2); plain directory lookup in Mode B. Returns `null` on miss so the host bundler's native resolver handles non-virtual paths.
 2. `load(id)` — stream raw bytes for binaries; pass text through to the bundler pipeline.
 3. `addWatchFile(absPath)` for every resolved asset (Mode A across all roots; Mode B under `publishDir`).
 4. Multi-target build via `tsup` (ESM + CJS) for each subpath export.

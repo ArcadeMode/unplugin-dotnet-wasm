@@ -70,22 +70,24 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
   {
     contentRoots: string[];               // POSIX, trailing slash
     lookup: Map<string, ResolvedAsset>;   // O(1) virtual → physical
+    shadowedPairs: Set<string>;           // .ts / .d.ts pairs for one-shot debug log
     list(virtualDir: string): string[];   // for dir listings later
     resolve(virtualPath: string): ResolvedAsset | undefined;
   }
   ```
+- **The VFS contains only what the manifest declares to be virtual.** Every explicit `Asset` node is ingested into `lookup` at construction time. Files that exist on disk but are not enumerated and do not fall under a matching `Patterns` entry are *not* part of the VFS — callers treat a `resolve()` miss as a signal to delegate to the host bundler's native resolver.
 - POSIX normalisation internally, case-insensitive lookup key (lowercase), case-preserving `physicalPath`.
 - Extension probe order **hard-coded for M1**: `['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json']`. `index.<ext>` lookup uses the same list. (Configurable in M3.)
-- `.ts` shadows `.d.ts` rule (one-shot debug log per pair).
-- Pattern fall-through: when literal walk + extension probe miss, evaluate each `Pattern` against the remaining path; if matched, return `join(ContentRoots[i], remainder)` if that file exists on disk.
+- `.ts` shadows `.d.ts` rule (one-shot debug log per pair, deferred to M1.5; M1.4 only populates `shadowedPairs`).
+- Pattern fallthrough: when the map lookup + probes miss, evaluate each `Patterns` entry against the remaining virtual path; for each match, do **one `statSync`** against `join(ContentRoots[i], candidate)` (literal + per probe extension + `index.<ext>`). Hits are cached back into `lookup`. **No directory enumeration anywhere** — the plugin never lists a directory; it only reads files the manifest names or the patterns point at.
 
 **Done when:** tests prove:
 - `resolve('_framework/dotnet.js')` → root 1 absolute path.
 - `resolve('_framework/dotnet.d.ts')` → root 0 absolute path.
 - `resolve('wasm-bootstrap')` (extensionless) → `wwwroot/wasm-bootstrap.ts`.
-- `resolve('typeshim')` → `bin/Debug/net10.0/wwwroot/typeshim.ts` (file only exists in the bin root).
-- `resolve('main')` → `wwwroot/main.ts` (when both roots have it, source root wins because root 0 is listed first in `ContentRoots`).
-- An unlisted user file dropped under `wwwroot/foo.txt` resolves via the fall-through `Patterns` entry.
+- `resolve('typeshim')` → `undefined` (the file exists at `bin/Debug/net10.0/wwwroot/typeshim.ts` but is unenumerated and the `**` pattern only points at root 0; the bundler will resolve it natively when an importer in the same build-output directory references it).
+- `resolve('main')` → `wwwroot/main.ts` (root 0, as declared in the manifest).
+- An unlisted user file dropped under `wwwroot/foo.txt` resolves via the fall-through `Patterns` entry (single stat against root 0).
 
 ### M1.5 — Vite unplugin shell
 
@@ -93,10 +95,10 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 - Use `unplugin@^2` to wrap a single factory; only the Vite adapter is exported in M1.
 - Hooks:
   - `buildStart`: run discovery + VFS construction; throw if it fails.
-  - `resolveId(source, importer)`:
-    1. If `importer` is a VFS-owned absolute path, virtualise it (find its content root, derive its virtual path, treat the request as virtual-relative). Otherwise treat `source` as a workspace-relative request only when it begins with `./Library/wwwroot/` (or the configured `projectRoot`).
-    2. Walk the VFS; on hit, return the absolute physical path.
-    3. On miss, return `null` so the host resolver carries on.
+  - `resolveId(source, _importer)`:
+    1. Treat `source` as a virtual path verbatim (strip a leading `./` or `/`, POSIX-normalise). The importer is intentionally not consulted — the VFS is an importer-blind overlay; relative-path semantics belong to the host bundler.
+    2. Call `vfs.resolve(source)`; on hit, return the absolute physical path.
+    3. On miss, return `null` so the host resolver carries on. The bundler will resolve relative imports against the importer's physical directory; that is the correct behaviour for non-virtual files, sibling build-output files, and consuming-project imports alike.
   - `load(id)`: only handles binary extensions (`.wasm`, `.dat`, `.pdb`). For those, read bytes and return via Vite's standard asset API (`this.emitFile({ type: 'asset' })` then `export default __VITE_ASSET__<hash>`). Text files (`.ts`, `.tsx`, `.js`, `.json`) flow through unchanged so Vite's own transformers handle them.
 - Options exposed in M1 (all forwarded to `discoverRuntimeManifest`; defaults documented in M1.3):
   - `projectRoot: string` — required for now; we don't auto-walk above the consumer yet.
