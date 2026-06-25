@@ -1,0 +1,19 @@
+{
+  "name": "dotnet-wasm-bundler-root",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

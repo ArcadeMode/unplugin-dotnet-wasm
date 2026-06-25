@@ -1,2 +1,17 @@
+## .NET build outputs
 **/bin/**
 **/obj/**
+
+## Node
+node_modules/
+.pnpm-debug.log*
+
+## Build outputs
+dist/
+coverage/
+
+## Plugin IDE-parity cache
+node_modules/.dotnet-vfs/
+
+## Vite
+*.local
