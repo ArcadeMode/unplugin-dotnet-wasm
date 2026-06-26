@@ -156,11 +156,11 @@ A small vitest spec that drives `vite build` programmatically and asserts the bu
 
 - File: `test/integration/m1-vite-build.test.ts`.
 - Programmatically invoke `vite build` (via `vite`'s Node API) against `test/fixtures/library-build`; assert:
-  - exit 0, no warnings about unresolved ids;
-  - `dist/_framework/dotnet.native.wasm` exists and its byte length matches the source;
-  - the emitted main chunk contains a reference to a `_framework/*.wasm` URL;
-  - at least 20 distinct `.wasm` assets land in `dist/_framework/`;
-  - `_framework/Library.wasm` is present (proves user-assembly emission, not just runtime).
+  - no "Could not resolve" warnings from the build logger;
+  - `dist/assets/dotnet.native-*.wasm` exists and its byte length matches the source at `bin/Debug/net10.0/wwwroot/_framework/dotnet.native.wasm`;
+  - at least 20 distinct `.wasm` assets land in `dist/assets/` (Vite emits all binary assets to `assets/` with a content-hash suffix via `basename + emitFile`);
+  - `dist/assets/Library-*.wasm` is present (proves user-assembly emission, not just runtime);
+  - the entry chunk at `dist/assets/entry-*.js` contains at least one `*.wasm` reference (proves the `ROLLUP_FILE_URL_*` placeholder was resolved and inlined).
 
 #### M1.6.c — Playwright interop suite
 
