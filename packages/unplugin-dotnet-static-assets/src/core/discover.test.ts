@@ -8,7 +8,7 @@ import { discoverRuntimeManifest, DiscoveryError } from './discover.js';
 // Real fixture
 // ---------------------------------------------------------------------------
 
-const LIBRARY_ROOT = resolve(__dirname, '../../../../Library');
+const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
 const EXPECTED_MANIFEST = resolve(
   LIBRARY_ROOT,
   'bin/Debug/net10.0/Library.staticwebassets.runtime.json',

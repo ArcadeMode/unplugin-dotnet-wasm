@@ -9,7 +9,7 @@ import { buildVfs, type VirtualFileSystem } from './vfs.js';
 // Real fixture paths
 // ---------------------------------------------------------------------------
 
-const LIBRARY_ROOT = resolve(__dirname, '../../../../Library');
+const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
 const MANIFEST_PATH = resolve(
   LIBRARY_ROOT,
   'bin/Debug/net10.0/Library.staticwebassets.runtime.json',

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 export default defineConfig({
   plugins: [
     DotnetAssets({
-      projectRoot: resolve(__dirname, '../../../Library'),
+      projectRoot: resolve(__dirname, '../Library'),
       configuration: 'Debug',
       targetFramework: 'net10.0',
       logLevel: 'info',

@@ -9,7 +9,7 @@ import {
 // Path to the real build output — the fixture we're grounding everything in.
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../../Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json',
+  '../../../../test/fixtures/Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json',
 );
 
 describe('parseRuntimeManifest', () => {

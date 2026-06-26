@@ -123,24 +123,75 @@ initializeWasmRuntime();
 ```
 …builds without errors. `./_framework/dotnet` and `./typeshim` are importer-blind virtual specifiers: the plugin strips the leading `./`, and the VFS resolves them to `bin/Debug/net10.0/wwwroot/_framework/dotnet.js` (root 2) and `obj/Debug/net10.0/TypeShim/staticwebassets/wwwroot/typeshim.ts` (root 1) respectively — even though neither directory exists next to `entry.ts`.
 
-### M1.6 — E2E integration test
+### M1.6 — Playwright E2E with real WASM interop
+
+M1.6 proves the end-to-end M1 outcome: a `dotnet`-built WASM project bundled by Vite via this plugin actually boots in a real browser and `[TSExport]` classes are callable from JS. It builds on M1.5 by adding (a) a minimal, test-shaped Library, (b) build-time smoke assertions on the bundle, and (c) Playwright-driven interop tests against the built bundle.
+
+**Why static-serve + Playwright (and not vitest browser mode):**
+- The M1.5 plugin only implements the **build-time** Rollup pipeline: `this.emitFile()` + `import.meta.ROLLUP_FILE_URL_*`. That placeholder is rewritten at chunk-emit time and does not exist in Vite's dev pipeline. Vitest browser mode and Vite dev server route imports through the dev pipeline, so they would receive the literal placeholder and fail.
+- Wiring the plugin into the dev pipeline (`configureServer`, dev-mode `load`, dev `_framework/*` URL handling) is a milestone of its own and is out of scope here. M1 stays "build-only".
+- Building the fixture once with `vite build`, then serving `dist/` over plain HTTP and pointing Playwright at it, exercises the actual M1 deliverable without expanding plugin scope.
+
+#### M1.6.a — Restructure: move the .NET fixture under `test/`
+
+Mirrors the `TypeShim.E2E.Wasm` + `TypeShim.E2E.vitest` sibling pattern.
+
+- Move `Library/` → `test/fixtures/library/` (csproj, `wwwroot/`, `Properties/`, source files).
+- Replace the current Library contents (`PeopleApiClient.cs`, `PeopleProvider.cs`, `PeopleApp.cs`, `RandomEntityGenerator.cs`, `Models.cs`, `Dtos.cs`, `Program.cs`) with a minimal `[TSExport]` surface designed for tests:
+  - `Echo` — sync methods (`Greet(string) → string`, `Add(int, int) → int`, `BoolNot(bool) → bool`, `Pi() → double`).
+  - `Counter` — `ctor(int initial)`, `Increment() → void`, `Value { get; }` — covers constructor + mutable state.
+  - `AsyncOps` — `DelayThenEcho(string, int delayMs) → Task<string>` — covers Task marshalling.
+  - `Throws` — `Boom() → void` (throws) — covers exception marshalling.
+  - Trim `Program.cs` to a no-op entry point.
+- Update every workspace reference to the old path:
+  - `test/fixtures/library-build/vite.config.ts` → `projectRoot: '../library'`.
+  - `LIBRARY_ROOT` constants in `packages/unplugin-dotnet-static-assets/src/core/vfs.test.ts`, `manifest-runtime.test.ts`, `discover.test.ts`, `unplugin/index.test.ts`.
+  - `Directory.Build.props` / `Directory.Packages.props` if they reference the path.
+  - `plan.md` examples and the M1.5 snippet's quoted paths.
+- Regenerate the manifest (`dotnet build test/fixtures/library`) and re-baseline the manifest-snapshot fixture committed under the plugin's tests.
+
+#### M1.6.b — Bundle build-time smoke assertions
+
+A small vitest spec that drives `vite build` programmatically and asserts the bundle is shaped correctly. This is the cheap, no-browser-needed safety net that catches breakage before paying Playwright's startup cost.
 
 - File: `test/integration/m1-vite-build.test.ts`.
-- Programmatically invoke `vite build` (via `vite`'s Node API) against the fixture; assert:
+- Programmatically invoke `vite build` (via `vite`'s Node API) against `test/fixtures/library-build`; assert:
   - exit 0, no warnings about unresolved ids;
   - `dist/_framework/dotnet.native.wasm` exists and its byte length matches the source;
   - the emitted main chunk contains a reference to a `_framework/*.wasm` URL;
   - at least 20 distinct `.wasm` assets land in `dist/_framework/`;
   - `_framework/Library.wasm` is present (proves user-assembly emission, not just runtime).
-- Headless-browser boot test is **out of scope for M1** — adding Playwright is heavy and we want to keep M1 focused on bundling correctness.
 
-**Done when:** the integration test is green in CI on Windows and Linux runners (case-sensitivity smoke).
+#### M1.6.c — Playwright interop suite
+
+- New consumer fixture or extension of `test/fixtures/library-build`:
+  - `wwwroot/test-entry.ts` — same `dotnet.create()` + `TypeShimInitializer.initialize()` + `runMain()` sequence as M1.5's `entry.ts`, then assigns the typeshim-generated exports onto `window.__lib` and sets `window.__libReady = true`.
+  - `index.html` — already exists; ensure it loads `test-entry.ts` (or add a second `test.html` if we want `entry.ts` and `test-entry.ts` to coexist).
+- New folder: `test/integration/browser/`:
+  - `playwright.config.ts` — Chromium only, headless by default (headed locally via env), `baseURL` from `process.env.BUNDLE_URL`, `webServer` block that runs `pnpm --filter @repo/library-build-fixture build` and then a tiny static server (e.g. `sirv-cli` or `serve-handler`) on `dist/`.
+  - `m1-interop.spec.ts` — Playwright `test()` cases that:
+    - `await page.goto('/')`;
+    - `await page.waitForFunction(() => (window as any).__libReady === true, { timeout: 15_000 })`;
+    - assert via `page.evaluate(...)`:
+      - `Echo.Greet('world')` returns `'Hello, world'`;
+      - `Echo.Add(2, 3) === 5`;
+      - `new Counter(10)` after two `Increment()` calls reports `Value === 12`;
+      - `AsyncOps.DelayThenEcho('hi', 10)` resolves to `'hi'`;
+      - (if included) `Throws.Boom()` rejects/throws with a message that survives marshalling.
+- Dev dependencies (added to `test/integration/package.json`):
+  - `@playwright/test`, `playwright`, `sirv-cli` (or `serve-handler` + `http`).
+- New scripts:
+  - root: `pnpm test:e2e` → runs the build smoke spec + the Playwright spec.
+  - `test/integration`: `test:e2e` (vitest + playwright orchestrator), `e2e:install` → `npx playwright install chromium --with-deps`.
+
+**Done when:**
+- `pnpm --filter @repo/integration test:e2e` builds the fixture, serves it, launches headless Chromium, and runs all interop specs green on Windows and Linux CI runners.
+- The Playwright suite catches a regression if the plugin emits a broken `_framework/*.wasm` URL, fails to wire up `typeshim.ts`, or doesn't ship the runtime manifest assets.
 
 ### M1 acceptance summary
 
-- One bundler (Vite), one mode (Manifest), one fixture (`Library/`), zero dev-server.
-- A reviewer can clone the repo, run `pnpm install && pnpm test`, and see a real `dotnet`-built WASM project compile through Vite.
-- ~1 200 LOC of plugin code + tests.
+- One bundler (Vite), one mode (Manifest), one fixture (under `test/fixtures/library/`), no dev-server integration.
+- A reviewer can clone the repo, run `pnpm install && pnpm test` (and `pnpm test:e2e` once Playwright is installed locally), and see a real `dotnet`-built WASM project compile through Vite **and** boot in a real headless browser with `[TSExport]` calls round-tripping into .NET and back.
 
 ---
 

@@ -38,7 +38,7 @@ function callLoad(
 // Fixture paths
 // ---------------------------------------------------------------------------
 
-const LIBRARY_ROOT = resolve(__dirname, '../../../../Library');
+const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
 const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');
 const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 
