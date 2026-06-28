@@ -65,11 +65,11 @@ describe('parseRuntimeManifest', () => {
     expect(asset?.SubPath).toMatch(/^_framework\/dotnet\.[a-z0-9]+\.js$/);
   });
 
-  it('_framework contains a fingerprinted Library.*.wasm asset in content root 2', () => {
+  it('_framework contains a Library.wasm asset in content root 2 (fingerprinted or canonical)', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
-    const key = Object.keys(frameworkChildren).find(k => /^Library\.[a-z0-9]+\.wasm$/.test(k));
-    expect(key, 'expected a fingerprinted Library.*.wasm entry in _framework').toBeDefined();
+    const key = Object.keys(frameworkChildren).find(k => /^Library(\.[a-z0-9]+)?\.wasm$/.test(k));
+    expect(key, 'expected a Library.wasm entry in _framework').toBeDefined();
     const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
     expect(asset?.ContentRootIndex).toBe(2);

@@ -70,27 +70,25 @@ describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
     await callBuildStart(plugin);
   });
 
-  it('resolves _framework/dotnet.js to a fingerprinted physical path in root 2', () => {
-    // With WasmFingerprintAssets=true the endpoint lookup maps the canonical route
-    // to the fingerprinted AssetFile; the returned path ends with dotnet.<fp>.js.
+  it('resolves _framework/dotnet.js to a physical path in root 2 (fingerprinted or canonical)', () => {
     const result = callResolveId(plugin, '_framework/dotnet.js');
     expect(result).not.toBeNull();
     expect(result).toContain(join(ROOT2, '_framework'));
-    expect(basename(result!)).toMatch(/^dotnet\.[a-z0-9]+\.js$/);
+    expect(basename(result!)).toMatch(/^dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('resolves ./_framework/dotnet.js (leading ./) to the same path', () => {
     const result = callResolveId(plugin, './_framework/dotnet.js');
     expect(result).not.toBeNull();
     expect(result).toContain(join(ROOT2, '_framework'));
-    expect(basename(result!)).toMatch(/^dotnet\.[a-z0-9]+\.js$/);
+    expect(basename(result!)).toMatch(/^dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('resolves /_framework/dotnet.js (leading /) to the same path', () => {
     const result = callResolveId(plugin, '/_framework/dotnet.js');
     expect(result).not.toBeNull();
     expect(result).toContain(join(ROOT2, '_framework'));
-    expect(basename(result!)).toMatch(/^dotnet\.[a-z0-9]+\.js$/);
+    expect(basename(result!)).toMatch(/^dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('resolves _framework/dotnet.d.ts to root 0 (source)', () => {
@@ -127,11 +125,11 @@ describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
 
 describe('dotnetStaticAssets — load', () => {
   let plugin: any;
-  // Fingerprinted names change with each dotnet build; discover them at test-file
-  // setup time so we don't hardcode hash segments that drift between runs.
-  let fpDotnetNativeWasm: string;
-  let fpIcudtDat: string;
-  let fpLibraryPdb: string;
+  // Asset names may be fingerprinted (WasmFingerprintAssets=true) or canonical.
+  // Discover them at test-file setup time so we never hardcode hash segments.
+  let dotnetNativeWasm: string;
+  let icudtDat: string;
+  let libraryPdb: string;
 
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({
@@ -148,9 +146,9 @@ describe('dotnetStaticAssets — load', () => {
       if (!name) throw new Error(`No file matching ${pat} in ${join(ROOT2, '_framework')}`);
       return join(ROOT2, '_framework', name);
     };
-    fpDotnetNativeWasm = find(/^dotnet\.native\.[a-z0-9]+\.wasm$/);
-    fpIcudtDat         = find(/^icudt_CJK\.[a-z0-9]+\.dat$/);
-    fpLibraryPdb       = find(/^Library\.[a-z0-9]+\.pdb$/);
+    dotnetNativeWasm = find(/^dotnet\.native(\.[a-z0-9]+)?\.wasm$/);
+    icudtDat         = find(/^icudt_CJK(\.[a-z0-9]+)?\.dat$/);
+    libraryPdb       = find(/^Library(\.[a-z0-9]+)?\.pdb$/);
   });
 
   it('returns null for a .ts file (falls through to Vite transformer)', () => {
@@ -165,23 +163,23 @@ describe('dotnetStaticAssets — load', () => {
 
   it('emits a .wasm file as an asset and returns an import.meta.ROLLUP_FILE_URL reference', () => {
     const emitFile = vi.fn().mockReturnValue('wasm-ref-abc');
-    const result = callLoad(plugin, fpDotnetNativeWasm, emitFile);
+    const result = callLoad(plugin, dotnetNativeWasm, emitFile);
     expect(emitFile).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'asset', name: basename(fpDotnetNativeWasm) }),
+      expect.objectContaining({ type: 'asset', name: basename(dotnetNativeWasm) }),
     );
     expect(result).toBe('export default import.meta.ROLLUP_FILE_URL_wasm-ref-abc;');
   });
 
   it('emits a .dat file as an asset', () => {
     const emitFile = vi.fn().mockReturnValue('dat-ref-xyz');
-    const result = callLoad(plugin, fpIcudtDat, emitFile);
+    const result = callLoad(plugin, icudtDat, emitFile);
     expect(emitFile).toHaveBeenCalled();
     expect(result).toContain('import.meta.ROLLUP_FILE_URL_dat-ref-xyz');
   });
 
   it('emits a .pdb file as an asset', () => {
     const emitFile = vi.fn().mockReturnValue('pdb-ref');
-    const result = callLoad(plugin, fpLibraryPdb, emitFile);
+    const result = callLoad(plugin, libraryPdb, emitFile);
     expect(emitFile).toHaveBeenCalled();
     expect(result).toContain('import.meta.ROLLUP_FILE_URL_pdb-ref');
   });

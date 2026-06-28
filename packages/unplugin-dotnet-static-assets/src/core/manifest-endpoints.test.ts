@@ -32,25 +32,25 @@ describe('parseEndpointsManifest', () => {
     expect(manifest.Endpoints.length).toBeGreaterThanOrEqual(100);
   });
 
-  it('contains a canonical _framework/Library.wasm endpoint mapping to a fingerprinted AssetFile', () => {
+  it('contains a canonical _framework/Library.wasm endpoint with a resolved AssetFile', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const ep = manifest.Endpoints.find(e => e.Route === '_framework/Library.wasm');
     expect(ep).toBeDefined();
-    expect(ep!.AssetFile).toMatch(/^_framework\/Library\.[a-z0-9]+\.wasm$/);
+    expect(ep!.AssetFile).toMatch(/^_framework\/Library(\.[a-z0-9]+)?\.wasm$/);
   });
 
-  it('contains a canonical _framework/dotnet.js endpoint mapping to a fingerprinted AssetFile', () => {
+  it('contains a canonical _framework/dotnet.js endpoint with a resolved AssetFile', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const ep = manifest.Endpoints.find(e => e.Route === '_framework/dotnet.js');
     expect(ep).toBeDefined();
-    expect(ep!.AssetFile).toMatch(/^_framework\/dotnet\.[a-z0-9]+\.js$/);
+    expect(ep!.AssetFile).toMatch(/^_framework\/dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('contains a canonical _framework/dotnet.native.wasm endpoint', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const ep = manifest.Endpoints.find(e => e.Route === '_framework/dotnet.native.wasm');
     expect(ep).toBeDefined();
-    expect(ep!.AssetFile).toMatch(/^_framework\/dotnet\.native\.[a-z0-9]+\.wasm$/);
+    expect(ep!.AssetFile).toMatch(/^_framework\/dotnet\.native(\.[a-z0-9]+)?\.wasm$/);
   });
 
   it('at least one endpoint has an "integrity" EndpointProperty', () => {

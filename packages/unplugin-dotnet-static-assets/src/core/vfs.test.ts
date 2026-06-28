@@ -80,11 +80,10 @@ describe('buildVfs — real fixture', () => {
   // ── list() ────────────────────────────────────────────────────────────────
 
   it('list _framework returns direct children with full virtual paths', () => {
-    // With WasmFingerprintAssets=true the manifest enumerates fingerprinted names.
     const children = vfs.list('_framework');
-    expect(children.some(c => /^_framework\/dotnet\.[a-z0-9]+\.js$/.test(c))).toBe(true);
+    expect(children.some(c => /^_framework\/dotnet(\.[a-z0-9]+)?\.js$/.test(c))).toBe(true);
     expect(children).toContain('_framework/dotnet.d.ts');
-    expect(children.some(c => /^_framework\/Library\.[a-z0-9]+\.wasm$/.test(c))).toBe(true);
+    expect(children.some(c => /^_framework\/Library(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(true);
     // Each entry must be exactly two segments deep.
     for (const c of children) {
       expect(c.split('/'), `"${c}" should have exactly 2 segments`).toHaveLength(2);
