@@ -1,8 +1,8 @@
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { discoverRuntimeManifest, DiscoveryError } from './discover.js';
+import { discoverRuntimeManifest, discoverEndpointsManifest, DiscoveryError } from './discover.js';
 
 // ---------------------------------------------------------------------------
 // Real fixture
@@ -153,5 +153,30 @@ describe('discoverRuntimeManifest — manifestPath bypass errors', () => {
         manifestPath: '/nonexistent/path/Foo.staticwebassets.runtime.json',
       }),
     ).toThrowError(DiscoveryError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// discoverEndpointsManifest
+// ---------------------------------------------------------------------------
+
+describe('discoverEndpointsManifest — real fixture', () => {
+  it('returns the absolute path to the endpoints sibling when it exists', () => {
+    const runtimeResult = discoverRuntimeManifest({ projectRoot: LIBRARY_ROOT });
+    const endpointsPath = discoverEndpointsManifest(runtimeResult);
+    expect(endpointsPath).not.toBeNull();
+    expect(endpointsPath).toMatch(/Library\.staticwebassets\.endpoints\.json$/);
+    expect(existsSync(endpointsPath!)).toBe(true);
+  });
+});
+
+describe('discoverEndpointsManifest — synthetic: no endpoints file', () => {
+  it('returns null when only the runtime manifest exists', () => {
+    const root = join(tmpRoot, 'no-endpoints');
+    touchManifest(join(root, 'bin/Debug/net10.0/Proj.staticwebassets.runtime.json'));
+    // No .staticwebassets.endpoints.json sibling created.
+    const runtimeResult = discoverRuntimeManifest({ projectRoot: root, configuration: 'Debug' });
+    const endpointsPath = discoverEndpointsManifest(runtimeResult);
+    expect(endpointsPath).toBeNull();
   });
 });

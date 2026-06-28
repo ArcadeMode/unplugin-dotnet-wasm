@@ -188,10 +188,189 @@ A small vitest spec that drives `vite build` programmatically and asserts the bu
 - `pnpm --filter @repo/integration test:e2e` builds the fixture, serves it, launches headless Chromium, and runs all interop specs green on Windows and Linux CI runners.
 - The Playwright suite catches a regression if the plugin emits a broken `_framework/*.wasm` URL, fails to wire up `typeshim.ts`, or doesn't ship the runtime manifest assets.
 
+### M1.7 — Fingerprint-aware resolution via the endpoints manifest
+
+The M1.5 fixture forces `WasmFingerprintAssets=false` so the SDK-emitted `dotnet.js` imports canonical names (`./dotnet.native.wasm`) and the runtime-manifest VFS can resolve them directly. That is not the realistic .NET production layout: in real builds `WasmFingerprintAssets` defaults to true, the SDK-emitted runtime JS uses fingerprinted imports (`./dotnet.native.veuqw8a0w9.wasm`), and the on-disk physical filenames embed those fingerprints. M1.7 makes the plugin work for that layout by consulting the sibling **endpoints manifest** (`{ProjectName}.staticwebassets.endpoints.json`) **before** the VFS to translate canonical routes into their fingerprinted asset files.
+
+The same endpoint lookup will later drive dev-server static handling (response headers, integrity hashes, preload hints — already described in `plan.md` §4.2), so M1.7 establishes the parsing and lookup infrastructure that M3+ will reuse.
+
+#### Endpoints manifest schema (verified against the M1.6 fixture, 432 endpoints)
+
+```jsonc
+{
+  "Version": 1,                            // currently 1
+  "ManifestType": "Build",                 // "Build" | "Publish"
+  "Endpoints": [
+    {
+      "Route":      "_framework/Library.wasm",            // public-facing virtual path
+      "AssetFile":  "_framework/Library.9mhy6srgqs.wasm", // physical file, relative to a content root
+      "Selectors": [
+        // Empty in the M1.6 fixture (CompressionEnabled=false). With compression on, a sibling
+        // endpoint exists with the same Route + a {Name:"Content-Encoding", Value:"gzip", Quality:"…"}
+        // entry pointing at the .gz/.br variant.
+      ],
+      "ResponseHeaders": [
+        // Observed Name values: Cache-Control, Content-Length, Content-Type, ETag, Last-Modified.
+        { "Name": "Cache-Control",  "Value": "no-cache" },
+        { "Name": "Content-Length", "Value": "17173" },
+        { "Name": "Content-Type",   "Value": "application/wasm" },
+        { "Name": "ETag",           "Value": "\"…\"" },
+        { "Name": "Last-Modified",  "Value": "…" }
+      ],
+      "EndpointProperties": [
+        // Observed Name values: fingerprint, integrity, label,
+        // PreloadAs, PreloadCrossorigin, PreloadGroup, PreloadOrder, PreloadPriority, PreloadRel.
+        { "Name": "integrity",          "Value": "sha256-…" },
+        { "Name": "fingerprint",        "Value": "9mhy6srgqs" }, // present on fingerprinted-route rows
+        { "Name": "label",              "Value": "_framework/Library.wasm" } // canonical alias
+      ]
+    }
+  ]
+}
+```
+
+**Properties M1.7 actually consumes:** `Version`, `ManifestType`, `Endpoints[].Route`, `Endpoints[].AssetFile`, `Endpoints[].Selectors` (only to filter compressed variants), `EndpointProperties` entries whose `Name` is `integrity` (carried through, not enforced) or `fingerprint`/`label` (informational). All other headers and preload properties are parsed and preserved but not consumed until the dev-server milestone.
+
+**Lookup-map shape:**
+
+```ts
+interface EndpointMatch {
+  /** Asset path relative to a content root, POSIX, no leading slash. */
+  readonly assetFile: string;
+  /** Subresource integrity hash, carried through for future dev-server use. */
+  readonly integrity?: string;
+  /** Fingerprint segment when present in EndpointProperties. */
+  readonly fingerprint?: string;
+  /** "label" property when present (the canonical route name for a fingerprinted row). */
+  readonly label?: string;
+}
+
+type EndpointLookup = ReadonlyMap<string /* route, POSIX, no leading slash */, EndpointMatch>;
+```
+
+Compressed variants (any endpoint whose `Selectors` contain a `Content-Encoding` entry) are **filtered out** of the lookup; M1.7 wants the identity row only.
+
+#### M1.7.a — Build/test orchestration in root `package.json`
+
+Up to M1.6 we relied on muscle memory: `dotnet build`, then `pnpm --filter unplugin-dotnet-static-assets build`, then the fixture build, then tests, in a specific order. M1.7 makes the fingerprint setting a real parameter of the build — and the only honest way to validate "the plugin works for both fingerprint states" is to actually run the full chain twice with each setting. That needs scripted, parameterised orchestration in the root `package.json`.
+
+Add these root scripts (existing `build`, `typecheck`, `lint`, `clean` stay):
+
+```jsonc
+{
+  "scripts": {
+    "build:plugin":                "pnpm --filter unplugin-dotnet-static-assets build",
+    "build:library":               "dotnet build test/fixtures/Library/Library.csproj -c Debug",
+    "build:library:fingerprint":   "dotnet build test/fixtures/Library/Library.csproj -c Debug -p:WasmFingerprintAssets=true",
+    "build:library:nofingerprint": "dotnet build test/fixtures/Library/Library.csproj -c Debug -p:WasmFingerprintAssets=false",
+    "build:fixture":               "pnpm --filter @dotnet-wasm-bundler/library-build-fixture build",
+    "test:unit":                   "pnpm --filter unplugin-dotnet-static-assets test",
+    "test:integration":            "pnpm --filter @dotnet-wasm-bundler/integration-tests test",
+    "test:e2e":                    "pnpm --filter @dotnet-wasm-bundler/integration-tests test:e2e",
+
+    "test:fingerprint-enabled":    "pnpm build:plugin && pnpm build:library:fingerprint   && pnpm build:fixture && pnpm test:unit && pnpm test:integration && pnpm test:e2e",
+    "test:fingerprint-disabled":   "pnpm build:plugin && pnpm build:library:nofingerprint && pnpm build:fixture && pnpm test:unit && pnpm test:integration && pnpm test:e2e",
+
+    "test": "pnpm test:fingerprint-enabled && pnpm test:fingerprint-disabled"
+  }
+}
+```
+
+Design notes:
+
+- **csproj stays neutral.** `test/fixtures/Library/Library.csproj` does **not** pin `WasmFingerprintAssets`; the orchestrator's `-p:` argument is the sole source of truth. (The currently-commented-out `<WasmFingerprintAssets>false</WasmFingerprintAssets>` line gets removed entirely.)
+- **`&&` chaining is safe across OSes.** pnpm runs scripts through `cmd /d /s /c` on Windows and `/bin/sh` elsewhere; `&&` is supported in both, so we don't need `npm-run-all` or `cross-env`.
+- **Order matters.** The plugin's `dist/` must exist before the fixture's `vite build` resolves `unplugin-dotnet-static-assets/vite`; the .NET output must exist before the plugin's manifest discovery runs at vite-build time. The chain enforces both.
+- **Plugin unit tests run after the .NET build** so they read the fingerprinted manifests the orchestrated build just produced. This means the plugin's own test suite is now exercised twice (once per fingerprint state) — the catch for any regression that only shows up in one mode.
+- **The unparameterised `test` script chains both fingerprint states.** That is the script CI runs; manual development uses the targeted ones.
+
+Tests added separately in this sub-milestone:
+- A short README or block in `plan.md` §10 (or wherever the dev workflow is documented) reproducing the script table so a fresh contributor doesn't have to dig through `package.json`.
+- One sanity assertion in CI: each `test:fingerprint-*` script exits 0 in isolation — i.e. CI runs them as separate jobs rather than only the combined `test`, so a failure in either state is reported distinctly.
+
+**Done when:** running `pnpm test:fingerprint-disabled` from a clean checkout reproduces the M1.6 green state, and `pnpm test:fingerprint-enabled` (intentionally) fails — the latter failure is exactly what M1.7.b–g exist to fix.
+
+#### M1.7.b — Verify the fingerprinted-build failure mode
+
+Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fixture`:
+
+**Vite build error:** `Could not resolve "./_framework/dotnet" from "src/entry.ts"`. The error is at Rollup's module resolution stage — the plugin's `resolveId` hook returns `null` and no other resolver can supply the file.
+
+**Why:** The runtime manifest now **only enumerates fingerprinted names**. Under `WasmFingerprintAssets=true`, the `_framework` tree in the runtime manifest contains `dotnet.i5jyixs8xo.js`, `dotnet.native.veuqw8a0w9.wasm`, `Library.9mhy6srgqs.wasm`, etc. — the canonical names (`dotnet.js`, `dotnet.native.wasm`, `Library.wasm`) are entirely absent from the manifest tree. So the VFS flat map has no entry for `_framework/dotnet.js`, and the extension probe in `vfs.resolve('_framework/dotnet')` misses on every extension.
+
+**The FS fallback gap:** The endpoint manifest maps `_framework/dotnet.js` → `_framework/dotnet.i5jyixs8xo.js`, but the current plugin doesn't consult it.
+
+**Algorithm correction (vs. plan §3.2 as originally written):** The endpoint alias was originally planned as step 2 (applied to the exact normalised key, before the VFS). That covers imports that already carry an extension (e.g. `_framework/Library.wasm`). However, bare specifiers like `_framework/dotnet` need the alias applied *during* extension probing — after appending `.js`, the now-qualified `_framework/dotnet.js` matches an endpoint route. Step 4 of the algorithm (§3.2 in `plan.md`) has been updated accordingly.
+
+#### M1.7.c — Endpoints manifest parser
+
+- File: `packages/unplugin-dotnet-static-assets/src/core/manifest-endpoints.ts`.
+- Zod schema covering the full known shape above. Strict on top-level keys (`Version`, `ManifestType`, `Endpoints`); lenient on `EndpointProperty.Name`, `ResponseHeader.Name`, and `Selector` entries (any `{Name, Value, ...}` accepted with a permissive catch-all).
+- Public surface mirrors the runtime parser: `parseEndpointsManifest(raw: string | Buffer): EndpointsManifest`, plus a `ManifestParseError` re-export.
+- Tests in `manifest-endpoints.test.ts` against the real fixture:
+  - parses without throwing;
+  - has at least one endpoint with `Route === '_framework/Library.wasm'` and an `AssetFile` matching `/Library\.[a-z0-9]+\.wasm$/`;
+  - confirms presence of `integrity`, `fingerprint`, `label` EndpointProperty names across the fixture;
+  - rejects malformed input (missing `Endpoints`, wrong type) with `ManifestParseError`.
+
+#### M1.7.d — Endpoint lookup transform
+
+- File: `src/core/endpoint-lookup.ts`.
+- Function `buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup`.
+- Rules:
+  1. Strip leading `/` from `Route` and `AssetFile`, POSIX-normalise both.
+  2. Skip endpoints whose `Selectors` contain any entry with `Name === 'Content-Encoding'` (compressed variants).
+  3. For the surviving rows, build a `Map<route, EndpointMatch>`. If two surviving endpoints share the same `Route`, throw `EndpointLookupError` — the SDK should not emit that, and being loud now beats silent confusion later.
+- Tests covering: route normalisation, compressed-selector filtering, duplicate-route throw, presence/absence of `fingerprint`/`label`/`integrity` properties round-tripped through the lookup.
+
+#### M1.7.e — Discovery extension
+
+- `src/core/discover.ts`: add `discoverEndpointsManifest({projectRoot, configuration?, targetFramework?, manifestPath?})` returning `{ manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework } | null`. The file naming convention is `{ProjectName}.staticwebassets.endpoints.json`, sibling to the runtime manifest.
+- The result is **optional**: if the file is absent (older SDK / unusual layout) return `null`, do not throw. The runtime manifest remains required.
+- The `projectName` axis is already resolved by the runtime-manifest discovery; reuse it to keep both discoveries in lock-step (same configuration, same TFM, same project — no fan-out of independent unique-candidate searches).
+- Tests:
+  - real fixture finds the endpoints sibling;
+  - synthetic temp tree where only the runtime manifest exists → `discoverEndpointsManifest` returns `null` and the plugin still works (covered downstream in M1.7.e tests).
+
+#### M1.7.f — Wire into the unplugin
+
+- `src/unplugin/index.ts`:
+  - `buildStart`: after building the VFS, also call `discoverEndpointsManifest` + `parseEndpointsManifest` + `buildEndpointLookup` (skip silently if discovery returned `null`). Store the lookup on the same plugin state as `vfs`.
+  - `resolveId(source)`:
+    1. Strip leading `./` or `/`; POSIX-normalise → `virtualPath`. *(unchanged)*
+    2. **Endpoint alias (exact path):** if `endpoints.get(virtualPath)` returns a match, resolve `match.assetFile` through the VFS (or FS fallback). *(handles extension-qualified imports like `_framework/Library.wasm`)*
+    3. `vfs.resolve(virtualPath)` → physical path on hit for exact-path VFS entries.
+    4. **Bare specifier extension loop:** for each extension in `RESOLVE_EXTENSIONS` (`['.ts', '.tsx', '.js', ...]`), try `virtualPath + ext` against (a) the VFS flat map and (b) the endpoint lookup. On endpoint hit, resolve `assetFile` through VFS, then FS fallback. *(this is the load-bearing case: `_framework/dotnet` → probe `_framework/dotnet.js` → endpoint hit → `_framework/dotnet.i5jyixs8xo.js` → VFS hit)*
+    5. Pattern fallthrough (via `vfs.resolve`) for patterns not covered above.
+    6. Otherwise return `null`. *(unchanged)*
+  - `load(id)`: unchanged — keys off the absolute physical id's extension.
+- Tests in `unplugin/index.test.ts`:
+  - `./_framework/Library.wasm` resolves through the endpoint lookup to a `Library.<fp>.wasm` physical path.
+  - `./_framework/dotnet` (extension-less, importer-blind) still resolves via VFS ext-probing — the endpoint lookup misses on the bare specifier and that's fine.
+  - An endpoint route whose AssetFile lives outside the VFS-enumerated tree resolves via the FS fallback (synthetic case).
+
+#### M1.7.g — Test rebaselining
+- `unplugin/index.test.ts` — add the endpoint-lookup cases enumerated in M1.7.f.
+- `m1-vite-build.test.ts` — assertions stay structurally the same; the byte-length check now matches the fingerprinted source file (compute the expected name from the endpoint lookup or use a glob).
+- `m1-interop.spec.ts` — no change expected; verify in CI.
+
+#### M1.7.h — Plan / spec edits
+
+- `execution-plan.md` (this file): the M1.7 section above + an update to the M1 acceptance summary mentioning fingerprint-aware resolution.
+- `plan.md` §3.2 (Resolution algorithm) — splice an "endpoint alias" step before the flat-map lookup so the documented algorithm matches what the plugin does after M1.7.
+- `plan.md` §4.2 — note that the route↔asset-file alias is consumed by the resolver as of M1.7 (not only by the future dev middleware).
+
+**Done when:**
+
+- `test/fixtures/Library/Library.csproj` no longer pins `WasmFingerprintAssets` (the commented-out line is removed).
+- `pnpm test:fingerprint-disabled` AND `pnpm test:fingerprint-enabled` both go green — the same plugin source resolves both fixtures correctly.
+- A reviewer can grep the M1 entry imports (`./_framework/dotnet`, `./_framework/Library.wasm`, `./typeshim`) and confirm each one resolves to the actual fingerprinted file on disk under the fingerprint-enabled run, with no canonical-name physical file required.
+
 ### M1 acceptance summary
 
-- One bundler (Vite), one mode (Manifest), one fixture (under `test/fixtures/library/`), no dev-server integration.
-- A reviewer can clone the repo, run `pnpm install && pnpm test` (and `pnpm test:e2e` once Playwright is installed locally), and see a real `dotnet`-built WASM project compile through Vite **and** boot in a real headless browser with `[TSExport]` calls round-tripping into .NET and back.
+- One bundler (Vite), one mode (Manifest), one fixture (under `test/fixtures/Library/`), no dev-server integration.
+- Fingerprint-aware resolution via the endpoints manifest is implemented (M1.7): consumer imports use canonical names (`_framework/dotnet`, `_framework/Library.wasm`) while the plugin transparently resolves them to fingerprinted physical files on disk.
+- A reviewer can clone the repo, run `pnpm install && pnpm test` (and `pnpm test:e2e` once Playwright is installed locally), and see a real `dotnet`-built WASM project — with default fingerprinting on — compile through Vite **and** boot in a real headless browser with `[TSExport]` calls round-tripping into .NET and back.
 
 ---
 

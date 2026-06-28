@@ -180,6 +180,27 @@ function buildResult(
 }
 
 // ---------------------------------------------------------------------------
+// Endpoints manifest discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the absolute path of `{Project}.staticwebassets.endpoints.json` that
+ * sits alongside the runtime manifest returned by {@link discoverRuntimeManifest}.
+ *
+ * Returns `null` when the file does not exist — the endpoints manifest is
+ * **optional**.  Callers should treat `null` as "fingerprint-aware resolution
+ * not available; resolve from the VFS alone".  The runtime manifest remains
+ * required regardless.
+ */
+export function discoverEndpointsManifest(result: DiscoverResult): string | null {
+  const endpointsPath = result.manifestPath.replace(
+    /\.staticwebassets\.runtime\.json$/,
+    '.staticwebassets.endpoints.json',
+  );
+  return existsSync(endpointsPath) ? endpointsPath : null;
+}
+
+// ---------------------------------------------------------------------------
 // Error type
 // ---------------------------------------------------------------------------
 

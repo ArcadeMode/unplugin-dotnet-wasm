@@ -52,17 +52,25 @@ describe('parseRuntimeManifest', () => {
     expect(asset?.SubPath).toBe('_framework/dotnet.d.ts');
   });
 
-  it('_framework/dotnet.js is an asset in content root 2 (build output)', () => {
+  it('_framework contains a fingerprinted dotnet.*.js asset in content root 2 (build output)', () => {
+    // With WasmFingerprintAssets=true (SDK default) the manifest tree uses fingerprinted keys
+    // (e.g. "dotnet.i5jyixs8xo.js") — the canonical "dotnet.js" key is absent.
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const asset = manifest.Root.Children?.['_framework']?.Children?.['dotnet.js']?.Asset;
+    const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
+    const key = Object.keys(frameworkChildren).find(k => /^dotnet\.[a-z0-9]+\.js$/.test(k));
+    expect(key, 'expected a fingerprinted dotnet.*.js entry in _framework').toBeDefined();
+    const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
     expect(asset?.ContentRootIndex).toBe(2);
-    expect(asset?.SubPath).toBe('_framework/dotnet.js');
+    expect(asset?.SubPath).toMatch(/^_framework\/dotnet\.[a-z0-9]+\.js$/);
   });
 
-  it('_framework/Library.wasm is an asset in content root 2', () => {
+  it('_framework contains a fingerprinted Library.*.wasm asset in content root 2', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const asset = manifest.Root.Children?.['_framework']?.Children?.['Library.wasm']?.Asset;
+    const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
+    const key = Object.keys(frameworkChildren).find(k => /^Library\.[a-z0-9]+\.wasm$/.test(k));
+    expect(key, 'expected a fingerprinted Library.*.wasm entry in _framework').toBeDefined();
+    const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
     expect(asset?.ContentRootIndex).toBe(2);
   });

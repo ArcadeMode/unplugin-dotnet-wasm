@@ -1,10 +1,12 @@
 import { createUnplugin } from 'unplugin';
-import { readFileSync } from 'node:fs';
-import { basename, sep } from 'node:path';
+import { readFileSync, statSync as fsStatSync } from 'node:fs';
+import { basename, join, sep } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
-import { discoverRuntimeManifest } from '../core/discover.js';
+import { discoverRuntimeManifest, discoverEndpointsManifest } from '../core/discover.js';
 import { parseRuntimeManifest } from '../core/manifest-runtime.js';
-import { buildVfs, type VirtualFileSystem } from '../core/vfs.js';
+import { parseEndpointsManifest } from '../core/manifest-endpoints.js';
+import { buildEndpointLookup, type EndpointLookup } from '../core/endpoint-lookup.js';
+import { buildVfs, type VirtualFileSystem, EXTENSION_PROBE_ORDER } from '../core/vfs.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -25,12 +27,45 @@ function stripLeadingSlashOrDot(p: string): string {
   return p.replace(/^\.\//u, '').replace(/^\//u, '');
 }
 
+/**
+ * Returns true when the last path segment contains a `.` after its first
+ * character (so `dotnet.js` → true, `wasm-bootstrap` → false,
+ * `.gitignore` → false).
+ */
+function hasExtension(posixPath: string): boolean {
+  const base = posixPath.split('/').pop() ?? '';
+  return base.lastIndexOf('.') > 0;
+}
+
+/**
+ * Walk `contentRoots` (POSIX with trailing slash) for `assetFile` (POSIX,
+ * no leading slash).  Returns the first hit's absolute OS-native path, or
+ * `null` when the file is absent from all roots.
+ *
+ * Used as the §3.2 step-6 "endpoint-aliased FS fallback" when the endpoints
+ * manifest maps a canonical route to a fingerprinted AssetFile that the
+ * runtime manifest did not enumerate explicitly.
+ */
+function statAcrossRoots(assetFile: string, contentRoots: readonly string[]): string | null {
+  for (const root of contentRoots) {
+    // contentRoots are POSIX with trailing slash; path.join normalises on the current OS.
+    const absPath = join(root, assetFile);
+    try {
+      if (!fsStatSync(absPath).isDirectory()) return absPath;
+    } catch {
+      // miss — try the next root
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Plugin factory
 // ---------------------------------------------------------------------------
 
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) => {
   let vfs: VirtualFileSystem | null = null;
+  let endpointLookup: EndpointLookup | null = null;
   const logLevel = options.logLevel ?? 'warn';
 
   return {
@@ -48,6 +83,14 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
       const manifest = parseRuntimeManifest(readFileSync(discovered.manifestPath));
       vfs = buildVfs(manifest);
 
+      // Load the endpoints manifest for fingerprint-aware resolution (§3.2 step 2 + 4b).
+      // Optional: absent on older SDK versions or unusual layouts; silently skipped.
+      const endpointsPath = discoverEndpointsManifest(discovered);
+      if (endpointsPath !== null) {
+        const endpointsManifest = parseEndpointsManifest(readFileSync(endpointsPath));
+        endpointLookup = buildEndpointLookup(endpointsManifest);
+      }
+
       // One-shot debug log per shadowed .ts / .d.ts pair.
       if (logLevel === 'debug' || logLevel === 'info') {
         for (const p of vfs.shadowedPairs) {
@@ -63,14 +106,44 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
     resolveId(source: string) {
       if (vfs === null) return null;
 
-      // The VFS is an importer-blind overlay: strip a leading './' or '/'
-      // and POSIX-normalise.  Relative-path semantics for non-virtual files
-      // are left to the host bundler's native resolver.
       const virtualPath = stripLeadingSlashOrDot(toPosix(source));
       if (virtualPath === '') return null;
 
+      // §3.2 Step 2: Endpoint route alias — exact-path case.
+      // Maps a canonical route (e.g. `_framework/dotnet.js`) to its fingerprinted
+      // AssetFile (e.g. `_framework/dotnet.i5jyixs8xo.js`) before hitting the VFS.
+      if (endpointLookup !== null) {
+        const alias = endpointLookup.get(virtualPath);
+        if (alias !== undefined) {
+          const aliasedAsset = vfs.resolve(alias.assetFile);
+          if (aliasedAsset !== undefined) return aliasedAsset.physicalPath;
+          // §3.2 Step 6: FS fallback — fingerprinted file absent from VFS explicit tree.
+          const fsHit = statAcrossRoots(alias.assetFile, vfs.contentRoots);
+          if (fsHit !== null) return fsHit;
+        }
+      }
+
+      // §3.2 Step 3: VFS flat-map lookup (exact match, ext probing, patterns).
       const asset = vfs.resolve(virtualPath);
-      return asset !== undefined ? asset.physicalPath : null;
+      if (asset !== undefined) return asset.physicalPath;
+
+      // §3.2 Step 4b: For bare specifiers, probe the endpoint map with each candidate extension.
+      // Load-bearing for imports like `_framework/dotnet` (no extension):
+      //   probe `.js` → endpoint hit → assetFile `_framework/dotnet.XXXX.js` → VFS hit.
+      if (!hasExtension(virtualPath) && endpointLookup !== null) {
+        for (const ext of EXTENSION_PROBE_ORDER) {
+          const alias = endpointLookup.get(`${virtualPath}${ext}`);
+          if (alias !== undefined) {
+            const aliasedAsset = vfs.resolve(alias.assetFile);
+            if (aliasedAsset !== undefined) return aliasedAsset.physicalPath;
+            // §3.2 Step 6: FS fallback.
+            const fsHit = statAcrossRoots(alias.assetFile, vfs.contentRoots);
+            if (fsHit !== null) return fsHit;
+          }
+        }
+      }
+
+      return null;
     },
 
     load(id: string) {

@@ -42,10 +42,15 @@ describe('buildVfs — real fixture', () => {
 
   // ── manifest-explicit assets (cross-root resolution) ──────────────────────
 
-  it('resolve _framework/dotnet.js → root 2 (build output)', () => {
-    const asset = vfs.resolve('_framework/dotnet.js');
+  it('resolve fingerprinted dotnet.*.js → root 2 (build output)', () => {
+    // With WasmFingerprintAssets=true the VFS enumerates fingerprinted names;
+    // canonical `dotnet.js` is absent.  Discover the actual key from the listing.
+    const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p));
+    expect(fpPath, 'expected a fingerprinted dotnet.*.js in the VFS listing').toBeDefined();
+    const asset = vfs.resolve(fpPath!);
     expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toBe(join(ROOT2, '_framework', 'dotnet.js'));
+    expect(asset!.physicalPath).toContain(join(ROOT2, '_framework'));
+    expect(asset!.physicalPath).toMatch(/dotnet\.[a-z0-9]+\.js$/);
     expect(asset!.contentRootIndex).toBe(2);
   });
 
@@ -75,10 +80,11 @@ describe('buildVfs — real fixture', () => {
   // ── list() ────────────────────────────────────────────────────────────────
 
   it('list _framework returns direct children with full virtual paths', () => {
+    // With WasmFingerprintAssets=true the manifest enumerates fingerprinted names.
     const children = vfs.list('_framework');
-    expect(children).toContain('_framework/dotnet.js');
+    expect(children.some(c => /^_framework\/dotnet\.[a-z0-9]+\.js$/.test(c))).toBe(true);
     expect(children).toContain('_framework/dotnet.d.ts');
-    expect(children).toContain('_framework/Library.wasm');
+    expect(children.some(c => /^_framework\/Library\.[a-z0-9]+\.wasm$/.test(c))).toBe(true);
     // Each entry must be exactly two segments deep.
     for (const c of children) {
       expect(c.split('/'), `"${c}" should have exactly 2 segments`).toHaveLength(2);
@@ -110,9 +116,12 @@ describe('buildVfs — real fixture', () => {
   // ── performance ───────────────────────────────────────────────────────────
 
   it('10 000 hot lookups complete in under 50 ms', () => {
+    // Use dotnet.d.ts (root 0, canonical, never fingerprinted) for a reliable hit,
+    // and the discovered fingerprinted JS path for a root-2 hit.
+    const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p)) ?? '_framework/dotnet.d.ts';
     const start = performance.now();
     for (let i = 0; i < 10_000; i++) {
-      vfs.resolve('_framework/dotnet.js');
+      vfs.resolve(fpPath);
       vfs.resolve('_framework/dotnet.d.ts');
     }
     expect(performance.now() - start).toBeLessThan(50);

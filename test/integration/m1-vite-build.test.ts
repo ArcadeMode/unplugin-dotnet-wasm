@@ -36,18 +36,20 @@ describe('M1.6.b — Vite build smoke', () => {
     expect(bad).toHaveLength(0);
   });
 
-  it('dist/assets/ contains dotnet.native-*.wasm', () => {
+  it('dist/assets/ contains dotnet.native*.wasm', () => {
+    // With fingerprinting the emitted name is e.g. dotnet.native.fp-vitehash.wasm;
+    // without fingerprinting it is dotnet.native-vitehash.wasm.  Both are accepted.
     const files = readdirSync(DIST_ASSETS);
-    expect(files.some(f => /^dotnet\.native-[^/]+\.wasm$/.test(f))).toBe(true);
+    expect(files.some(f => /^dotnet\.native[.-][^/]+\.wasm$/.test(f))).toBe(true);
   });
 
-  it('dotnet.native-*.wasm byte length matches source', () => {
+  it('dotnet.native*.wasm byte length matches source', () => {
     const files = readdirSync(DIST_ASSETS);
-    const distFile = files.find(f => /^dotnet\.native-[^/]+\.wasm$/.test(f))!;
-    const srcPath = join(
-      LIBRARY_DIR,
-      'bin', 'Debug', 'net10.0', 'wwwroot', '_framework', 'dotnet.native.wasm',
-    );
+    const distFile = files.find(f => /^dotnet\.native[.-][^/]+\.wasm$/.test(f))!;
+    // Source filename may be fingerprinted (dotnet.native.FP.wasm) or canonical.
+    const frameworkDir = join(LIBRARY_DIR, 'bin', 'Debug', 'net10.0', 'wwwroot', '_framework');
+    const srcName = readdirSync(frameworkDir).find(f => /^dotnet\.native.*\.wasm$/.test(f))!;
+    const srcPath = join(frameworkDir, srcName);
     expect(statSync(join(DIST_ASSETS, distFile)).size).toBe(statSync(srcPath).size);
   });
 
@@ -56,9 +58,11 @@ describe('M1.6.b — Vite build smoke', () => {
     expect(wasmFiles.length).toBeGreaterThanOrEqual(20);
   });
 
-  it('Library-*.wasm is present (user assembly emitted)', () => {
+  it('Library*.wasm is present (user assembly emitted)', () => {
+    // With fingerprinting the emitted name is e.g. Library.fp-vitehash.wasm;
+    // without fingerprinting it is Library-vitehash.wasm.
     const files = readdirSync(DIST_ASSETS);
-    expect(files.some(f => /^Library-[^/]+\.wasm$/.test(f))).toBe(true);
+    expect(files.some(f => /^Library[.-][^/]+\.wasm$/.test(f))).toBe(true);
   });
 
   it('entry chunk references a *.wasm asset URL', () => {
