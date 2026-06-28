@@ -109,34 +109,22 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
       const virtualPath = stripLeadingSlashOrDot(toPosix(source));
       if (virtualPath === '') return null;
 
-      // §3.2 Step 2: Endpoint route alias — exact-path case.
-      // Maps a canonical route (e.g. `_framework/dotnet.js`) to its fingerprinted
-      // AssetFile (e.g. `_framework/dotnet.i5jyixs8xo.js`) before hitting the VFS.
-      if (endpointLookup !== null) {
-        const alias = endpointLookup.get(virtualPath);
-        if (alias !== undefined) {
-          const aliasedAsset = vfs.resolve(alias.assetFile);
-          if (aliasedAsset !== undefined) return aliasedAsset.physicalPath;
-          // §3.2 Step 6: FS fallback — fingerprinted file absent from VFS explicit tree.
-          const fsHit = statAcrossRoots(alias.assetFile, vfs.contentRoots);
-          if (fsHit !== null) return fsHit;
-        }
-      }
+      const probes: string[] = hasExtension(virtualPath)
+        ? [virtualPath]
+        : [virtualPath, ...EXTENSION_PROBE_ORDER.map(ext => `${virtualPath}${ext}`)];
 
-      // §3.2 Step 3: VFS flat-map lookup (exact match, ext probing, patterns).
-      const asset = vfs.resolve(virtualPath);
-      if (asset !== undefined) return asset.physicalPath;
+      for (const probe of probes) {
+        // §3.2 Steps 2–3: VFS lookup (exact, ext-probing, patterns) then endpoint alias.
+        const vfsHit = vfs.resolve(probe);
+        if (vfsHit !== undefined) return vfsHit.physicalPath;
 
-      // §3.2 Step 4b: For bare specifiers, probe the endpoint map with each candidate extension.
-      // Load-bearing for imports like `_framework/dotnet` (no extension):
-      //   probe `.js` → endpoint hit → assetFile `_framework/dotnet.XXXX.js` → VFS hit.
-      if (!hasExtension(virtualPath) && endpointLookup !== null) {
-        for (const ext of EXTENSION_PROBE_ORDER) {
-          const alias = endpointLookup.get(`${virtualPath}${ext}`);
+        // §3.2 Steps 2/4b: Endpoint alias maps a canonical route to its fingerprinted AssetFile.
+        if (endpointLookup !== null) {
+          const alias = endpointLookup.get(probe);
           if (alias !== undefined) {
-            const aliasedAsset = vfs.resolve(alias.assetFile);
-            if (aliasedAsset !== undefined) return aliasedAsset.physicalPath;
-            // §3.2 Step 6: FS fallback.
+            const resolved = vfs.resolve(alias.assetFile);
+            if (resolved !== undefined) return resolved.physicalPath;
+            // §3.2 Step 6: FS fallback for fingerprinted files absent from the VFS tree.
             const fsHit = statAcrossRoots(alias.assetFile, vfs.contentRoots);
             if (fsHit !== null) return fsHit;
           }
@@ -156,7 +144,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
 
       const source = readFileSync(id);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const refId = (this as any).emitFile({
+      const refId = this.emitFile({
         type: 'asset',
         name: basename(id),
         source,
