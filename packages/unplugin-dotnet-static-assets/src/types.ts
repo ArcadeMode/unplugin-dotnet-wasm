@@ -15,6 +15,9 @@ export interface DotnetAssetsOptions {
    */
   projectRoot: string;
 
+  /** The .NET project name — used to construct manifest filenames. */
+  projectName: string;
+
   /**
    * MSBuild configuration to look under (`bin/<Configuration>/...`).
    * Default: 'Debug'. The full env-var / bundler-mode resolution chain lands in M2.4.
@@ -28,8 +31,10 @@ export interface DotnetAssetsOptions {
   targetFramework?: string;
 
   /**
-   * Absolute or workspace-relative path to {Project}.staticwebassets.runtime.json.
-   * When set, bypasses discovery entirely.
+   * Absolute or workspace-relative path to `{Project}.staticwebassets.runtime.json`.
+   * When set, bypasses all discovery — `configuration`, `targetFramework`, and
+   * `projectName` are ignored for path construction but `projectName` is still
+   * used to find the sibling endpoints manifest when `projectName` is set.
    */
   manifestPath?: string;
 

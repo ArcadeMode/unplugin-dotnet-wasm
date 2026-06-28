@@ -1,5 +1,5 @@
-import { readdirSync, existsSync } from 'node:fs';
-import { resolve, join, basename } from 'node:path';
+﻿import { existsSync } from 'node:fs';
+import { resolve, join, dirname } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -8,9 +8,12 @@ import { resolve, join, basename } from 'node:path';
 export interface DiscoverOptions {
   /**
    * Absolute or workspace-relative path to the .NET project directory
-   * (the one containing the .csproj). Required unless `manifestPath` is set.
+   * (the one containing the .csproj).
    */
   projectRoot: string;
+
+  /** The .NET project name — used to construct manifest filenames. */
+  projectName: string;
 
   /**
    * MSBuild configuration — e.g. `'Debug'` or `'Release'`.
@@ -26,21 +29,19 @@ export interface DiscoverOptions {
   targetFramework?: string;
 
   /**
-   * Bypass all path-construction logic and use this path verbatim.
-   * When set, all other options except `projectRoot` are ignored.
+   * Absolute path to `{Project}.staticwebassets.runtime.json`.
+   * When set, bypasses all discovery — `projectRoot`, `configuration`, and
+   * `targetFramework` are ignored. The sibling endpoints manifest is inferred
+   * from the same directory using `projectName`.
    */
   manifestPath?: string;
 }
 
-export interface DiscoverResult {
-  /** Absolute path to `{Project}.staticwebassets.runtime.json`. */
-  manifestPath: string;
-  /** Project name derived from the manifest filename (without the `.staticwebassets.runtime.json` suffix). */
-  projectName: string;
-  /** The configuration that was resolved/used. */
-  resolvedConfiguration: string;
-  /** The TFM that was resolved/used. */
-  resolvedTargetFramework: string;
+export interface Manifests {
+  /** Absolute path to `{Project}.staticwebassets.runtime.json`, or `null` when absent (Mode B). */
+  runtimeManifestPath: string | null;
+  /** Absolute path to `{Project}.staticwebassets.endpoints.json` */
+  endpointsManifestPath: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,156 +49,45 @@ export interface DiscoverResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Locate `{Project}.staticwebassets.runtime.json` for a .NET WASM project.
- *
- * Throws a {@link DiscoveryError} with a descriptive message when the manifest
- * cannot be found or the path is ambiguous.
+ * Locate `{projectName}.staticwebassets.runtime.json` and
+ * `{projectName}.staticwebassets.endpoints.json` for a .NET WASM project.
+ * 
+ * Throws {@link DiscoveryError} only when no endpoints manifest is found.
  */
-export function discoverRuntimeManifest(opts: DiscoverOptions): DiscoverResult {
-  const projectRoot = resolve(opts.projectRoot);
+export function discoverManifests(opts: DiscoverOptions): Manifests {
+  // Short-circuit: caller supplied an explicit manifest path.
+  if (opts.manifestPath !== undefined) {
+    const runtimeManifestPath = resolve(opts.manifestPath);
+    const endpointsPath = join(
+      dirname(runtimeManifestPath),
+      `${opts.projectName}.staticwebassets.endpoints.json`,
+    );
 
-  // --- 1. Explicit manifestPath bypass ---
-  if (opts.manifestPath) {
-    const abs = resolve(opts.manifestPath);
-    if (!existsSync(abs)) {
-      throw new DiscoveryError(
-        `Explicit manifestPath does not exist: ${abs}`,
-        { projectRoot },
-      );
+    if (!existsSync(endpointsPath)) {
+      throw new DiscoveryError(`Endpoints manifest not found at ${opts.manifestPath}`, { });
     }
-    return buildResult(abs, 'unknown', 'unknown');
+
+    return {
+      runtimeManifestPath: existsSync(runtimeManifestPath) ? runtimeManifestPath : null,
+      endpointsManifestPath: endpointsPath,
+    };
   }
 
-  // --- 2. Resolve configuration ---
+  const projectRoot = resolve(opts.projectRoot);
   const configuration = opts.configuration ?? 'Debug';
+  const tfmDir = join(projectRoot, 'bin', configuration, opts.targetFramework ?? '');
 
-  const configDir = join(projectRoot, 'bin', configuration);
-  if (!existsSync(configDir)) {
-    throw new DiscoveryError(
-      `Configuration directory not found: ${configDir}\n` +
-      `  Searched for: bin/${configuration}/\n` +
-      `  Hint: run 'dotnet build' first, or set { configuration: '...' } explicitly.`,
-      { projectRoot, configuration },
-    );
+  const runtimePath = join(tfmDir, `${opts.projectName}.staticwebassets.runtime.json`);
+  const endpointsPath = join(tfmDir, `${opts.projectName}.staticwebassets.endpoints.json`);
+
+  if (!existsSync(endpointsPath)) {
+    throw new DiscoveryError(`Endpoints manifest not found at ${tfmDir}`,{});
   }
 
-  // --- 3. Resolve target framework ---
-  const targetFramework = opts.targetFramework ?? resolveUnique(
-    configDir,
-    'targetFramework',
-    `  Hint: set { targetFramework: 'net10.0' } (or the correct TFM) explicitly.`,
-  );
-
-  const tfmDir = join(configDir, targetFramework);
-  if (!existsSync(tfmDir)) {
-    throw new DiscoveryError(
-      `Target framework directory not found: ${tfmDir}`,
-      { projectRoot, configuration, targetFramework },
-    );
-  }
-
-  // --- 4. Glob for *.staticwebassets.runtime.json ---
-  const manifests = globManifests(tfmDir);
-
-  if (manifests.length === 0) {
-    throw new DiscoveryError(
-      `No *.staticwebassets.runtime.json found in: ${tfmDir}\n` +
-      `  Resolved axes: configuration=${configuration}, targetFramework=${targetFramework}\n` +
-      `  Hint: run 'dotnet build' first.`,
-      { projectRoot, configuration, targetFramework },
-    );
-  }
-
-  if (manifests.length > 1) {
-    const names = manifests.map((m) => `  • ${m}`).join('\n');
-    throw new DiscoveryError(
-      `Multiple *.staticwebassets.runtime.json files found in: ${tfmDir}\n` +
-      `${names}\n` +
-      `  Hint: set { manifestPath: '...' } to select one explicitly.`,
-      { projectRoot, configuration, targetFramework },
-    );
-  }
-
-  return buildResult(manifests[0]!, configuration, targetFramework);
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Returns absolute paths of all *.staticwebassets.runtime.json in a directory (non-recursive). */
-function globManifests(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  try {
-    return readdirSync(dir)
-      .filter((f) => f.endsWith('.staticwebassets.runtime.json'))
-      .map((f) => join(dir, f));
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Lists subdirectories of `dir` and returns the name of the single one found.
- * Throws {@link DiscoveryError} when zero or more than one subdirectory exists.
- */
-function resolveUnique(dir: string, axis: string, hint: string): string {
-  let entries: string[];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name);
-  } catch {
-    entries = [];
-  }
-
-  if (entries.length === 0) {
-    throw new DiscoveryError(
-      `No ${axis} directories found under: ${dir}\n${hint}`,
-      {},
-    );
-  }
-
-  if (entries.length > 1) {
-    const list = entries.map((e) => `  • ${e}`).join('\n');
-    throw new DiscoveryError(
-      `Multiple ${axis} directories found under: ${dir}\n${list}\n${hint}`,
-      {},
-    );
-  }
-
-  return entries[0]!;
-}
-
-function buildResult(
-  manifestPath: string,
-  resolvedConfiguration: string,
-  resolvedTargetFramework: string,
-): DiscoverResult {
-  const filename = basename(manifestPath);
-  const projectName = filename.replace(/\.staticwebassets\.runtime\.json$/, '');
-  return { manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework };
-}
-
-// ---------------------------------------------------------------------------
-// Endpoints manifest discovery
-// ---------------------------------------------------------------------------
-
-/**
- * Derive the absolute path of `{Project}.staticwebassets.endpoints.json` that
- * sits alongside the runtime manifest returned by {@link discoverRuntimeManifest}.
- *
- * Returns `null` when the file does not exist — the endpoints manifest is
- * **optional**.  Callers should treat `null` as "fingerprint-aware resolution
- * not available; resolve from the VFS alone".  The runtime manifest remains
- * required regardless.
- */
-export function discoverEndpointsManifest(result: DiscoverResult): string | null {
-  const endpointsPath = result.manifestPath.replace(
-    /\.staticwebassets\.runtime\.json$/,
-    '.staticwebassets.endpoints.json',
-  );
-  return existsSync(endpointsPath) ? endpointsPath : null;
+  return {
+    runtimeManifestPath: existsSync(runtimePath) ? runtimePath : null,
+    endpointsManifestPath: endpointsPath,
+  };
 }
 
 // ---------------------------------------------------------------------------

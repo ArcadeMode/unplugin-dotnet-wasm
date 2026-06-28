@@ -63,6 +63,7 @@ describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({
       projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',
     });
@@ -135,6 +136,7 @@ describe('dotnetStaticAssets — load', () => {
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({
       projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',
     });

@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../Library'),
+      projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',
       logLevel: 'info',

@@ -1,8 +1,8 @@
-import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { discoverRuntimeManifest, discoverEndpointsManifest, DiscoveryError } from './discover.js';
+import { discoverManifests } from './discover.js';
 
 // ---------------------------------------------------------------------------
 // Real fixture
@@ -14,169 +14,38 @@ const EXPECTED_MANIFEST = resolve(
   'bin/Debug/net10.0/Library.staticwebassets.runtime.json',
 );
 
-describe('discoverRuntimeManifest — real fixture', () => {
-  it('finds the manifest with default options (Debug, auto-TFM)', () => {
-    const result = discoverRuntimeManifest({ projectRoot: LIBRARY_ROOT });
-    expect(result.manifestPath).toBe(EXPECTED_MANIFEST);
-    expect(result.projectName).toBe('Library');
-    expect(result.resolvedConfiguration).toBe('Debug');
-    expect(result.resolvedTargetFramework).toBe('net10.0');
+describe('discoverManifests — real fixture', () => {
+  it('finds both manifests with explicit TFM', () => {
+    const result = discoverManifests({ projectRoot: LIBRARY_ROOT, projectName: 'Library', targetFramework: 'net10.0' });
+    expect(result.runtimeManifestPath).toBe(EXPECTED_MANIFEST);
+    expect(result.endpointsManifestPath).toMatch(/Library\.staticwebassets\.endpoints\.json$/);
   });
 
   it('finds the manifest with all axes explicit', () => {
-    const result = discoverRuntimeManifest({
+    const result = discoverManifests({
       projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',
     });
-    expect(result.manifestPath).toBe(EXPECTED_MANIFEST);
+    expect(result.runtimeManifestPath).toBe(EXPECTED_MANIFEST);
   });
 
-  it('manifestPath bypass skips all discovery', () => {
-    const result = discoverRuntimeManifest({
-      projectRoot: LIBRARY_ROOT,
-      manifestPath: EXPECTED_MANIFEST,
-    });
-    expect(result.manifestPath).toBe(EXPECTED_MANIFEST);
-    // When bypassed, configuration/TFM are reported as 'unknown'
-    expect(result.resolvedConfiguration).toBe('unknown');
-    expect(result.resolvedTargetFramework).toBe('unknown');
+  it('throws for an unbuilt configuration', () => {
+    expect(() => discoverManifests({ projectRoot: LIBRARY_ROOT, projectName: 'Library', configuration: 'Release' })).toThrowError(/Endpoints manifest not found/);
   });
 
-  it('throws DiscoveryError for wrong configuration', () => {
-    expect(() =>
-      discoverRuntimeManifest({ projectRoot: LIBRARY_ROOT, configuration: 'Release' }),
-    ).toThrowError(DiscoveryError);
-  });
-
-  it('throws DiscoveryError for wrong targetFramework', () => {
-    expect(() =>
-      discoverRuntimeManifest({
-        projectRoot: LIBRARY_ROOT,
-        configuration: 'Debug',
-        targetFramework: 'net8.0',
-      }),
-    ).toThrowError(DiscoveryError);
+  it('throws for an unknown targetFramework', () => {
+    expect(() => discoverManifests({ projectRoot: LIBRARY_ROOT, projectName: 'Library', targetFramework: 'net8.0' })).toThrowError(/Endpoints manifest not found/);
   });
 });
 
-// ---------------------------------------------------------------------------
-// Synthetic fixtures — built in a temp directory
-// ---------------------------------------------------------------------------
-
-let tmpRoot: string;
-
-beforeAll(() => {
-  tmpRoot = join(tmpdir(), `dotnet-wasm-bundler-discover-test-${Date.now()}`);
-});
-
-afterAll(() => {
-  rmSync(tmpRoot, { recursive: true, force: true });
-});
-
-/** Creates a minimal manifest placeholder at the given absolute path. */
-function touchManifest(absPath: string): void {
-  mkdirSync(resolve(absPath, '..'), { recursive: true });
-  writeFileSync(absPath, '{"ContentRoots":[],"Root":{"Children":null,"Asset":null,"Patterns":null}}');
-}
-
-describe('discoverRuntimeManifest — synthetic multi-TFM', () => {
-  it('fails with a clear error listing both TFMs when multiple exist', () => {
-    const root = join(tmpRoot, 'multi-tfm');
-    touchManifest(join(root, 'bin/Debug/net8.0/Proj.staticwebassets.runtime.json'));
-    touchManifest(join(root, 'bin/Debug/net10.0/Proj.staticwebassets.runtime.json'));
-
-    let caught: DiscoveryError | undefined;
-    try {
-      discoverRuntimeManifest({ projectRoot: root, configuration: 'Debug' });
-    } catch (e) {
-      caught = e as DiscoveryError;
-    }
-    expect(caught).toBeInstanceOf(DiscoveryError);
-    expect(caught?.message).toMatch(/net8\.0/);
-    expect(caught?.message).toMatch(/net10\.0/);
-    expect(caught?.message).toMatch(/targetFramework/);
+describe('discoverManifests — synthetic missing manifest', () => {
+  it('throws when no manifest exists in the TFM dir', () => {
+    expect(() => discoverManifests({ projectRoot: join(tmpdir(), `dotnet-wasm-bundler-discover-test-${Date.now()}`), projectName: 'SomeProj', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
   });
 
-  it('succeeds when targetFramework is explicit with multiple TFMs present', () => {
-    const root = join(tmpRoot, 'multi-tfm-explicit');
-    touchManifest(join(root, 'bin/Debug/net8.0/Proj.staticwebassets.runtime.json'));
-    touchManifest(join(root, 'bin/Debug/net10.0/Proj.staticwebassets.runtime.json'));
-
-    const result = discoverRuntimeManifest({
-      projectRoot: root,
-      configuration: 'Debug',
-      targetFramework: 'net10.0',
-    });
-    expect(result.manifestPath).toContain('net10.0');
-    expect(result.resolvedTargetFramework).toBe('net10.0');
-  });
-});
-
-describe('discoverRuntimeManifest — synthetic missing manifest', () => {
-  it('throws DiscoveryError with the searched path when no manifest exists', () => {
-    const root = join(tmpRoot, 'no-manifest');
-    mkdirSync(join(root, 'bin/Debug/net10.0'), { recursive: true });
-
-    let caught: DiscoveryError | undefined;
-    try {
-      discoverRuntimeManifest({ projectRoot: root });
-    } catch (e) {
-      caught = e as DiscoveryError;
-    }
-    expect(caught).toBeInstanceOf(DiscoveryError);
-    expect(caught?.message).toMatch(/net10\.0/);
-    expect(caught?.message).toMatch(/dotnet build/);
-  });
-
-  it('throws DiscoveryError with the config dir in the message when bin/<cfg> missing', () => {
-    const root = join(tmpRoot, 'no-config-dir');
-    mkdirSync(root, { recursive: true });
-
-    let caught: DiscoveryError | undefined;
-    try {
-      discoverRuntimeManifest({ projectRoot: root, configuration: 'Release' });
-    } catch (e) {
-      caught = e as DiscoveryError;
-    }
-    expect(caught).toBeInstanceOf(DiscoveryError);
-    expect(caught?.message).toMatch(/Release/);
-    expect(caught?.message).toMatch(/dotnet build/);
-  });
-});
-
-describe('discoverRuntimeManifest — manifestPath bypass errors', () => {
-  it('throws when explicit manifestPath does not exist', () => {
-    expect(() =>
-      discoverRuntimeManifest({
-        projectRoot: LIBRARY_ROOT,
-        manifestPath: '/nonexistent/path/Foo.staticwebassets.runtime.json',
-      }),
-    ).toThrowError(DiscoveryError);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// discoverEndpointsManifest
-// ---------------------------------------------------------------------------
-
-describe('discoverEndpointsManifest — real fixture', () => {
-  it('returns the absolute path to the endpoints sibling when it exists', () => {
-    const runtimeResult = discoverRuntimeManifest({ projectRoot: LIBRARY_ROOT });
-    const endpointsPath = discoverEndpointsManifest(runtimeResult);
-    expect(endpointsPath).not.toBeNull();
-    expect(endpointsPath).toMatch(/Library\.staticwebassets\.endpoints\.json$/);
-    expect(existsSync(endpointsPath!)).toBe(true);
-  });
-});
-
-describe('discoverEndpointsManifest — synthetic: no endpoints file', () => {
-  it('returns null when only the runtime manifest exists', () => {
-    const root = join(tmpRoot, 'no-endpoints');
-    touchManifest(join(root, 'bin/Debug/net10.0/Proj.staticwebassets.runtime.json'));
-    // No .staticwebassets.endpoints.json sibling created.
-    const runtimeResult = discoverRuntimeManifest({ projectRoot: root, configuration: 'Debug' });
-    const endpointsPath = discoverEndpointsManifest(runtimeResult);
-    expect(endpointsPath).toBeNull();
+  it('throws when the configuration directory does not exist', () => {
+    expect(() => discoverManifests({ projectRoot: join(tmpdir(), `dotnet-wasm-bundler-discover-test-${Date.now()}`), projectName: 'Proj', configuration: 'Release' })).toThrowError(/Endpoints manifest not found/);
   });
 });

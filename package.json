@@ -9,12 +9,10 @@
     "build:library:fingerprint": "dotnet build test/fixtures/Library/Library.csproj -c Debug -p:WasmFingerprintAssets=true",
     "build:library:nofingerprint": "dotnet build test/fixtures/Library/Library.csproj -c Debug -p:WasmFingerprintAssets=false",
     "build:fixture": "pnpm --filter @dotnet-wasm-bundler/library-build-fixture build",
+    "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-build-fixture preview",
     "test:unit": "pnpm --filter unplugin-dotnet-static-assets test",
     "test:integration": "pnpm --filter @dotnet-wasm-bundler/integration-tests test",
     "test:e2e": "pnpm --filter @dotnet-wasm-bundler/integration-tests test:e2e",
-    "test:fingerprint-enabled": "pnpm build:plugin && pnpm build:library:fingerprint && pnpm build:fixture && pnpm test:unit && pnpm test:integration && pnpm test:e2e",
-    "test:fingerprint-disabled": "pnpm build:plugin && pnpm build:library:nofingerprint && pnpm build:fixture && pnpm test:unit && pnpm test:integration && pnpm test:e2e",
-    "test": "pnpm test:fingerprint-enabled && pnpm test:fingerprint-disabled",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean"

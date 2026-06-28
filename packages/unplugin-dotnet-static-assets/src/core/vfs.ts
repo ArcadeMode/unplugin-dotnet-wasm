@@ -342,3 +342,12 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
 
   return { contentRoots, lookup, shadowedPairs, list, resolve };
 }
+
+/**
+ * Return a {@link VirtualFileSystem} with no assets — suitable as a
+ * pre-{@link buildStart} placeholder and for Mode B (publish / consolidated)
+ * builds where no runtime manifest is present.  All lookups are O(1) misses.
+ */
+export function buildEmptyVfs(): VirtualFileSystem {
+  return buildVfs({ ContentRoots: [], Root: { Children: null, Asset: null, Patterns: null } });
+}
