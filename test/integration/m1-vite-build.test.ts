@@ -62,7 +62,8 @@ describe('M1.6.b — Vite build smoke', () => {
   });
 
   it('entry chunk references a *.wasm asset URL', () => {
-    const jsFiles = readdirSync(DIST_ASSETS).filter(f => /^entry-.*\.js$/.test(f));
+    // When built from index.html, Vite names the main chunk "index-{hash}.js"
+    const jsFiles = readdirSync(DIST_ASSETS).filter(f => /^index-.*\.js$/.test(f));
     expect(jsFiles.length).toBeGreaterThan(0);
     const content = readFileSync(join(DIST_ASSETS, jsFiles[0]!), 'utf8');
     expect(content).toMatch(/\.wasm/);
