@@ -1,45 +1,19 @@
 import { createUnplugin } from 'unplugin';
 import { readFileSync } from 'node:fs';
-import { basename, sep } from 'node:path';
+import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
 import { discoverManifests } from '../core/discover.js';
 import { parseRuntimeManifest } from '../core/manifest-runtime.js';
 import { parseEndpointsManifest } from '../core/manifest-endpoints.js';
-import { buildEndpointLookup, EMPTY_ENDPOINT_LOOKUP, type EndpointLookup } from '../core/endpoint-lookup.js';
-import { buildVfs, buildEmptyVfs, type VirtualFileSystem } from '../core/vfs.js';
-import { EXTENSION_PROBE_ORDER } from '../core/extension-probe-order.js';
+import { buildEndpointLookup } from '../core/endpoint-lookup.js';
+import { buildVfs, buildEmptyVfs } from '../core/vfs.js';
 import { createConsoleLogger } from '../core/logger.js';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+import { AssetResolver } from '../core/asset-resolver.js';
 
 const BINARY_EXTENSIONS = new Set(['.wasm', '.dat', '.pdb']);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function toPosixPath(p: string): string {
-  return sep === '\\' ? p.replace(/\\/g, '/') : p;
-}
-
-function stripLeadingSlashOrDot(p: string): string {
-  return p.replace(/^\.\//u, '').replace(/^\//u, '');
-}
-
-// ---------------------------------------------------------------------------
-// Plugin factory
-// ---------------------------------------------------------------------------
-
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) => {
-
-  // pre-init for safe resolveId before buildStart
-  let vfs: VirtualFileSystem = buildEmptyVfs(); 
-  let endpointLookup: EndpointLookup = EMPTY_ENDPOINT_LOOKUP;
-
-  const logLevel = options.logLevel ?? 'warn';
-  const logger = createConsoleLogger(logLevel);
+  let assetResolver: AssetResolver | null = null;
 
   return {
     name: 'unplugin-dotnet-static-assets',
@@ -57,36 +31,20 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
               ...(options.isPublish !== undefined && { isPublish: options.isPublish }),
             },
       );
-
-      endpointLookup = buildEndpointLookup(parseEndpointsManifest(readFileSync(endpointsManifestPath)));
-      vfs = runtimeManifestPath
+      
+      const logLevel = options.logLevel ?? 'warn';
+      const logger = createConsoleLogger(logLevel);
+      const endpointLookup = buildEndpointLookup(parseEndpointsManifest(readFileSync(endpointsManifestPath)));
+      const vfs = runtimeManifestPath
         ? buildVfs(parseRuntimeManifest(readFileSync(runtimeManifestPath)), { logger })
         : buildEmptyVfs(endpointsManifestPath, { logger });
+
+      assetResolver = new AssetResolver(vfs, endpointLookup);
     },
 
     resolveId(source: string) {
-      const virtualPath = stripLeadingSlashOrDot(toPosixPath(source));
-      if (virtualPath === '') return null;
-
-      const pathProbes: string[] = hasExtension(virtualPath)
-        ? [virtualPath]
-        : [virtualPath, ...EXTENSION_PROBE_ORDER.map(ext => `${virtualPath}${ext}`)];
-
-      for (const pathProbe of pathProbes) {
-        const vfsHit = vfs.resolve(pathProbe);
-        if (vfsHit !== undefined) return vfsHit.physicalPath;
-
-        const alias = endpointLookup.get(pathProbe);
-        if (alias !== undefined) {
-          const resolved = vfs.resolve(alias.assetFile);
-          if (resolved !== undefined) return resolved.physicalPath;
-          
-          const fsHit = vfs.resolveFile(alias.assetFile);
-          if (fsHit !== undefined) return fsHit.physicalPath;
-        }
-      }
-
-      return null;
+      if (!assetResolver) return null;
+      return assetResolver.resolve(source);
     },
 
     load(id: string) {

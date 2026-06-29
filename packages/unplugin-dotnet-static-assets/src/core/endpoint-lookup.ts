@@ -25,7 +25,6 @@ export interface EndpointMatch {
 
 /** Immutable route → EndpointMatch lookup table. */
 export type EndpointLookup = ReadonlyMap<string, EndpointMatch>;
-export const EMPTY_ENDPOINT_LOOKUP: EndpointLookup = new Map<string, EndpointMatch>();
 
 // ---------------------------------------------------------------------------
 // Builder

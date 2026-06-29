@@ -90,16 +90,6 @@ export type EndpointProperty = z.infer<typeof EndpointPropertySchema>;
 export type Endpoint = z.infer<typeof EndpointSchema>;
 export type EndpointsManifest = z.infer<typeof EndpointsManifestSchema>;
 
-// ---------------------------------------------------------------------------
-// Parser
-// ---------------------------------------------------------------------------
-
-/**
- * Parse the contents of a `{Project}.staticwebassets.endpoints.json` file.
- *
- * Throws a descriptive {@link EndpointsManifestParseError} when the input is
- * invalid JSON or does not conform to the expected schema.
- */
 export function parseEndpointsManifest(input: string | Buffer): EndpointsManifest {
   const text = Buffer.isBuffer(input) ? input.toString('utf8') : input;
 
@@ -126,10 +116,6 @@ export function parseEndpointsManifest(input: string | Buffer): EndpointsManifes
 
   return result.data;
 }
-
-// ---------------------------------------------------------------------------
-// Error type
-// ---------------------------------------------------------------------------
 
 export class EndpointsManifestParseError extends Error {
   readonly issues: z.ZodIssue[];

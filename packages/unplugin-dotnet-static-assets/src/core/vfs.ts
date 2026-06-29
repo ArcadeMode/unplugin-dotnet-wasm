@@ -4,10 +4,6 @@ import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
 import { EXTENSION_PROBE_ORDER } from './extension-probe-order.js';
 import { type Logger, NULL_LOGGER } from './logger.js';
 
-// ---------------------------------------------------------------------------
-// Exported types
-// ---------------------------------------------------------------------------
-
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
   virtualPath: string;
@@ -15,10 +11,6 @@ export interface ResolvedAsset {
   physicalPath: string;
 }
 
-/**
- * Returned by {@link VirtualFileSystem.resolveFile}: a successful cross-root
- * FS probe for an exact asset filename (no extension or index probing).
- */
 export interface ResolvedFile {
   /** Absolute OS-native path to the physical file on disk. */
   physicalPath: string;
@@ -26,10 +18,8 @@ export interface ResolvedFile {
 
 export interface VirtualFileSystem {
   /**
-   * List direct virtual children of a virtual directory.
-   * Returns full virtual paths (e.g. `['_framework/dotnet.js', '_framework/Library.wasm']`),
-   * sorted, original casing.  Only enumerates manifest-listed assets — pattern
-   * fallthrough is lazy and cannot be enumerated without a directory scan.
+   * List direct children of a virtual directory. Returns full paths (e.g. `['_framework/dotnet.js', '_framework/Library.wasm']`)
+   * Only enumerates manifest-listed assets, other files that may reside on disk are not included.
    */
   list(virtualDir: string): string[];
 
@@ -37,19 +27,13 @@ export interface VirtualFileSystem {
    * Resolve a virtual path to its physical file.
    *
    * Resolution order:
-   * 1. Exact map lookup.
-   * 2. Extension probing (`EXTENSION_PROBE_ORDER`) against the map, for bare
-   *    specifiers (no file extension).
-   * 3. `<path>/index.<ext>` probing against the map, for bare specifiers.
-   * 4. Pattern fallthrough — for each manifest `Patterns` entry whose virtual
-   *    prefix matches `virtualPath`, `statSync` the candidate physical path
-   *    under that pattern's content root.  Bare specifiers retry with each
-   *    probe extension and with `/index.<ext>` suffixes.  Successful hits are
-   *    cached back into `lookup`.
+   * 1. Exact lookup in VFS.
+   * 2. For bare specifiers, attempt extension and index probing (.ts, .js, /index.<ext>, etc.) in VFS.
+   * 3. Pattern fallthrough, for each manifest entry with a prefix `Patterns` match:
+   *    1. Attempt exact lookup in FS.
+   *    2. For bare specifiers, attempt extension and index probing in FS.
    *
-   * Returns `undefined` when nothing matches.  Callers should treat this as
-   * "not a virtual asset" and delegate to the host bundler's native resolver
-   * (which will walk relative to the importer's physical location).
+   * Returns `undefined` when nothing matches. This does not mean the file is not on disk, just not in the virtual file system.
    */
   resolve(virtualPath: string): ResolvedAsset | undefined;
 
@@ -66,10 +50,6 @@ export interface VirtualFileSystem {
    */
   resolveFile(assetFile: string): ResolvedFile | undefined;
 }
-
-// ---------------------------------------------------------------------------
-// Internal types
-// ---------------------------------------------------------------------------
 
 interface NodePattern {
   /** Virtual path prefix that scopes this pattern ('' = root). */
@@ -161,27 +141,11 @@ function collectPatterns(node: ManifestNode, segments: string[]): NodePattern[] 
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// VFS builder
-// ---------------------------------------------------------------------------
-
 /**
  * Build an in-memory virtual filesystem from a parsed runtime manifest.
  *
- * The VFS describes *only* what the manifest declares to be virtual:
- *
- *   - Every explicit `Asset` node becomes an entry in {@link VirtualFileSystem.lookup}.
- *   - Every `Patterns` entry becomes a lazy fallthrough rule evaluated on miss
- *     in {@link VirtualFileSystem.resolve} via a single `statSync` per content
- *     root + probe extension (no directory enumeration).
- *
- * Files that exist on disk but are not enumerated and do not fall under a
- * matching pattern are **not** part of the VFS.  Callers (e.g. the bundler
- * resolveId hook) should treat a `resolve()` miss as a signal to delegate to
- * the host bundler's native resolver, which walks relative to the importer's
- * physical location.  This keeps the plugin focused on injecting the manifest
- * overlay; the bundler handles every other file in the project the way it
- * normally would.
+ * The VFS describes *only* what the manifest declares. Physical files can still be read from disk via `resolveFile()`, 
+ * but they are not part of the VFS unless they are enumerated or fall under a matching pattern.
  */
 export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }): VirtualFileSystem {
   const logger = opts?.logger ?? NULL_LOGGER;
@@ -205,10 +169,6 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // list()
-  // ---------------------------------------------------------------------------
-
   function list(virtualDir: string): string[] {
     const norm = stripLeadingSlash(toPosix(virtualDir)).replace(/\/$/, '');
     const prefix = norm === '' ? '' : `${norm}/`;
@@ -225,10 +185,6 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
 
     return found.sort();
   }
-
-  // ---------------------------------------------------------------------------
-  // resolve()
-  // ---------------------------------------------------------------------------
 
   /**
    * Try a candidate physical path: stat once; on a regular-file hit, cache the
@@ -304,10 +260,6 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
     return undefined;
   }
 
-  // ---------------------------------------------------------------------------
-  // resolveFile()
-  // ---------------------------------------------------------------------------
-
   function resolveFile(assetFile: string): ResolvedFile | undefined {
     const posixFile = stripLeadingSlash(toPosix(assetFile));
     for (const rawRoot of manifest.ContentRoots) {
@@ -320,23 +272,6 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   return { list, resolve, resolveFile };
 }
 
-/**
- * Return a {@link VirtualFileSystem} with no manifest-enumerated assets.
- *
- * When `endpointsManifestPath` is supplied (Mode B — no runtime manifest),
- * a single content root is derived from the endpoints manifest location and a
- * catch-all `**` pattern is registered against it.  This lets the normal
- * pattern-fallthrough path in {@link VirtualFileSystem.resolve} discover any
- * file that exists in the publish output without requiring Mode-B-specific
- * branches in callers.
- *
- * Standard `dotnet publish` layout: `<publish>/wwwroot/<assetFile>`.
- * If a `wwwroot/` subdirectory exists next to the endpoints manifest that
- * directory is used as the root; otherwise the manifest's own directory is.
- *
- * Called with no argument it returns a truly empty VFS (O(1) misses on all
- * lookups), used as a pre-{@link buildStart} placeholder.
- */
 export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: Logger }): VirtualFileSystem {
   if (!endpointsManifestPath) {
     return buildVfs(
