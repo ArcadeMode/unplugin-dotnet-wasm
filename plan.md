@@ -28,11 +28,13 @@ This plugin handles **both** shapes, presenting them to JavaScript bundlers (Vit
 
 ### 2.1 Mode detection
 
-1. If `options.mode` is `'manifest'` or `'consolidated'`, honour it verbatim.
-2. Otherwise (`'auto'`, default), run the discovery in §2.2.
-   - If a `*.staticwebassets.runtime.json` is selected → **Mode A**.
-   - Else if a directory containing `_framework/` is selected → **Mode B**, rooted at the parent of `_framework/`.
-3. In both modes, look for `*.staticwebassets.endpoints.json` in the same directory and load it if present.
+The plugin does **not** expose a `mode` switch. The active mode is determined by what discovery finds on disk:
+
+- `{Project}.staticwebassets.endpoints.json` is **always required** and is what discovery anchors on.
+- If `{Project}.staticwebassets.runtime.json` exists as a sibling → **Mode A**. The VFS is built from the runtime manifest's tree.
+- If it does not → **Mode B**. The VFS is seeded from `Endpoints[].AssetFile` rooted at the directory containing the endpoints manifest (typically a `dotnet publish -o <dir>` output).
+
+The choice between modes is therefore a function of which `dotnet` command produced the artefacts, not a plugin option. The typical wiring is in the bundler config: a dev config lets discovery walk `<projectRoot>/bin/<Configuration>/<TargetFramework>/` (Mode A); a prod config passes `manifestPath` pointing into the publish output (Mode B). Same options shape, same code path — only the input directory differs.
 
 ### 2.2 Build configuration & target-framework discovery
 
@@ -42,17 +44,17 @@ This plugin handles **both** shapes, presenting them to JavaScript bundlers (Vit
 |-------------------|--------------------------------|------------------------------------------------------------------------------------------|
 | Configuration     | `Debug`, `Release`, `Staging`  | `options.configuration` ▸ `process.env.DOTNET_CONFIGURATION` ▸ bundler mode ▸ `Debug`    |
 | Target framework  | `net8.0`, `net9.0`             | `options.targetFramework` ▸ unique match ▸ fail                                          |
-| Build vs Publish  | `…/net8.0/` vs `…/net8.0/publish/` | Mode A prefers non-`publish/`, Mode B prefers `publish/`. Overridable.               |
+
+*(There is no "Build vs Publish" axis. Publish outputs are addressed by passing `manifestPath` directly; discovery only deals with the `bin/<Configuration>/<TargetFramework>/` layout that `dotnet build` produces.)*
 
 Resolution proceeds top-down, first hit wins:
 
-1. **Explicit override.** If `options.manifestPath` / `options.publishDir` is set, use it verbatim — no globbing, no ranking.
-2. **Tight candidate path.** Construct `<projectRoot>/bin/<configuration>/<targetFramework>[/publish]` from whatever options are provided. Glob inside it for `*.staticwebassets.runtime.json` (Mode A) or a `_framework/` directory (Mode B).
+1. **Explicit override.** If `options.manifestPath` is set, use its containing directory verbatim — no globbing, no ranking. The runtime manifest at that path may or may not exist (it won't, for a publish output); the endpoints manifest sibling **must**.
+2. **Tight candidate path.** Construct `<projectRoot>/bin/<configuration>/<targetFramework>/` from whatever options are provided. Look there for `{ProjectName}.staticwebassets.runtime.json` and `{ProjectName}.staticwebassets.endpoints.json`.
 3. **Loose search.** If any axis is unset, scan `<projectRoot>/bin/**` for candidates and **rank**:
    1. exact `configuration` match (case-insensitive);
    2. exact `targetFramework` match;
-   3. mode preference for `publish/` vs not;
-   4. **mtime descending** ("most recently built") as the final tiebreaker.
+   3. **mtime descending** ("most recently built") as the final tiebreaker.
 4. **Hard fail** with the enumerated candidate list when the top two are still indistinguishable, or when a required axis is ambiguous (e.g. multi-TFM project with no `targetFramework` set). Same posture as `dotnet run` on a multi-target project.
 
 #### Default `configuration` resolution
@@ -148,7 +150,7 @@ Given a request `source` (the importer is *not* consulted; see the rationale bel
 
 Casing: **case-insensitive lookup, case-preserving emit**. Defuses Windows ↔ Linux drift without breaking strict-case servers.
 
-In Mode B the VFS is collapsed: virtual path equals physical path under `publishDir`. The same resolver API is used so consumers don't see a mode-shaped seam.
+In Mode B (no runtime manifest) the VFS is seeded directly from `Endpoints[].AssetFile`, rooted at the directory containing the endpoints manifest. Virtual path equals physical path under that root. The same resolver API is used so consumers don't see a mode-shaped seam.
 
 ## 4. Manifest B — `{Project}.staticwebassets.endpoints.json`
 
@@ -206,7 +208,7 @@ Describes how each asset should be **served**: response headers, SRI hashes, pre
 - `Version` — currently `1`.
 - `ManifestType` — `"Build"` or `"Publish"`. Informational; both shapes are accepted.
 - `Endpoints[].Route` — public-facing URL path (relative). The **same `AssetFile` may have multiple routes** (canonical + fingerprinted variants).
-- `Endpoints[].AssetFile` — path under the asset output. Joined against the active content root in Mode A, against `publishDir` in Mode B.
+- `Endpoints[].AssetFile` — path under the asset output. Joined against the active content root in Mode A, against the endpoints manifest's directory in Mode B.
 - `Endpoints[].Selectors` — content-negotiation hints (e.g. `Accept-Encoding: br`). Often empty; the parser must accept them.
 - `Endpoints[].ResponseHeaders` — applied verbatim by the dev middleware, with sensible overrides for stale `Content-Length` / `Last-Modified` when the file has been edited.
 - `Endpoints[].EndpointProperties` — non-header metadata. The plugin recognises:
@@ -299,9 +301,8 @@ unplugin-dotnet-static-assets/
 │  ├─ core/
 │  │  ├─ manifest-runtime.ts   # Runtime (VFS) manifest types + Zod parser
 │  │  ├─ manifest-endpoints.ts # Endpoints manifest types + Zod parser
-│  │  ├─ discover.ts           # Auto-locate both manifests; mode detection
-│  │  ├─ vfs.ts                # Virtual filesystem: tree walk, lookup, pattern expansion
-│  │  ├─ resolver.ts           # Unified virtual ↔ physical mapping (modes A & B)
+│  │  ├─ discover.ts           # Auto-locate both manifests (runtime + endpoints)
+│  │  ├─ vfs.ts                # Virtual filesystem: tree walk, lookup, pattern expansion (Mode A) or endpoints-seeded (Mode B)
 │  │  ├─ endpoints.ts          # Headers, SRI, preload, fingerprint index
 │  │  ├─ vfs-emit.ts          # Quiet IDE-parity emitter (Mode A only): node_modules/.dotnet-vfs/
 │  │  └─ logger.ts
@@ -318,8 +319,8 @@ unplugin-dotnet-static-assets/
 │  └─ index.ts
 ├─ test/
 │  ├─ fixtures/
-│  │  ├─ TypeShim/             # Mode A — scattered build output + both manifests
-│  │  └─ TypeShim-publish/     # Mode B — consolidated publish output
+│  │  ├─ TypeShim/             # Mode A — `dotnet build` output: scattered, runtime + endpoints manifest
+│  │  └─ TypeShim-publish/     # Mode B — `dotnet publish` output: flat, endpoints manifest only
 │  ├─ unit/
 │  └─ integration/             # Scripted Vite/Webpack/Rollup builds per mode
 ├─ package.json
@@ -369,7 +370,7 @@ Tasks:
 - A virtual path with both `foo.ts` and `foo.d.ts` resolves to `foo.ts`; a `debug`-level warning is emitted once.
 - `endpoints.findByRoute("main.58dhsr9ua1.js")` returns the fingerprinted variant pointing at `main.js`.
 - `endpoints.findByAsset("main.js")` returns both canonical and fingerprinted entries.
-- Mode auto-detection chooses A on the scattered fixture and B on the consolidated fixture.
+- Discovery handles both layouts: the scattered fixture yields a runtime-manifest-driven VFS (Mode A); the consolidated fixture (no runtime manifest, endpoints manifest present) yields an endpoints-seeded VFS (Mode B).
 - 10 000 lookups under 50 ms.
 
 ### Phase 2 — Unplugin Core (mode-aware)
@@ -379,12 +380,12 @@ Tasks:
 Tasks:
 1. `resolveId(source, _importer)` — importer-blind manifest lookup in Mode A (see §3.2); plain directory lookup in Mode B. Returns `null` on miss so the host bundler's native resolver handles non-virtual paths.
 2. `load(id)` — stream raw bytes for binaries; pass text through to the bundler pipeline.
-3. `addWatchFile(absPath)` for every resolved asset (Mode A across all roots; Mode B under `publishDir`).
+3. `addWatchFile(absPath)` for every resolved asset (Mode A across all roots; Mode B under the endpoints manifest's directory).
 4. Multi-target build via `tsup` (ESM + CJS) for each subpath export.
 
 **Acceptance:**
 - A Vite project where `main.ts` imports `./_framework/dotnet.js` builds without manual aliases in Mode A.
-- The same project, pointed at the publish output, builds in Mode B with `mode: 'auto'` and no other config changes.
+- The same project, pointed at the publish output via `manifestPath`, builds in Mode B with no other config changes (typical pattern: `mode === 'production' ? manifestPath : projectRoot + configuration` in the Vite config factory).
 - Editing `bin/wwwroot/_framework/dotnet.js` invalidates the correct module in dev (Mode A).
 
 ### Phase 3 — Binary Asset Pipeline (per bundler)
@@ -412,7 +413,7 @@ Tasks:
 1. `configureServer` (Vite) / `devServer` middleware (Webpack) — for every request whose path matches an `Endpoints[].Route`, stream the corresponding `AssetFile` and apply its `ResponseHeaders` verbatim (with the stale-`Content-Length` recomputation).
 2. Selectors — when present, vary the response by `Accept-Encoding` etc.
 3. Preload emission — generate `<link rel=preload …>` HTML fragments from `EndpointProperties.Preload*`. Expose them via a stable hook (`getPreloadLinks()`) and, where the host bundler has an HTML pipeline (Vite `transformIndexHtml`, Webpack `HtmlWebpackPlugin`), inject them.
-4. Watch all content roots (Mode A) or `publishDir` (Mode B); invalidate on change and re-read endpoints.json on its own change (100 ms debounce).
+4. Watch all content roots (Mode A) or the endpoints-manifest directory (Mode B); invalidate on change and re-read endpoints.json on its own change (100 ms debounce).
 5. `generateBundle` — if the host bundler hashes `.wasm`/`.dll` outputs, rewrite the boot manifest (`blazor.boot.json` / `mono-config.json`) so the loader's filename list matches the emitted names.
 6. **IDE-parity cache (Mode A only):** when `emitTypeScriptPaths` is enabled, write `tsconfig.json`, `dotnet-vfs.d.ts`, `manifest.snapshot`, and `.gitignore` into `node_modules/.dotnet-vfs/`. On Mode B — or when the manifest disappears — remove that directory. Log the one-time `extends`-line hint at `info` level if the user's tsconfig doesn't reference it. Honour `vfsOutDir` and `vfsGitignore` for users who want the artifacts in a visible location.
 
@@ -423,7 +424,7 @@ Tasks:
 - Generated HTML contains `<link rel="preload" as="script" crossorigin="anonymous" integrity="sha256-…" fetchpriority="high">` for the `webassembly` preload group.
 - Hashed production build boots end-to-end in headless Chromium.
 - **Go to Definition** in VS Code on a symbol from `_framework/dotnet.js` lands in `_framework/dotnet.d.ts`, despite the two files originating from different content roots (Mode A).
-- After flipping `mode` from `'manifest'` to `'consolidated'` (or removing the runtime manifest), `node_modules/.dotnet-vfs/` no longer exists on the next build — no stale `paths` polluting the editor.
+- After removing the runtime manifest (Mode A → Mode B transition), `node_modules/.dotnet-vfs/` no longer exists on the next build — no stale `paths` polluting the editor.
 
 ### Phase 5 — Documentation, Examples, Release
 
@@ -434,54 +435,30 @@ Tasks:
 
 ## 8. Public API
 
+Options are a **discriminated union** of two variants:
+
+- **Discovery** — the plugin walks `<projectRoot>/bin/<configuration>/<targetFramework>/` to find the manifests. Typical for dev / `dotnet build`.
+- **Explicit** — the caller passes `manifestPath` directly. Typical for prod / `dotnet publish`, where the runtime manifest is absent and the user knows exactly where the publish output lives.
+
+The two are **mutually exclusive**: discovery options (`projectRoot`, `configuration`, `targetFramework`) and `manifestPath` may not coexist. All other options are shared.
+
 ```ts
-export type DotnetAssetsMode = 'auto' | 'manifest' | 'consolidated';
+export type DotnetAssetsOptions =
+  & DotnetAssetsBaseOptions
+  & (DotnetAssetsDiscoveryOptions | DotnetAssetsExplicitOptions);
 
-export interface DotnetAssetsOptions {
+export interface DotnetAssetsBaseOptions {
   /**
-   * Operating mode.
-   *   'manifest'     — Mode A: read {Project}.staticwebassets.runtime.json and build a VFS.
-   *   'consolidated' — Mode B: treat `publishDir` as a flat directory.
-   *   'auto'         — detect from the filesystem (default).
+   * The .NET project name. Used to construct the manifest filenames
+   * (`{projectName}.staticwebassets.runtime.json` and `.endpoints.json`).
    */
-  mode?: DotnetAssetsMode;
-
-  /**
-   * Absolute or workspace-relative path to {Project}.staticwebassets.runtime.json.
-   * Omit to auto-discover under `bin/` then `obj/`. Ignored in 'consolidated' mode.
-   */
-  manifestPath?: string;
-
-  /**
-   * Path to the consolidated assets directory produced by `dotnet publish -o <dir>`
-   * (Mode B). Omit to auto-discover the parent of a `_framework/` folder under
-   * `<projectRoot>/bin/<configuration>/<targetFramework>/publish/`.
-   */
-  publishDir?: string;
+  projectName: string;
 
   /**
    * Path to {Project}.staticwebassets.endpoints.json. Auto-discovered alongside
-   * the runtime manifest / assets directory. Pass `false` to ignore it entirely.
+   * the runtime manifest / manifest directory. Pass `false` to ignore it entirely.
    */
   endpointsPath?: string | false;
-
-  /**
-   * Restrict auto-discovery to a project directory (default: bundler root).
-   */
-  projectRoot?: string;
-
-  /**
-   * MSBuild configuration to look under (`bin/<Configuration>/...`).
-   * Default: `process.env.DOTNET_CONFIGURATION` ▸ `'Release'` when the host bundler
-   * is in production mode ▸ `'Debug'`.
-   */
-  configuration?: string;
-
-  /**
-   * Target framework moniker (`bin/<Configuration>/<TargetFramework>/...`).
-   * Required for multi-TFM projects; otherwise auto-detected.
-   */
-  targetFramework?: string;
 
   /**
    * Apply `ResponseHeaders` from endpoints.json in the dev middleware.
@@ -555,6 +532,49 @@ export interface DotnetAssetsOptions {
   /** Verbosity. Default: 'warn'. */
   logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug';
 }
+
+/**
+ * Discovery variant — the plugin walks `<projectRoot>/bin/<configuration>/<targetFramework>/`
+ * to locate the manifests. `manifestPath` MUST NOT be set on this variant.
+ */
+export interface DotnetAssetsDiscoveryOptions {
+  /**
+   * Absolute or workspace-relative path to the .NET project directory
+   * (the one containing the .csproj). Used as the root for manifest discovery.
+   */
+  projectRoot: string;
+
+  /**
+   * MSBuild configuration to look under (`bin/<Configuration>/...`).
+   * Default: `process.env.DOTNET_CONFIGURATION` ▸ `'Release'` when the host bundler
+   * is in production mode ▸ `'Debug'`.
+   */
+  configuration?: string;
+
+  /**
+   * Target framework moniker (`bin/<Configuration>/<TargetFramework>/...`).
+   * Required for multi-TFM projects; otherwise auto-detected.
+   */
+  targetFramework?: string;
+
+  manifestPath?: never;
+}
+
+/**
+ * Explicit-path variant — the caller supplies the manifest location directly.
+ * Discovery options (`projectRoot`, `configuration`, `targetFramework`) MUST NOT be set.
+ *
+ * `manifestPath` points at `{projectName}.staticwebassets.runtime.json`. The file may or
+ * may not exist on disk — absent is the normal `dotnet publish` case (Mode B). The sibling
+ * endpoints manifest in the same directory is required.
+ */
+export interface DotnetAssetsExplicitOptions {
+  manifestPath: string;
+
+  projectRoot?: never;
+  configuration?: never;
+  targetFramework?: never;
+}
 ```
 
 Defaults are part of the public contract; changes require a major version bump.
@@ -570,7 +590,8 @@ import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
 export default {
   plugins: [
     DotnetAssets({
-      // mode: 'auto' — runtime.json found under ./bin → Mode A is picked
+      // runtime.json found under ./bin → Mode A is picked automatically
+      projectName: 'Library',
       projectRoot: './sample/Library',
       emitTypeScriptPaths: true,
       logLevel: 'info',
@@ -581,20 +602,27 @@ export default {
 
 ### 9.2 Mode B — pointing at a publish folder
 
+No `mode` switch; the bundler's own mode picks the variant:
+
 ```ts
 // vite.config.ts
+import { defineConfig } from 'vite';
 import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
 
-export default {
+export default defineConfig(({ mode }) => ({
   plugins: [
     DotnetAssets({
-      mode: 'consolidated',
-      publishDir: './publish/wwwroot',
-      // endpoints.json is auto-loaded if present → SRI + preload still work
+      projectName: 'Library',
+      ...(mode === 'production'
+        ? { manifestPath: './publish/Library.staticwebassets.runtime.json' }   // Mode B
+        : { projectRoot: '../Library', targetFramework: 'net10.0' }),            // Mode A
+      // endpoints.json is auto-loaded from the same directory in both modes → SRI + preload still work
     }),
   ],
-};
+}));
 ```
+
+For a publish output the `runtime.json` file at `manifestPath` will not exist — that's the signal that triggers Mode B. The sibling `Library.staticwebassets.endpoints.json` is what gets actually read.
 
 ### 9.3 npm workspaces (.NET project as a sibling package)
 
@@ -668,17 +696,17 @@ export default {
 | 8 | Stale `Content-Length` / `Last-Modified` in endpoints.json        | Recompute from the file in dev when the underlying asset has been touched.                              |
 | 9 | Same `AssetFile` mapped to multiple `Route`s (fingerprint variants) | Index by both; canonical for HMR, fingerprinted preferred in production HTML.                          |
 | 10 | Broken `.d.ts → video/vnd.dlna.mpeg-tts` MIME from .NET           | Built-in override table; opt-out via `respectAllEndpointHeaders: true`.                                 |
-| 11 | Mode misdetection in monorepos / nested publish folders          | Hard fail with an actionable message when both runtime.json and a flat `_framework/` exist.             |
+| 11 | Mode misdetection in monorepos / nested publish folders          | Mode is artefact-driven (presence of `runtime.json`). For ambiguous setups, callers pass `manifestPath` explicitly. |
 | 12 | Wrong `bin/<Configuration>` chosen (Debug vs Release vs custom)  | Ranked discovery (§2.2) with `configuration` option, `DOTNET_CONFIGURATION` env, bundler-mode signal, and mtime-based staleness warning. |
 | 13 | Multi-TFM project (`net8.0` + `net9.0`) ambiguous                | Require `targetFramework`; fail loudly with the enumerated candidate list, like `dotnet run` does.       |
 | 14 | Generated IDE-parity files leaking into PRs                       | Default emission to `node_modules/.dotnet-vfs/`; never auto-patch user tsconfig; auto-gitignore when `vfsOutDir` is inside source. |
-| 15 | Stale `paths` from a previous Mode A run breaking a Mode B build  | On every run, delete the cache directory when mode is `consolidated`, when `emitTypeScriptPaths: false`, or when the source manifests disappear. |
+| 15 | Stale `paths` from a previous Mode A run breaking a Mode B build  | On every run, delete the cache directory when the runtime manifest is absent, when `emitTypeScriptPaths: false`, or when the source manifests disappear. |
 | 16 | `projectRoot` resolved against the monorepo root in a workspace setup | Default `projectRoot` to the consuming workspace (Vite `config.root` / Webpack `context`); document the sibling-package recipe (§9.3). |
 | 17 | Extensionless import where both `.ts` and `.d.ts` exist for the same name | `.ts` wins; emitted `paths` orders the implementation first; one-shot `debug` warning per shadowed pair. |
 
 ## 11. Test Strategy
 
-- **Unit** — schema parsing (runtime + endpoints), VFS lookups, pattern expansion, path normalisation, case-folding, fingerprint index, header override table, mode-detection state machine.
+- **Unit** — schema parsing (runtime + endpoints), VFS lookups, pattern expansion, path normalisation, case-folding, fingerprint index, header override table, artefact-driven mode selection.
 - **Fixtures**:
   - `test/fixtures/TypeShim/` — scattered build output, both manifests committed, two content roots (Mode A).
   - `test/fixtures/TypeShim-publish/` — consolidated publish output, endpoints.json only (Mode B).
