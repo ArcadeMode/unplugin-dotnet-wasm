@@ -1,9 +1,7 @@
 import { hasExtension } from './path-utils.js';
 
 /**
- * Iterable expansion of a bundler specifier into candidate virtual paths,
- * in priority order. Subclass to alter the set/order; for example, mapping
- * a `.js` import onto a sibling `.ts` source.
+ * Iterable expansion of a bundler specifier into candidate virtual paths, in priority order.
  */
 export class ExtensionProbes implements Iterable<string> {
   constructor(private readonly source: string) {}
@@ -15,6 +13,7 @@ export class ExtensionProbes implements Iterable<string> {
     for (const ext of EXTENSION_PROBE_ORDER) yield `${this.source}/index${ext}`;
   }
 }
+
 const EXTENSION_PROBE_ORDER = [
   '.ts',
   '.tsx',

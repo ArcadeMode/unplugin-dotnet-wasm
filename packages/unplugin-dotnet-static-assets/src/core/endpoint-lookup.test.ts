@@ -17,9 +17,6 @@ function loadFixture(): EndpointsManifest {
   return parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
 }
 
-// ---------------------------------------------------------------------------
-// Helper to build a minimal manifest for unit tests
-// ---------------------------------------------------------------------------
 function makeManifest(endpoints: EndpointsManifest['Endpoints']): EndpointsManifest {
   return { Version: 1, ManifestType: 'Build', Endpoints: endpoints };
 }
@@ -40,9 +37,6 @@ function makeEndpoint(
 }
 
 describe('buildEndpointLookup', () => {
-  // -------------------------------------------------------------------------
-  // Integration — real fixture
-  // -------------------------------------------------------------------------
 
   it('builds without errors from the real Library fixture', () => {
     expect(() => buildEndpointLookup(loadFixture())).not.toThrow();
@@ -93,16 +87,13 @@ describe('buildEndpointLookup', () => {
     const fpEndpoint = manifest.Endpoints.find(e =>
       /^_framework\/Library\.[a-z0-9]+\.wasm$/.test(e.Route),
     );
+    // TODO: add a parameter so we can skip this test when WasmFingerprintAssets=false, rather than silently passing.
     if (!fpEndpoint) return; // no separate fingerprinted route when fingerprinting is disabled
     const lookup = buildEndpointLookup(manifest);
     const fpRoute = fpEndpoint!.Route;
     const match = lookup.get(fpRoute) as EndpointMatch;
     expect(match.label).toBe('_framework/Library.wasm');
   });
-
-  // -------------------------------------------------------------------------
-  // Route normalisation
-  // -------------------------------------------------------------------------
 
   it('strips a leading slash from Route', () => {
     const lookup = buildEndpointLookup(
@@ -124,10 +115,6 @@ describe('buildEndpointLookup', () => {
     );
     expect(lookup.get('_framework/foo.js')?.assetFile).toBe('_framework/foo.abc123.js');
   });
-
-  // -------------------------------------------------------------------------
-  // Compressed-variant filtering
-  // -------------------------------------------------------------------------
 
   it('skips endpoints with a Content-Encoding selector', () => {
     const manifest = makeManifest([
@@ -156,10 +143,6 @@ describe('buildEndpointLookup', () => {
     ]);
     expect(buildEndpointLookup(manifest).size).toBe(1);
   });
-
-  // -------------------------------------------------------------------------
-  // EndpointProperty extraction
-  // -------------------------------------------------------------------------
 
   it('extracts integrity from EndpointProperties', () => {
     const lookup = buildEndpointLookup(
@@ -200,10 +183,6 @@ describe('buildEndpointLookup', () => {
     );
     expect(lookup.get('_framework/foo.js')?.integrity).toBeUndefined();
   });
-
-  // -------------------------------------------------------------------------
-  // Error paths
-  // -------------------------------------------------------------------------
 
   it('throws EndpointLookupBuildError on duplicate uncompressed routes', () => {
     const manifest = makeManifest([
