@@ -3,14 +3,6 @@ import { readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { dotnetStaticAssets } from './index.js';
 
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Extracts the handler function from a hook that may be either a plain
- * function or a Rollup v4 `{ order, handler }` descriptor object.
- */
 function handler<T extends (...args: any[]) => any>(
   hook: T | { handler: T; order?: string } | null | undefined,
 ): T | undefined {
@@ -35,28 +27,16 @@ function callLoad(
   return handler(plugin.load)?.call({ emitFile: emitFileMock }, id);
 }
 
-// ---------------------------------------------------------------------------
-// Fixture paths
-// ---------------------------------------------------------------------------
-
 const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
 const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');
 const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 const PUBLISH_DIR = resolve(LIBRARY_ROOT, 'bin', 'Release', 'net10.0', 'publish');
-
-// ---------------------------------------------------------------------------
-// Smoke test
-// ---------------------------------------------------------------------------
 
 describe('dotnetStaticAssets', () => {
   it('exports a plugin factory', () => {
     expect(typeof dotnetStaticAssets.vite).toBe('function');
   });
 });
-
-// ---------------------------------------------------------------------------
-// buildStart smoke — publish paths
-// ---------------------------------------------------------------------------
 
 describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
   it('initialises without throwing when pointing at a Release publish output', async () => {
@@ -80,10 +60,6 @@ describe('dotnetStaticAssets — buildStart with explicit manifestPath', () => {
     await expect(callBuildStart(plugin)).resolves.not.toThrow();
   });
 });
-
-// ---------------------------------------------------------------------------
-// resolveId — virtual-path lookup
-// ---------------------------------------------------------------------------
 
 describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
   let plugin: any;
@@ -147,14 +123,9 @@ describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// load — binary asset handler
-// ---------------------------------------------------------------------------
-
 describe('dotnetStaticAssets — load', () => {
   let plugin: any;
   // Asset names may be fingerprinted (WasmFingerprintAssets=true) or canonical.
-  // Discover them at test-file setup time so we never hardcode hash segments.
   let dotnetNativeWasm: string;
   let icudtDat: string;
   let libraryPdb: string;
@@ -179,35 +150,35 @@ describe('dotnetStaticAssets — load', () => {
     libraryPdb       = find(/^Library(\.[a-z0-9]+)?\.pdb$/);
   });
 
-  it('returns null for a .ts file (falls through to Vite transformer)', () => {
-    const result = callLoad(plugin, join(ROOT0, 'main.ts'));
+  it('returns null for a .ts file (falls through to Vite transformer)', async () => {
+    const result = await callLoad(plugin, join(ROOT0, 'main.ts'));
     expect(result).toBeNull();
   });
 
-  it('returns null for a .js file', () => {
-    const result = callLoad(plugin, join(ROOT2, '_framework', 'dotnet.js'));
+  it('returns null for a .js file', async () => {
+    const result = await callLoad(plugin, join(ROOT2, '_framework', 'dotnet.js'));
     expect(result).toBeNull();
   });
 
-  it('emits a .wasm file as an asset and returns an import.meta.ROLLUP_FILE_URL reference', () => {
+  it('emits a .wasm file as an asset and returns an import.meta.ROLLUP_FILE_URL reference', async () => {
     const emitFile = vi.fn().mockReturnValue('wasm-ref-abc');
-    const result = callLoad(plugin, dotnetNativeWasm, emitFile);
+    const result = await callLoad(plugin, dotnetNativeWasm, emitFile);
     expect(emitFile).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'asset', name: basename(dotnetNativeWasm) }),
     );
     expect(result).toBe('export default import.meta.ROLLUP_FILE_URL_wasm-ref-abc;');
   });
 
-  it('emits a .dat file as an asset', () => {
+  it('emits a .dat file as an asset', async () => {
     const emitFile = vi.fn().mockReturnValue('dat-ref-xyz');
-    const result = callLoad(plugin, icudtDat, emitFile);
+    const result = await callLoad(plugin, icudtDat, emitFile);
     expect(emitFile).toHaveBeenCalled();
     expect(result).toContain('import.meta.ROLLUP_FILE_URL_dat-ref-xyz');
   });
 
-  it('emits a .pdb file as an asset', () => {
+  it('emits a .pdb file as an asset', async () => {
     const emitFile = vi.fn().mockReturnValue('pdb-ref');
-    const result = callLoad(plugin, libraryPdb, emitFile);
+    const result = await callLoad(plugin, libraryPdb, emitFile);
     expect(emitFile).toHaveBeenCalled();
     expect(result).toContain('import.meta.ROLLUP_FILE_URL_pdb-ref');
   });

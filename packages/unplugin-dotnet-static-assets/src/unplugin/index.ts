@@ -1,5 +1,5 @@
 import { createUnplugin } from 'unplugin';
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
 import { discoverManifests } from '../core/discover.js';
@@ -34,9 +34,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
       
       const logLevel = options.logLevel ?? 'warn';
       const logger = createConsoleLogger(logLevel);
-      const endpointLookup = buildEndpointLookup(parseEndpointsManifest(readFileSync(endpointsManifestPath)));
-      const vfs = runtimeManifestPath
-        ? buildVfs(parseRuntimeManifest(readFileSync(runtimeManifestPath)), { logger })
+      const [endpointsRaw, runtimeRaw] = await Promise.all([
+        readFile(endpointsManifestPath),
+        runtimeManifestPath ? readFile(runtimeManifestPath) : Promise.resolve(null),
+      ]);
+      const endpointLookup = buildEndpointLookup(parseEndpointsManifest(endpointsRaw));
+      const vfs = runtimeRaw
+        ? buildVfs(parseRuntimeManifest(runtimeRaw), { logger })
         : buildEmptyVfs(endpointsManifestPath, { logger });
 
       assetResolver = new AssetResolver(vfs, endpointLookup);
@@ -47,13 +51,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
       return assetResolver.resolve(source);
     },
 
-    load(id: string) {
+    async load(id: string) {
       const lastDot = id.lastIndexOf('.');
       if (lastDot === -1) return null;
       const ext = id.slice(lastDot);
       if (!BINARY_EXTENSIONS.has(ext)) return null;
 
-      const source = readFileSync(id);
+      const source = await readFile(id);
       const refId = this.emitFile({
         type: 'asset',
         name: basename(id),

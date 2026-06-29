@@ -17,7 +17,6 @@ const MANIFEST_PATH = resolve(
 );
 // Physical roots — join() handles the trailing separator.
 const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');                                        // source (ContentRoot 0)
-const ROOT_OBJ1 = resolve(LIBRARY_ROOT, 'obj', 'Debug', 'net10.0', 'TypeShim', 'staticwebassets', 'wwwroot'); // TypeShim generated (ContentRoot 1)
 const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');             // build output (ContentRoot 2)
 
 // ---------------------------------------------------------------------------
@@ -50,20 +49,6 @@ describe('buildVfs — real fixture', () => {
     expect(asset!.physicalPath).toBe(join(ROOT0, '_framework', 'dotnet.d.ts'));
   });
 
-  // ── extension probing against the enumerated map ──────────────────────────
-
-  it('resolve wasm-bootstrap (extensionless) → wasm-bootstrap.ts in root 0', () => {
-    const asset = vfs.resolve('wasm-bootstrap');
-    expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toBe(join(ROOT0, 'wasm-bootstrap.ts'));
-  });
-
-  it('resolve main (extensionless) → main.ts in root 0', () => {
-    const asset = vfs.resolve('main');
-    expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toBe(join(ROOT0, 'main.ts'));
-  });
-
   // ── list() ────────────────────────────────────────────────────────────────
 
   it('list _framework returns direct children with full virtual paths', () => {
@@ -90,13 +75,6 @@ describe('buildVfs — real fixture', () => {
     expect(vfs.resolve('_framework/nonexistent.wasm')).toBeUndefined();
   });
 
-  it('resolve typeshim (extensionless) → typeshim.ts in root 1 (TypeShim obj dir)', () => {
-    // typeshim.ts is explicitly enumerated in the manifest at ContentRootIndex 1
-    // (the generated obj/Debug/net10.0/TypeShim/staticwebassets/wwwroot/ directory).
-    const asset = vfs.resolve('typeshim');
-    expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toBe(join(ROOT_OBJ1, 'typeshim.ts'));
-  });
 
   // ── performance ───────────────────────────────────────────────────────────
 
@@ -174,55 +152,6 @@ describe('buildVfs — synthetic: pattern fallthrough', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Synthetic: extension + index.* probing through pattern fallthrough
-// ---------------------------------------------------------------------------
-
-describe('buildVfs — synthetic: probing through pattern fallthrough', () => {
-  let tmpRoot: string;
-  let root0: string;
-  let vfs: VirtualFileSystem;
-
-  beforeAll(() => {
-    tmpRoot = mkdtempSync(join(tmpdir(), 'vfs-probe-'));
-    root0 = join(tmpRoot, 'root0');
-    mkdirSync(join(root0, 'some-dir'), { recursive: true });
-    writeFileSync(join(root0, 'bare.ts'), 'export const bare = 1;');
-    writeFileSync(join(root0, 'some-dir', 'index.ts'), 'export default 42;');
-
-    vfs = buildVfs(
-      parseRuntimeManifest(
-        JSON.stringify({
-          ContentRoots: [`${root0}${sep}`],
-          Root: {
-            Children: null,
-            Asset: null,
-            Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
-          },
-        }),
-      ),
-    );
-  });
-
-  afterAll(() => {
-    rmSync(tmpRoot, { recursive: true, force: true });
-  });
-
-  it('extensionless bare specifier resolves via .ts probe', () => {
-    const asset = vfs.resolve('bare');
-    expect(asset).toBeDefined();
-    expect(asset!.virtualPath).toBe('bare.ts');
-    expect(asset!.physicalPath).toBe(join(root0, 'bare.ts'));
-  });
-
-  it('bare directory specifier resolves via index.ts probe', () => {
-    const asset = vfs.resolve('some-dir');
-    expect(asset).toBeDefined();
-    expect(asset!.virtualPath).toBe('some-dir/index.ts');
-    expect(asset!.physicalPath).toBe(join(root0, 'some-dir', 'index.ts'));
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Synthetic: .ts shadows .d.ts (detection runs against manifest-listed assets)
 // ---------------------------------------------------------------------------
 
@@ -262,12 +191,6 @@ describe('buildVfs — synthetic: .ts shadows .d.ts', () => {
 
   it('does not emit a warning for bar.d.ts (no .ts sibling)', () => {
     expect(debugMessages.every(m => !m.includes('bar.d.ts'))).toBe(true);
-  });
-
-  it('resolve foo (extensionless) → foo.ts, not foo.d.ts', () => {
-    const asset = vfs.resolve('foo');
-    expect(asset).toBeDefined();
-    expect(asset!.virtualPath).toBe('foo.ts');
   });
 
   it('resolve foo.d.ts (explicit) → foo.d.ts (exact match still works)', () => {

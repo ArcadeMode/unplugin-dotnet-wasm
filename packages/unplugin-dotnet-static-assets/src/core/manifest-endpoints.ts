@@ -1,14 +1,7 @@
 import { z } from 'zod';
 
-// ---------------------------------------------------------------------------
-// Zod schemas — mirror the exact shape of
-// {Project}.staticwebassets.endpoints.json emitted by Microsoft.NET.Sdk.WebAssembly
-// ---------------------------------------------------------------------------
+// Zod schemas that mirror the shape of {Project}.staticwebassets.endpoints.json
 
-/**
- * A single content-negotiation selector (e.g. Accept-Encoding: br).
- * Present when CompressionEnabled=true; empty array in the common case.
- */
 const SelectorSchema = z.object({
   Name: z.string(),
   Value: z.string(),
@@ -18,7 +11,7 @@ const SelectorSchema = z.object({
 /**
  * An HTTP response header the server should send for this route.
  * Observed Name values: Cache-Control, Content-Length, Content-Type,
- * ETag, Last-Modified.  Unknown names are accepted verbatim.
+ * ETag, Last-Modified.
  */
 const ResponseHeaderSchema = z.object({
   Name: z.string(),
@@ -46,43 +39,19 @@ const EndpointPropertySchema = z.object({
   Value: z.string(),
 });
 
-/**
- * A single entry in the endpoints manifest — describes one public-facing URL
- * and how its bytes should be served.
- */
 const EndpointSchema = z.object({
-  /**
-   * Public-facing URL path relative to the app root (no leading slash).
-   * The same AssetFile can have multiple routes:
-   *   - canonical row  (`_framework/Library.wasm`)        → Cache-Control: no-cache
-   *   - fingerprinted row (`_framework/Library.<fp>.wasm`) → Cache-Control: immutable
-   */
   Route: z.string(),
-  /**
-   * Physical file path relative to the active content root (Mode A) or
-   * publishDir (Mode B).  May differ from Route when fingerprinting is on.
-   */
   AssetFile: z.string(),
-  /** Content-negotiation selectors. Empty in no-compression builds. */
   Selectors: z.array(SelectorSchema),
-  /** HTTP headers to be sent verbatim (Content-Length and Last-Modified
-   *  may be stale in the dev server; recompute from the file system there). */
   ResponseHeaders: z.array(ResponseHeaderSchema),
-  /** Non-header metadata: integrity, fingerprint, label, preload hints, etc. */
   EndpointProperties: z.array(EndpointPropertySchema),
 });
 
 const EndpointsManifestSchema = z.object({
-  /** Currently 1. */
   Version: z.number().int().positive(),
-  /** "Build" or "Publish". Informational; both shapes are accepted. */
   ManifestType: z.string(),
   Endpoints: z.array(EndpointSchema),
 });
-
-// ---------------------------------------------------------------------------
-// Exported types (inferred — no hand-written duplicates)
-// ---------------------------------------------------------------------------
 
 export type Selector = z.infer<typeof SelectorSchema>;
 export type ResponseHeader = z.infer<typeof ResponseHeaderSchema>;

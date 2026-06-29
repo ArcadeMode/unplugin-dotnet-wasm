@@ -1,25 +1,15 @@
 import type { Endpoint, EndpointsManifest } from './manifest-endpoints.js';
 import { stripLeadingSlash, toPosixPath } from './path-utils.js';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/**
- * Resolved metadata for a single un-compressed endpoint, keyed by its POSIX
- * route (no leading slash).
- */
 export interface EndpointMatch {
-  /** Physical file path relative to the build/publish root (POSIX, no leading slash). */
+  /** Physical file path relative to the .NET application root */
   readonly assetFile: string;
-  /** SRI hash value from EndpointProperties where Name === 'integrity', if present. */
+  /** SRI hash value */
   readonly integrity?: string;
-  /** Hash token from EndpointProperties where Name === 'fingerprint', if present. */
+  /** Hash token */
   readonly fingerprint?: string;
   /**
-   * Canonical route alias from EndpointProperties where Name === 'label', if present.
-   * The fingerprinted endpoint row (`_framework/dotnet.<fp>.js`) carries this label
-   * pointing back to the canonical route (`_framework/dotnet.js`).
+   * If present, this is a fingerprinted endpoint and the label points back to the canonical route.
    */
   readonly label?: string;
 }
@@ -27,24 +17,11 @@ export interface EndpointMatch {
 /** Immutable route → EndpointMatch lookup table. */
 export type EndpointLookup = ReadonlyMap<string, EndpointMatch>;
 
-// ---------------------------------------------------------------------------
-// Builder
-// ---------------------------------------------------------------------------
-
 /**
  * Derive an {@link EndpointLookup} from a parsed endpoints manifest.
  *
- * Rules applied:
- *  1. Endpoints whose `Selectors` contain an entry with `Name === 'Content-Encoding'`
- *     are **skipped** — they are compressed variants; the underlying bits are the
- *     same as the uncompressed endpoint, so we only need one canonical entry per
- *     route.
- *  2. Routes are POSIX-normalised and any leading `/` stripped.
- *  3. AssetFile is POSIX-normalised and any leading `/` stripped.
- *  4. The `integrity`, `fingerprint`, and `label` EndpointProperty values are
- *     extracted from `EndpointProperties` when present.
- *  5. Duplicate routes (after normalisation) throw an
- *     {@link EndpointLookupBuildError}.
+ * - Compressed endpoints are ignored
+ * - All routes and assetFile paths are POSIX-normalised and any leading `/` stripped
  *
  * @throws {EndpointLookupBuildError} if two uncompressed endpoints share the same
  *   normalised route.
@@ -55,8 +32,8 @@ export function buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup
   for (const endpoint of manifest.Endpoints) {
     if (isCompressed(endpoint)) continue;
 
-    const route = normalisePath(endpoint.Route);
-    const assetFile = normalisePath(endpoint.AssetFile);
+    const route = stripLeadingSlash(toPosixPath(endpoint.Route));
+    const assetFile = stripLeadingSlash(toPosixPath(endpoint.AssetFile));
     const match = extractMatch(assetFile, endpoint);
 
     if (map.has(route)) {
@@ -72,16 +49,8 @@ export function buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup
   return map;
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 function isCompressed(endpoint: Endpoint): boolean {
   return endpoint.Selectors.some(s => s.Name === 'Content-Encoding');
-}
-
-function normalisePath(p: string): string {
-  return stripLeadingSlash(toPosixPath(p));
 }
 
 function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
@@ -109,10 +78,6 @@ function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
   if (label !== undefined) (result as { label?: string }).label = label;
   return result;
 }
-
-// ---------------------------------------------------------------------------
-// Error type
-// ---------------------------------------------------------------------------
 
 export class EndpointLookupBuildError extends Error {
   /** The route that appeared more than once. */

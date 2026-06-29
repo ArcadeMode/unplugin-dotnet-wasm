@@ -1,9 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
-import { EXTENSION_PROBE_ORDER } from './extension-probe-order.js';
 import { type Logger, NULL_LOGGER } from './logger.js';
-import { hasExtension, stripLeadingSlash, toPosixPath } from './path-utils.js';
+import { stripLeadingSlash, toPosixPath } from './path-utils.js';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -27,25 +26,18 @@ export interface VirtualFileSystem {
   /**
    * Resolve a virtual path to its physical file.
    *
-   * Resolution order:
-   * 1. Exact lookup in VFS.
-   * 2. For bare specifiers, attempt extension and index probing (.ts, .js, /index.<ext>, etc.) in VFS.
-   * 3. Pattern fallthrough, for each manifest entry with a prefix `Patterns` match:
-   *    1. Attempt exact lookup in FS.
-   *    2. For bare specifiers, attempt extension and index probing in FS.
+   * 1. Exact lookup in the manifest-built map.
+   * 2. For each `**` pattern: a single `statSync` at the verbatim path under
+   *    the pattern's content root, with hits cached into the map.
    *
-   * Returns `undefined` when nothing matches. This does not mean the file is not on disk, just not in the virtual file system.
+   * No extension or index probing here — callers expand specifiers upstream.
+   * Returns `undefined` when nothing matches.
    */
   resolve(virtualPath: string): ResolvedAsset | undefined;
 
   /**
    * Locate an exact asset filename across all content roots via a targeted
    * `statSync` probe — no extension or index probing.
-   *
-   * Used for the endpoint-aliased FS fallback (§3.2 step 6): when the
-   * endpoints manifest maps a route to a fingerprinted `AssetFile` that is
-   * absent from the VFS flat map and not covered by a pattern, this walks the
-   * content roots in declaration order and returns the first hit.
    *
    * Returns `undefined` when the file is absent from all roots.
    */
@@ -63,10 +55,12 @@ interface NodePattern {
 // Utility helpers
 // ---------------------------------------------------------------------------
 
-/** statSync that returns true iff the path exists and is a regular file. */
+/**
+ * statSync that returns true iff the path exists and is a regular file.
+ */
 function isFile(absPath: string): boolean {
   try {
-    return !statSync(absPath).isDirectory();
+    return !statSync(absPath).isDirectory(); // sync kept for simplicity and negiligible cost on the manifest-miss fallback path
   } catch {
     return false;
   }
@@ -189,54 +183,18 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
     const vp = stripLeadingSlash(toPosixPath(virtualPath));
     const key = vp.toLowerCase();
 
-    // 1. Exact map lookup.
     const exact = lookup.get(key);
     if (exact !== undefined) return exact;
 
-    const bare = !hasExtension(vp);
-
-    if (bare) {
-      // 2. Extension probing against the map.
-      for (const ext of EXTENSION_PROBE_ORDER) {
-        const hit = lookup.get(`${key}${ext}`);
-        if (hit !== undefined) return hit;
-      }
-      // 3. `<path>/index.<ext>` probing against the map.
-      for (const ext of EXTENSION_PROBE_ORDER) {
-        const hit = lookup.get(`${key}/index${ext}`);
-        if (hit !== undefined) return hit;
-      }
-    }
-
-    // 4. Pattern fallthrough — single targeted stat per candidate; no scans.
     for (const pat of patterns) {
       const rawRoot = manifest.ContentRoots[pat.contentRootIndex];
       if (rawRoot === undefined) continue;
-
-      // The pattern only applies if `vp` falls within its virtual subtree.
       if (pat.nodePrefix !== '' && !vp.startsWith(`${pat.nodePrefix}/`)) continue;
-
-      // M1 only honours the most common pattern shape: `**` (everything below
-      // the node).  More elaborate glob support lands when a real-world
-      // manifest demands it.
+      // Only `**` is honoured today; richer glob shapes can land when needed.
       if (pat.pattern !== '**') continue;
 
-      // 4a. Direct hit at the verbatim path.
-      const direct = tryStatCandidate(vp, join(rawRoot, vp));
-      if (direct !== undefined) return direct;
-
-      if (bare) {
-        // 4b. Extension probing through the pattern.
-        for (const ext of EXTENSION_PROBE_ORDER) {
-          const hit = tryStatCandidate(`${vp}${ext}`, join(rawRoot, `${vp}${ext}`));
-          if (hit !== undefined) return hit;
-        }
-        // 4c. `<vp>/index.<ext>` probing through the pattern.
-        for (const ext of EXTENSION_PROBE_ORDER) {
-          const hit = tryStatCandidate(`${vp}/index${ext}`, join(rawRoot, vp, `index${ext}`));
-          if (hit !== undefined) return hit;
-        }
-      }
+      const hit = tryStatCandidate(vp, join(rawRoot, vp));
+      if (hit !== undefined) return hit;
     }
 
     return undefined;
