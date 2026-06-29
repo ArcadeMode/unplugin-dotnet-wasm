@@ -8,9 +8,9 @@ import { resolve, join, dirname } from 'node:path';
 export interface DiscoverOptions {
   /**
    * Absolute or workspace-relative path to the .NET project directory
-   * (the one containing the .csproj).
+   * (the one containing the .csproj). Required unless `manifestPath` is set.
    */
-  projectRoot: string;
+  projectRoot?: string;
 
   /** The .NET project name — used to construct manifest filenames. */
   projectName: string;
@@ -27,6 +27,18 @@ export interface DiscoverOptions {
    * `bin/<configuration>/`; required (with a clear error) when multiple exist.
    */
   targetFramework?: string;
+
+  /**
+   * Append a `publish` segment to the manifest directory path, producing
+   * `<projectRoot>/bin/<configuration>/<targetFramework>/publish/`.
+   *
+   * Use this when pointing at a `dotnet publish` output in the default SDK
+   * layout. The runtime manifest is typically absent there; the endpoints
+   * manifest is required.
+   *
+   * Default: `false` (the `dotnet build` layout).
+   */
+  isPublish?: boolean;
 
   /**
    * Absolute path to `{Project}.staticwebassets.runtime.json`.
@@ -73,9 +85,15 @@ export function discoverManifests(opts: DiscoverOptions): Manifests {
     };
   }
 
-  const projectRoot = resolve(opts.projectRoot);
+  const projectRoot = resolve(opts.projectRoot ?? '');
   const configuration = opts.configuration ?? 'Debug';
-  const tfmDir = join(projectRoot, 'bin', configuration, opts.targetFramework ?? '');
+  const tfmDir = join(
+    projectRoot,
+    'bin',
+    configuration,
+    opts.targetFramework ?? '',
+    opts.isPublish ? 'publish' : '',
+  );
 
   const runtimePath = join(tfmDir, `${opts.projectName}.staticwebassets.runtime.json`);
   const endpointsPath = join(tfmDir, `${opts.projectName}.staticwebassets.endpoints.json`);

@@ -1,5 +1,5 @@
-import { statSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+import { dirname, join, sep } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
 
 // ---------------------------------------------------------------------------
@@ -344,10 +344,33 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
 }
 
 /**
- * Return a {@link VirtualFileSystem} with no assets — suitable as a
- * pre-{@link buildStart} placeholder and for Mode B (publish / consolidated)
- * builds where no runtime manifest is present.  All lookups are O(1) misses.
+ * Return a {@link VirtualFileSystem} with no manifest-enumerated assets.
+ *
+ * When `endpointsManifestPath` is supplied (Mode B — no runtime manifest),
+ * a single content root is derived from the endpoints manifest location and a
+ * catch-all `**` pattern is registered against it.  This lets the normal
+ * pattern-fallthrough path in {@link VirtualFileSystem.resolve} discover any
+ * file that exists in the publish output without requiring Mode-B-specific
+ * branches in callers.
+ *
+ * Standard `dotnet publish` layout: `<publish>/wwwroot/<assetFile>`.
+ * If a `wwwroot/` subdirectory exists next to the endpoints manifest that
+ * directory is used as the root; otherwise the manifest's own directory is.
+ *
+ * Called with no argument it returns a truly empty VFS (O(1) misses on all
+ * lookups), used as a pre-{@link buildStart} placeholder.
  */
-export function buildEmptyVfs(): VirtualFileSystem {
-  return buildVfs({ ContentRoots: [], Root: { Children: null, Asset: null, Patterns: null } });
+export function buildEmptyVfs(endpointsManifestPath: string): VirtualFileSystem {
+  const manifestDir = dirname(endpointsManifestPath);
+  const wwwroot = join(manifestDir, 'wwwroot');
+  const contentRoot = existsSync(wwwroot) ? wwwroot : manifestDir;
+
+  return buildVfs({
+    ContentRoots: [contentRoot],
+    Root: {
+      Children: null,
+      Asset: null,
+      Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
+    },
+  });
 }

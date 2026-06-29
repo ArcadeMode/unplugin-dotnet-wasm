@@ -64,7 +64,7 @@ function statAcrossRoots(assetFile: string, contentRoots: readonly string[]): st
 
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) => {
   // Pre-initialised to empty so resolveId is safe before buildStart fires.
-  let vfs: VirtualFileSystem = buildEmptyVfs();
+  let vfs: VirtualFileSystem = null!;
   let endpointLookup: EndpointLookup = new Map<string, EndpointMatch>();
   const logLevel = options.logLevel ?? 'warn';
 
@@ -73,18 +73,21 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
     enforce: 'pre' as const,
 
     async buildStart() {
-      const { runtimeManifestPath, endpointsManifestPath } = options.manifestPath !== undefined
-        ? { runtimeManifestPath: options.manifestPath, endpointsManifestPath: null }
-        : discoverManifests({
-            projectRoot: options.projectRoot,
-            projectName: options.projectName,
-            ...(options.configuration !== undefined && { configuration: options.configuration }),
-            ...(options.targetFramework !== undefined && { targetFramework: options.targetFramework }),
-          });
+      const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(
+        'manifestPath' in options
+          ? { projectName: options.projectName, manifestPath: options.manifestPath }
+          : {
+              projectRoot: options.projectRoot,
+              projectName: options.projectName,
+              ...(options.configuration !== undefined && { configuration: options.configuration }),
+              ...(options.targetFramework !== undefined && { targetFramework: options.targetFramework }),
+              ...(options.isPublish !== undefined && { isPublish: options.isPublish }),
+            },
+      );
 
       vfs = runtimeManifestPath
         ? buildVfs(parseRuntimeManifest(readFileSync(runtimeManifestPath)))
-        : buildEmptyVfs();
+        : buildEmptyVfs(endpointsManifestPath);
 
       endpointLookup = endpointsManifestPath
         ? buildEndpointLookup(parseEndpointsManifest(readFileSync(endpointsManifestPath)))

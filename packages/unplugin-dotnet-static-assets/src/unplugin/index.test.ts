@@ -42,6 +42,7 @@ function callLoad(
 const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
 const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');
 const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
+const PUBLISH_DIR = resolve(LIBRARY_ROOT, 'bin', 'Release', 'net10.0', 'publish');
 
 // ---------------------------------------------------------------------------
 // Smoke test
@@ -50,6 +51,33 @@ const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 describe('dotnetStaticAssets', () => {
   it('exports a plugin factory', () => {
     expect(typeof dotnetStaticAssets.vite).toBe('function');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildStart smoke — publish paths
+// ---------------------------------------------------------------------------
+
+describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
+  it('initialises without throwing when pointing at a Release publish output', async () => {
+    const plugin = dotnetStaticAssets.rollup({
+      projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
+      configuration: 'Release',
+      targetFramework: 'net10.0',
+      isPublish: true,
+    });
+    await expect(callBuildStart(plugin)).resolves.not.toThrow();
+  });
+});
+
+describe('dotnetStaticAssets — buildStart with explicit manifestPath', () => {
+  it('initialises without throwing when manifestPath points at the publish dir (no runtime.json)', async () => {
+    const plugin = dotnetStaticAssets.rollup({
+      projectName: 'Library',
+      manifestPath: join(PUBLISH_DIR, 'Library.staticwebassets.runtime.json'),
+    });
+    await expect(callBuildStart(plugin)).resolves.not.toThrow();
   });
 });
 
