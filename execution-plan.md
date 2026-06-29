@@ -16,7 +16,7 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 
 ---
 
-## M1 — Vite + Mode A + `dotnet build` only
+## M1 — Vite + scattered build output only
 
 **Outcome:** `pnpm --filter consumer build` produces a working WASM-loading bundle from the `Library/` fixture. Zero dev-server, zero endpoints, zero IDE emission, zero other bundlers.
 
@@ -42,14 +42,14 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 ### M1.3 — Discovery (standard `bin/<Configuration>/<TargetFramework>/` layout)
 
 - File: `src/core/discover.ts`.
-- `discoverRuntimeManifest(opts): { manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework }`.
+- `discoverManifests(opts): { runtimeManifestPath, endpointsManifestPath }`.
 - **Explicit options exposed from M1** (mirrors `plan.md` §8):
   - `projectRoot: string` — required for M1; the .NET project directory (the one containing the `.csproj`).
   - `configuration?: string` — default `'Debug'`. The full default-resolution chain (env var, bundler mode, etc.) lands in M2.4.
   - `targetFramework?: string` — if omitted, the discovery globs `<projectRoot>/bin/<configuration>/*/` and requires exactly one TFM directory; else hard-fail with the enumerated candidates.
-  - `manifestPath?: string` — if set, the other discovery axes are forbidden (enforced by the discriminated union in `DotnetAssetsOptions`). The runtime manifest at that path may or may not exist (it won't, for a publish output); the endpoints manifest in the same directory must.
+  - `dotnetOutputDir?: string` — if set, the other discovery axes are forbidden (enforced by the discriminated union in `DotnetAssetsOptions`). The directory must contain the endpoints manifest; the runtime manifest sibling may or may not exist (it won't, for a publish output).
 - Algorithm for M1:
-  1. If `manifestPath` is set, take it verbatim.
+  1. If `dotnetOutputDir` is set, take it verbatim.
   2. Otherwise construct `<projectRoot>/bin/<configuration>/<targetFramework>` from supplied/defaulted options, filling each unset axis with the unique-directory rule above. Glob `*.staticwebassets.runtime.json` inside it.
   3. On zero hits, throw with a clear message naming the directory searched and the resolved axes.
   4. On multiple hits in the *same* directory (unlikely but possible), throw with the candidate list.
@@ -111,7 +111,7 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
   - `projectRoot: string` — required for now; we don't auto-walk above the consumer yet.
   - `configuration?: string` — explicit override; default `'Debug'`.
   - `targetFramework?: string` — explicit override; auto-detected when exactly one TFM directory exists.
-  - `manifestPath?: string` — absolute-or-relative bypass; when set, the discovery skips path construction entirely.
+  - `dotnetOutputDir?: string` — absolute-or-relative bypass; when set, the discovery skips path construction entirely.
 - The Vite adapter registers with `enforce: 'pre'` so the importer-blind overlay runs before Vite's built-in resolvers; otherwise virtual specifiers like `./_framework/dotnet` would be resolved against the importer's physical directory and miss the build-output root.
 
 **Done when:** a consumer with:
@@ -333,7 +333,7 @@ Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fi
 
 #### M1.7.e — Discovery extension
 
-- `src/core/discover.ts`: add `discoverEndpointsManifest({projectRoot, configuration?, targetFramework?, manifestPath?})` returning `{ manifestPath, projectName, resolvedConfiguration, resolvedTargetFramework } | null`. The file naming convention is `{ProjectName}.staticwebassets.endpoints.json`, sibling to the runtime manifest.
+- `src/core/discover.ts`: add `discoverEndpointsManifest({projectRoot, configuration?, targetFramework?, dotnetOutputDir?})` returning `{ endpointsManifestPath, projectName, resolvedConfiguration, resolvedTargetFramework } | null`. The file naming convention is `{ProjectName}.staticwebassets.endpoints.json`, sibling to the runtime manifest.
 - The result is **optional**: if the file is absent (older SDK / unusual layout) return `null`, do not throw. The runtime manifest remains required.
 - The `projectName` axis is already resolved by the runtime-manifest discovery; reuse it to keep both discoveries in lock-step (same configuration, same TFM, same project — no fan-out of independent unique-candidate searches).
 - Tests:
@@ -382,25 +382,25 @@ Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fi
 
 ---
 
-## M2 — Mode B (`dotnet publish`) + discovery hardening
+## M2 — Consolidated `dotnet publish` output + discovery hardening
 
-**Outcome:** the same Vite consumer can be pointed at a consolidated publish output by passing `manifestPath` and builds with no other config changes. The plugin transparently switches to Mode B when the runtime manifest is absent. Discovery handles multi-config layouts and produces useful errors.
+**Outcome:** the same Vite consumer can be pointed at a consolidated publish output by passing `dotnetOutputDir` and builds with no other config changes. The plugin transparently falls back to seeding the VFS from the endpoints manifest when the runtime manifest is absent. Discovery handles multi-config layouts and produces useful errors.
 
-There is **no** `mode` option and **no** `publishDir` option. Mode is determined by whether `{Project}.staticwebassets.runtime.json` exists at the discovered (or explicitly supplied) location — see `plan.md` §2.1. The discriminated `DotnetAssetsOptions` union already encodes the two ways a caller addresses the manifests: discovery (`projectRoot` + axes) or explicit (`manifestPath`). Callers wire dev vs prod through the bundler's own mode (e.g. Vite's `defineConfig(({ mode }) => ...)`).
+There is **no** `mode` option and **no** `publishDir` option. VFS construction is determined by whether `{Project}.staticwebassets.runtime.json` exists at the discovered (or explicitly supplied) location — see `plan.md` §2.1. The discriminated `DotnetAssetsOptions` union already encodes the two ways a caller addresses the manifests: discovery (`projectRoot` + axes) or explicit (`dotnetOutputDir`). Callers wire dev vs prod through the bundler's own mode (e.g. Vite's `defineConfig(({ mode }) => ...)`).
 
 ### M2.1 — Generate a publish fixture
 
 - `dotnet publish ./test/fixtures/Library -c Release -o ./test/fixtures/library-publish` produced on demand; committed to `.gitignore` and regenerated by a root script (`build:library:publish`).
 - Verify the layout matches what `Microsoft.NET.Sdk.WebAssembly` actually emits on publish (flat directory containing `_framework/`, `{Project}.staticwebassets.endpoints.json`, no `*.runtime.json`).
 
-### M2.2 — Endpoints-seeded VFS (Mode B code path)
+### M2.2 — Endpoints-seeded VFS (no runtime manifest)
 
 The existing `discoverManifests` already returns `runtimeManifestPath: null` when only the endpoints manifest is present. M2.2 wires that through the rest of the pipeline:
 
 - In `unplugin/index.ts` `buildStart`, branch on `manifests.runtimeManifestPath`:
   - non-null → parse + `buildVfs` from the runtime manifest (existing path).
   - null → build the VFS from the endpoints manifest's `AssetFile` entries, with a single content root (= `dirname(endpointsManifestPath)`).
-- Mode B implemented via `buildEmptyVfs(endpointsManifestPath, { logger? }): VirtualFileSystem`. Derives a single content root from the endpoints manifest location (using `wwwroot/` subdirectory when present), registers a single `**` catch-all pattern against it, and delegates to `buildVfs` — the same `resolve` / `resolveFile` interface works for both modes without branches in callers.
+- When the runtime manifest is absent, `buildEmptyVfs(endpointsManifestPath, { logger? }): VirtualFileSystem` is used: it derives a single content root from the endpoints manifest location (using `wwwroot/` subdirectory when present), registers a single `**` catch-all pattern against it, and delegates to `buildVfs` — the same `resolve` / `resolveFile` interface works in both setups without branches in callers.
 - Resolver behaviour (`resolveId` / `load`) is unchanged — it talks to the VFS through the same interface.
 - Unit test: build the VFS from a publish fixture's endpoints manifest, assert `_framework/dotnet.js` resolves to a real file under the publish dir, assert canonical-name imports (`_framework/Library.wasm`) resolve through the same endpoint-alias path the M1.7 work added.
 
@@ -413,9 +413,9 @@ The option *surface* (`configuration`, `targetFramework`) was already exposed in
 - Staleness warning when the chosen manifest's mtime is older than a sibling under `bin/`.
 - New synthetic fixtures (no real builds needed): `bin/Debug/net8.0/…/runtime.json`, `bin/Release/net8.0/…/runtime.json` (newer), multi-TFM (`net8.0 + net9.0`).
 
-### M2.4 — E2E integration test for Mode B
+### M2.4 — E2E integration test for the consolidated publish layout
 
-- New consumer fixture `test/fixtures/library-publish-consumer` (or a second build script on the existing `library-build` fixture) that wires the plugin with `defineConfig(({ mode }) => ({ plugins: [DotnetAssets({ projectName: 'Library', ...(mode === 'production' ? { manifestPath: '../library-publish/Library.staticwebassets.runtime.json' } : { projectRoot: '../Library', targetFramework: 'net10.0' }) })] }))`.
+- New consumer fixture `test/fixtures/library-publish-consumer` (or a second build script on the existing `library-build` fixture) that wires the plugin with `defineConfig(({ mode }) => ({ plugins: [DotnetAssets({ projectName: 'Library', ...(mode === 'production' ? { dotnetOutputDir: '../library-publish' } : { projectRoot: '../Library', targetFramework: 'net10.0' }) })] }))`.
 - Same Playwright assertions as M1.6, run against `vite build --mode production`.
 - Plus: deleting the publish dir then re-running fails with the expected discovery error (not a stack trace).
 
@@ -451,7 +451,7 @@ The option *surface* (`configuration`, `targetFramework`) was already exposed in
 
 ### M3.4 — Readme + sample consumer
 
-- A short README with the M1 Mode A and M2 Mode B recipes (the spec already drafts these).
+- A short README with the scattered build-output and consolidated publish recipes (the spec already drafts these).
 - Wire the npm workspaces fixture from `plan.md` §9.3 if it can be built in <50 LOC of glue.
 
 ### M3 acceptance summary
