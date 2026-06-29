@@ -51,11 +51,11 @@ describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
   });
 });
 
-describe('dotnetStaticAssets — buildStart with explicit manifestPath', () => {
-  it('initialises without throwing when manifestPath points at the publish dir (no runtime.json)', async () => {
+describe('dotnetStaticAssets — buildStart with explicit dotnetOutputDir', () => {
+  it('initialises without throwing when dotnetOutputDir points at the publish dir (no runtime.json)', async () => {
     const plugin = dotnetStaticAssets.rollup({
       projectName: 'Library',
-      manifestPath: join(PUBLISH_DIR, 'Library.staticwebassets.runtime.json'),
+      dotnetOutputDir: PUBLISH_DIR,
     });
     await expect(callBuildStart(plugin)).resolves.not.toThrow();
   });

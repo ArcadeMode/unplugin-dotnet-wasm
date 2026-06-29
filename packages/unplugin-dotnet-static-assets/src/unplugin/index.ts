@@ -20,18 +20,8 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
     enforce: 'pre' as const,
 
     async buildStart() {
-      const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(
-        'manifestPath' in options
-          ? { projectName: options.projectName, manifestPath: options.manifestPath }
-          : {
-              projectRoot: options.projectRoot,
-              projectName: options.projectName,
-              ...(options.configuration !== undefined && { configuration: options.configuration }),
-              ...(options.targetFramework !== undefined && { targetFramework: options.targetFramework }),
-              ...(options.isPublish !== undefined && { isPublish: options.isPublish }),
-            },
-      );
-      
+      const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
+
       const logLevel = options.logLevel ?? 'warn';
       const logger = createConsoleLogger(logLevel);
       const [endpointsRaw, runtimeRaw] = await Promise.all([

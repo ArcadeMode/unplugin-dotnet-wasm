@@ -77,14 +77,23 @@ describe('discoverManifests — isPublish (real Release publish fixture)', () =>
   });
 });
 
-describe('discoverManifests — manifestPath (explicit, publish dir)', () => {
+describe('discoverManifests — dotnetOutputDir (explicit, publish dir)', () => {
   it('finds the endpoints sibling and returns null runtime path when file is absent', () => {
     const result = discoverManifests({
       projectName: 'Library',
-      manifestPath: join(PUBLISH_DIR, 'Library.staticwebassets.runtime.json'),
+      dotnetOutputDir: PUBLISH_DIR,
     });
     expect(result.runtimeManifestPath).toBeNull();
     expect(result.endpointsManifestPath).toBe(join(PUBLISH_DIR, 'Library.staticwebassets.endpoints.json'));
+  });
+
+  it('throws when given a file path instead of a directory (regression: old manifestPath shape)', () => {
+    expect(() =>
+      discoverManifests({
+        projectName: 'Library',
+        dotnetOutputDir: join(PUBLISH_DIR, 'Library.staticwebassets.runtime.json'),
+      }),
+    ).toThrowError(/Endpoints manifest not found/);
   });
 });
 

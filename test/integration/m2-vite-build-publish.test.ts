@@ -70,15 +70,15 @@ describe('M2 — Vite publish build (isPublish: true)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// manifestPath  (explicit variant — caller supplies the path directly)
+// dotnetOutputDir  (explicit variant — caller supplies the directory directly)
 // ---------------------------------------------------------------------------
 
-describe('M2 — Vite publish build (explicit manifestPath)', () => {
-  const vb = new IsolatedViteBuild('m2-manifestpath');
+describe('M2 — Vite publish build (explicit dotnetOutputDir)', () => {
+  const vb = new IsolatedViteBuild('m2-dotnet-output-dir');
 
   beforeAll(() => vb.build(FIXTURE_DIR, {
     projectName: 'Library',
-    manifestPath: join(PUBLISH_DIR, 'Library.staticwebassets.runtime.json'),
+    dotnetOutputDir: PUBLISH_DIR,
   }), 30_000);
 
   afterAll(() => vb.cleanup());
