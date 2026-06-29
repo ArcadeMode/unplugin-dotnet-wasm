@@ -1,27 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/**
- * Extension probe order for bare / extensionless specifiers.
- * Applied in resolve() when the requested path has no file extension.
- * Configurable per-project in M3 via `resolveExtensions` option.
- */
-export const EXTENSION_PROBE_ORDER = [
-  '.ts',
-  '.tsx',
-  '.mts',
-  '.cts',
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.json',
-] as const;
+import { EXTENSION_PROBE_ORDER } from './extension-probe-order.js';
+import { type Logger, NULL_LOGGER } from './logger.js';
 
 // ---------------------------------------------------------------------------
 // Exported types
@@ -32,32 +13,18 @@ export interface ResolvedAsset {
   virtualPath: string;
   /** Absolute OS-native path to the physical file on disk. */
   physicalPath: string;
-  /** Index into {@link VirtualFileSystem.contentRoots}. */
-  contentRootIndex: number;
+}
+
+/**
+ * Returned by {@link VirtualFileSystem.resolveFile}: a successful cross-root
+ * FS probe for an exact asset filename (no extension or index probing).
+ */
+export interface ResolvedFile {
+  /** Absolute OS-native path to the physical file on disk. */
+  physicalPath: string;
 }
 
 export interface VirtualFileSystem {
-  /** POSIX content-root paths with trailing slash, in manifest order. */
-  contentRoots: string[];
-
-  /**
-   * O(1) virtual-path → physical-file map.
-   * Key: lowercase POSIX path (case-insensitive lookup).
-   * Value: {@link ResolvedAsset} with case-preserving `physicalPath`.
-   *
-   * Populated eagerly from every explicit `Asset` node in the manifest tree.
-   * Pattern-fallthrough hits (see {@link VirtualFileSystem.resolve}) are
-   * inserted on demand so subsequent calls remain O(1).
-   */
-  lookup: Map<string, ResolvedAsset>;
-
-  /**
-   * Virtual paths involved in a `.ts` / `.d.ts` shadowing pair.
-   * Both `foo.ts` and `foo.d.ts` appear here when they coexist; `resolve('foo')`
-   * returns `foo.ts`. Exposed so callers can emit a one-shot debug warning.
-   */
-  shadowedPairs: Set<string>;
-
   /**
    * List direct virtual children of a virtual directory.
    * Returns full virtual paths (e.g. `['_framework/dotnet.js', '_framework/Library.wasm']`),
@@ -85,6 +52,19 @@ export interface VirtualFileSystem {
    * (which will walk relative to the importer's physical location).
    */
   resolve(virtualPath: string): ResolvedAsset | undefined;
+
+  /**
+   * Locate an exact asset filename across all content roots via a targeted
+   * `statSync` probe — no extension or index probing.
+   *
+   * Used for the endpoint-aliased FS fallback (§3.2 step 6): when the
+   * endpoints manifest maps a route to a fingerprinted `AssetFile` that is
+   * absent from the VFS flat map and not covered by a pattern, this walks the
+   * content roots in declaration order and returns the first hit.
+   *
+   * Returns `undefined` when the file is absent from all roots.
+   */
+  resolveFile(assetFile: string): ResolvedFile | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,7 +131,6 @@ function collectManifestAssets(
       out.set(virtualPath.toLowerCase(), {
         virtualPath,
         physicalPath: join(rootDir, node.Asset.SubPath),
-        contentRootIndex: node.Asset.ContentRootIndex,
       });
     }
   }
@@ -204,12 +183,8 @@ function collectPatterns(node: ManifestNode, segments: string[]): NodePattern[] 
  * overlay; the bundler handles every other file in the project the way it
  * normally would.
  */
-export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
-  // POSIX content-root paths with trailing slash — public API.
-  const contentRoots = manifest.ContentRoots.map((r) => {
-    const posix = toPosix(r);
-    return posix.endsWith('/') ? posix : `${posix}/`;
-  });
+export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }): VirtualFileSystem {
+  const logger = opts?.logger ?? NULL_LOGGER;
 
   // ── Step 1: ingest every explicit `Asset` node from the manifest. ──
   const lookup = new Map<string, ResolvedAsset>();
@@ -218,16 +193,15 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
   // ── Step 2: pre-compile manifest patterns for lazy fallthrough. ──
   const patterns = collectPatterns(manifest.Root, []);
 
-  // ── Step 3: detect .ts / .d.ts shadowed pairs among enumerated assets. ──
-  // Both sides are added to `shadowedPairs`; callers emit the warning.
-  const shadowedPairs = new Set<string>();
+  // ── Step 3: detect .ts / .d.ts shadowed pairs and emit debug warnings. ──
   for (const [key, asset] of lookup) {
     if (!key.endsWith('.d.ts')) continue;
     const baseKey = key.slice(0, -'.d.ts'.length);
     const tsHit = lookup.get(`${baseKey}.ts`);
     if (tsHit !== undefined && !tsHit.physicalPath.endsWith('.d.ts')) {
-      shadowedPairs.add(asset.virtualPath);
-      shadowedPairs.add(tsHit.virtualPath);
+      logger.debug(
+        `".ts" shadows ".d.ts": "${tsHit.virtualPath}" takes precedence over "${asset.virtualPath}"`,
+      );
     }
   }
 
@@ -263,13 +237,11 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
   function tryStatCandidate(
     candidateVirtualPath: string,
     candidatePhysicalPath: string,
-    contentRootIndex: number,
   ): ResolvedAsset | undefined {
     if (!isFile(candidatePhysicalPath)) return undefined;
     const asset: ResolvedAsset = {
       virtualPath: candidateVirtualPath,
       physicalPath: candidatePhysicalPath,
-      contentRootIndex,
     };
     lookup.set(candidateVirtualPath.toLowerCase(), asset);
     return asset;
@@ -312,26 +284,18 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
       if (pat.pattern !== '**') continue;
 
       // 4a. Direct hit at the verbatim path.
-      const direct = tryStatCandidate(vp, join(rawRoot, vp), pat.contentRootIndex);
+      const direct = tryStatCandidate(vp, join(rawRoot, vp));
       if (direct !== undefined) return direct;
 
       if (bare) {
         // 4b. Extension probing through the pattern.
         for (const ext of EXTENSION_PROBE_ORDER) {
-          const hit = tryStatCandidate(
-            `${vp}${ext}`,
-            join(rawRoot, `${vp}${ext}`),
-            pat.contentRootIndex,
-          );
+          const hit = tryStatCandidate(`${vp}${ext}`, join(rawRoot, `${vp}${ext}`));
           if (hit !== undefined) return hit;
         }
         // 4c. `<vp>/index.<ext>` probing through the pattern.
         for (const ext of EXTENSION_PROBE_ORDER) {
-          const hit = tryStatCandidate(
-            `${vp}/index${ext}`,
-            join(rawRoot, vp, `index${ext}`),
-            pat.contentRootIndex,
-          );
+          const hit = tryStatCandidate(`${vp}/index${ext}`, join(rawRoot, vp, `index${ext}`));
           if (hit !== undefined) return hit;
         }
       }
@@ -340,7 +304,20 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
     return undefined;
   }
 
-  return { contentRoots, lookup, shadowedPairs, list, resolve };
+  // ---------------------------------------------------------------------------
+  // resolveFile()
+  // ---------------------------------------------------------------------------
+
+  function resolveFile(assetFile: string): ResolvedFile | undefined {
+    const posixFile = stripLeadingSlash(toPosix(assetFile));
+    for (const rawRoot of manifest.ContentRoots) {
+      const absPath = join(rawRoot, posixFile);
+      if (isFile(absPath)) return { physicalPath: absPath };
+    }
+    return undefined;
+  }
+
+  return { list, resolve, resolveFile };
 }
 
 /**
@@ -360,17 +337,34 @@ export function buildVfs(manifest: RuntimeManifest): VirtualFileSystem {
  * Called with no argument it returns a truly empty VFS (O(1) misses on all
  * lookups), used as a pre-{@link buildStart} placeholder.
  */
-export function buildEmptyVfs(endpointsManifestPath: string): VirtualFileSystem {
+export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: Logger }): VirtualFileSystem {
+  if (!endpointsManifestPath) {
+    return buildVfs(
+      {
+        ContentRoots: [],
+        Root: {
+          Children: null,
+          Asset: null,
+          Patterns: [],
+        },
+      },
+      opts,
+    );
+  }
+
   const manifestDir = dirname(endpointsManifestPath);
   const wwwroot = join(manifestDir, 'wwwroot');
   const contentRoot = existsSync(wwwroot) ? wwwroot : manifestDir;
 
-  return buildVfs({
-    ContentRoots: [contentRoot],
-    Root: {
-      Children: null,
-      Asset: null,
-      Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
+  return buildVfs(
+    {
+      ContentRoots: [contentRoot],
+      Root: {
+        Children: null,
+        Asset: null,
+        Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
+      },
     },
-  });
+    opts,
+  );
 }

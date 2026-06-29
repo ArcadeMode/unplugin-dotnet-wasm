@@ -63,22 +63,30 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 
 ### M1.4 — VFS builder + lookup
 
-- File: `src/core/vfs.ts`.
-- `buildVfs(manifest): VirtualFileSystem` returning:
+- Files: `src/core/vfs.ts`, `src/core/extension-probe-order.ts`, `src/core/logger.ts`.
+- `buildVfs(manifest, opts?: { logger? }): VirtualFileSystem` returning:
   ```ts
   {
-    contentRoots: string[];               // POSIX, trailing slash
-    lookup: Map<string, ResolvedAsset>;   // O(1) virtual → physical
-    shadowedPairs: Set<string>;           // .ts / .d.ts pairs for one-shot debug log
-    list(virtualDir: string): string[];   // for dir listings later
-    resolve(virtualPath: string): ResolvedAsset | undefined;
+    list(virtualDir: string): string[];                 // virtual dir listing
+    resolve(virtualPath: string): ResolvedAsset | undefined;  // with extension/index probing
+    resolveFile(assetFile: string): ResolvedFile | undefined; // cross-root FS probe, no probing
   }
   ```
-- **The VFS contains only what the manifest declares to be virtual.** Every explicit `Asset` node is ingested into `lookup` at construction time. Files that exist on disk but are not enumerated and do not fall under a matching `Patterns` entry are *not* part of the VFS — callers treat a `resolve()` miss as a signal to delegate to the host bundler's native resolver.
+  where `ResolvedAsset = { virtualPath: string; physicalPath: string }` and `ResolvedFile = { physicalPath: string }`.
+- **The VFS contains only what the manifest declares to be virtual.** Every explicit `Asset` node is ingested into an internal `lookup` map at construction time. Files that exist on disk but are not enumerated and do not fall under a matching `Patterns` entry are *not* part of the VFS — callers treat a `resolve()` miss as a signal to delegate to the host bundler's native resolver.
 - POSIX normalisation internally, case-insensitive lookup key (lowercase), case-preserving `physicalPath`.
-- Extension probe order **hard-coded for M1**: `['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json']`. `index.<ext>` lookup uses the same list. (Configurable in M3.)
-- `.ts` shadows `.d.ts` rule (one-shot debug log per pair, deferred to M1.5; M1.4 only populates `shadowedPairs`).
-- Pattern fallthrough: when the map lookup + probes miss, evaluate each `Patterns` entry against the remaining virtual path; for each match, do **one `statSync`** against `join(ContentRoots[i], candidate)` (literal + per probe extension + `index.<ext>`). Hits are cached back into `lookup`. **No directory enumeration anywhere** — the plugin never lists a directory; it only reads files the manifest names or the patterns point at.
+- Extension probe order lives in `src/core/extension-probe-order.ts`; imported by both `vfs.ts` and `unplugin/index.ts`. Becomes configurable in M3.
+- `.ts` shadows `.d.ts` rule: when both are enumerated, a `debug`-level warning is emitted through the injected `Logger` at construction time. The VFS does not expose a `shadowedPairs` set — logging is the only consumer.
+- Pattern fallthrough: when the map lookup + probes miss, evaluate each `Patterns` entry against the remaining virtual path; for each match, do **one `statSync`** against `join(ContentRoots[i], candidate)` (literal + per probe extension + `index.<ext>`). Hits are cached back into the internal map. **No directory enumeration anywhere** — the plugin never lists a directory; it only reads files the manifest names or the patterns point at.
+- `resolveFile(assetFile)` walks `ContentRoots` in declaration order, returns the first hit as `{ physicalPath }`, or `undefined`. Used for the §3.2 step-6 endpoint-aliased FS fallback in the plugin factory.
+
+### M1.4b — Shared infrastructure
+
+- **`src/core/extension-probe-order.ts`**: single `EXTENSION_PROBE_ORDER` constant. Consumed by `vfs.ts` and `unplugin/index.ts`. Will become configurable in M3 via `resolveExtensions`.
+- **`src/core/logger.ts`**: `Logger` interface (`error / warn / info / debug`) + `createConsoleLogger(level, prefix)` factory + `NULL_LOGGER` no-op constant. All future diagnostic output routes through a `Logger`; no module outside `logger.ts` calls `console.*` directly (lint rule deferred to M3).
+  - `createConsoleLogger` applies level gating internally — call sites write `logger.debug("…")` unconditionally.
+  - `NULL_LOGGER` keeps unit tests quiet without per-test mock setup.
+  - When Rollup/Vite plugin context logging is wired in M3, implement a `viteLoggerAdapter(ctx): Logger`; the rest of the codebase is unchanged.
 
 **Done when:** tests prove:
 - `resolve('_framework/dotnet.js')` → root 2 absolute path.
@@ -93,7 +101,7 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 - Files: `src/unplugin/index.ts`, `src/vite.ts`.
 - Use `unplugin@^2` to wrap a single factory; only the Vite adapter is exported in M1.
 - Hooks:
-  - `buildStart`: run discovery + VFS construction; throw if it fails.
+  - `buildStart`: run discovery + VFS construction; throw if it fails. Construct `logger = createConsoleLogger(options.logLevel ?? 'warn')` once; pass as `{ logger }` to `buildVfs` / `buildEmptyVfs`. Shadowed-pair warnings are emitted inside VFS construction.
   - `resolveId(source, _importer)`:
     1. Treat `source` as a virtual path verbatim (strip a leading `./` or `/`, POSIX-normalise). The importer is intentionally not consulted — the VFS is an importer-blind overlay; relative-path semantics belong to the host bundler.
     2. Call `vfs.resolve(source)`; on hit, return the absolute physical path.
@@ -392,7 +400,7 @@ The existing `discoverManifests` already returns `runtimeManifestPath: null` whe
 - In `unplugin/index.ts` `buildStart`, branch on `manifests.runtimeManifestPath`:
   - non-null → parse + `buildVfs` from the runtime manifest (existing path).
   - null → build the VFS from the endpoints manifest's `AssetFile` entries, with a single content root (= `dirname(endpointsManifestPath)`).
-- New function in `src/core/vfs.ts`: `buildVfsFromEndpoints(endpoints: EndpointsManifest, contentRoot: string): VirtualFileSystem`. Same public shape as `buildVfs`; `lookup` is seeded from the deduplicated set of `AssetFile` values, `contentRoots` is `[contentRoot]`, `Patterns` are absent.
+- Mode B implemented via `buildEmptyVfs(endpointsManifestPath, { logger? }): VirtualFileSystem`. Derives a single content root from the endpoints manifest location (using `wwwroot/` subdirectory when present), registers a single `**` catch-all pattern against it, and delegates to `buildVfs` — the same `resolve` / `resolveFile` interface works for both modes without branches in callers.
 - Resolver behaviour (`resolveId` / `load`) is unchanged — it talks to the VFS through the same interface.
 - Unit test: build the VFS from a publish fixture's endpoints manifest, assert `_framework/dotnet.js` resolves to a real file under the publish dir, assert canonical-name imports (`_framework/Library.wasm`) resolve through the same endpoint-alias path the M1.7 work added.
 

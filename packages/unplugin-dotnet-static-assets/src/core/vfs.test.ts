@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRuntimeManifest } from './manifest-runtime.js';
 import { buildVfs, type VirtualFileSystem } from './vfs.js';
+import { type Logger, NULL_LOGGER } from './logger.js';
 
 // ---------------------------------------------------------------------------
 // Real fixture paths
@@ -30,16 +31,6 @@ describe('buildVfs — real fixture', () => {
     vfs = buildVfs(parseRuntimeManifest(readFileSync(MANIFEST_PATH)));
   });
 
-  // ── contentRoots ──────────────────────────────────────────────────────────
-
-  it('contentRoots are POSIX with trailing slash', () => {
-    expect(vfs.contentRoots).toHaveLength(3);
-    for (const r of vfs.contentRoots) {
-      expect(r, 'must not contain backslashes').not.toContain('\\');
-      expect(r.at(-1), 'must end with /').toBe('/');
-    }
-  });
-
   // ── manifest-explicit assets (cross-root resolution) ──────────────────────
 
   it('resolve fingerprinted dotnet.*.js → root 2 (build output)', () => {
@@ -51,14 +42,12 @@ describe('buildVfs — real fixture', () => {
     expect(asset).toBeDefined();
     expect(asset!.physicalPath).toContain(join(ROOT2, '_framework'));
     expect(asset!.physicalPath).toMatch(/dotnet\.[a-z0-9]+\.js$/);
-    expect(asset!.contentRootIndex).toBe(2);
   });
 
   it('resolve _framework/dotnet.d.ts → root 0 (source root)', () => {
     const asset = vfs.resolve('_framework/dotnet.d.ts');
     expect(asset).toBeDefined();
     expect(asset!.physicalPath).toBe(join(ROOT0, '_framework', 'dotnet.d.ts'));
-    expect(asset!.contentRootIndex).toBe(0);
   });
 
   // ── extension probing against the enumerated map ──────────────────────────
@@ -67,14 +56,12 @@ describe('buildVfs — real fixture', () => {
     const asset = vfs.resolve('wasm-bootstrap');
     expect(asset).toBeDefined();
     expect(asset!.physicalPath).toBe(join(ROOT0, 'wasm-bootstrap.ts'));
-    expect(asset!.contentRootIndex).toBe(0);
   });
 
   it('resolve main (extensionless) → main.ts in root 0', () => {
     const asset = vfs.resolve('main');
     expect(asset).toBeDefined();
     expect(asset!.physicalPath).toBe(join(ROOT0, 'main.ts'));
-    expect(asset!.contentRootIndex).toBe(0);
   });
 
   // ── list() ────────────────────────────────────────────────────────────────
@@ -109,7 +96,6 @@ describe('buildVfs — real fixture', () => {
     const asset = vfs.resolve('typeshim');
     expect(asset).toBeDefined();
     expect(asset!.physicalPath).toBe(join(ROOT_OBJ1, 'typeshim.ts'));
-    expect(asset!.contentRootIndex).toBe(1);
   });
 
   // ── performance ───────────────────────────────────────────────────────────
@@ -241,9 +227,13 @@ describe('buildVfs — synthetic: probing through pattern fallthrough', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildVfs — synthetic: .ts shadows .d.ts', () => {
+  let debugMessages: string[];
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
+    debugMessages = [];
+    const logger: Logger = { ...NULL_LOGGER, debug: msg => { debugMessages.push(msg); } };
+
     // Pure in-memory test — no disk needed because the detection inspects only
     // the enumerated Asset map.  Physical paths don't have to exist for this.
     vfs = buildVfs(
@@ -262,16 +252,16 @@ describe('buildVfs — synthetic: .ts shadows .d.ts', () => {
           },
         }),
       ),
+      { logger },
     );
   });
 
-  it('shadowedPairs contains both foo.ts and foo.d.ts', () => {
-    expect(vfs.shadowedPairs.has('foo.ts')).toBe(true);
-    expect(vfs.shadowedPairs.has('foo.d.ts')).toBe(true);
+  it('emits a debug warning mentioning foo.d.ts for the shadowed pair', () => {
+    expect(debugMessages.some(m => m.includes('foo.d.ts'))).toBe(true);
   });
 
-  it('shadowedPairs does not include bar.d.ts (no .ts sibling)', () => {
-    expect(vfs.shadowedPairs.has('bar.d.ts')).toBe(false);
+  it('does not emit a warning for bar.d.ts (no .ts sibling)', () => {
+    expect(debugMessages.every(m => !m.includes('bar.d.ts'))).toBe(true);
   });
 
   it('resolve foo (extensionless) → foo.ts, not foo.d.ts', () => {
