@@ -1,7 +1,7 @@
-import { sep } from 'node:path';
 import type { VirtualFileSystem } from './vfs.js';
 import type { EndpointLookup } from './endpoint-lookup.js';
 import { EXTENSION_PROBE_ORDER } from './extension-probe-order.js';
+import { hasExtension, stripLeadingSlashOrDot, toPosixPath } from './path-utils.js';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,
@@ -30,10 +30,10 @@ export class AssetResolver {
    * 5. Full miss → return `null` so the host bundler's native resolver carries on.
    */
   resolve(source: string): string | null {
-    const virtualPath = AssetResolver.stripLeadingSlashOrDot(AssetResolver.toPosixPath(source));
+    const virtualPath = stripLeadingSlashOrDot(toPosixPath(source));
     if (virtualPath === '') return null;
 
-    const pathProbes: string[] = AssetResolver.hasExtension(virtualPath)
+    const pathProbes: string[] = hasExtension(virtualPath)
       ? [virtualPath]
       : [virtualPath, ...EXTENSION_PROBE_ORDER.map(ext => `${virtualPath}${ext}`)];
 
@@ -52,18 +52,5 @@ export class AssetResolver {
     }
 
     return null;
-  }
-
-  private static toPosixPath(p: string): string {
-    return sep === '\\' ? p.replace(/\\/g, '/') : p;
-  }
-
-  private static stripLeadingSlashOrDot(p: string): string {
-    return p.replace(/^\.\//u, '').replace(/^\//u, '');
-  }
-
-  private static hasExtension(posixPath: string): boolean {
-    const base = posixPath.split('/').at(-1) ?? '';
-    return base.lastIndexOf('.') > 0;
   }
 }

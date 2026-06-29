@@ -1,4 +1,5 @@
 import type { Endpoint, EndpointsManifest } from './manifest-endpoints.js';
+import { stripLeadingSlash, toPosixPath } from './path-utils.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,7 +55,7 @@ export function buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup
   for (const endpoint of manifest.Endpoints) {
     if (isCompressed(endpoint)) continue;
 
-    const route = normaliseRoute(endpoint.Route);
+    const route = normalisePath(endpoint.Route);
     const assetFile = normalisePath(endpoint.AssetFile);
     const match = extractMatch(assetFile, endpoint);
 
@@ -79,14 +80,8 @@ function isCompressed(endpoint: Endpoint): boolean {
   return endpoint.Selectors.some(s => s.Name === 'Content-Encoding');
 }
 
-function normaliseRoute(route: string): string {
-  // Strip leading slash (routes in the manifest have no leading slash, but
-  // callers may pass `/_framework/...` from import paths).
-  return normalisePath(route);
-}
-
 function normalisePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/^\/+/, '');
+  return stripLeadingSlash(toPosixPath(p));
 }
 
 function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {

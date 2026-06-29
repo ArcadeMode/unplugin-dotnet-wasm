@@ -12,10 +12,7 @@ const FIXTURE_MANIFEST = resolve(
 );
 
 describe('parseEndpointsManifest', () => {
-  // -------------------------------------------------------------------------
   // Happy path — real manifest from the Library fixture
-  // -------------------------------------------------------------------------
-
   it('parses the real Library manifest without errors', () => {
     const raw = readFileSync(FIXTURE_MANIFEST, 'utf8');
     expect(() => parseEndpointsManifest(raw)).not.toThrow();
@@ -92,10 +89,7 @@ describe('parseEndpointsManifest', () => {
     expect(() => parseEndpointsManifest(buf)).not.toThrow();
   });
 
-  // -------------------------------------------------------------------------
   // Error cases
-  // -------------------------------------------------------------------------
-
   it('throws EndpointsManifestParseError on invalid JSON', () => {
     expect(() => parseEndpointsManifest('{ not json')).toThrow(EndpointsManifestParseError);
   });

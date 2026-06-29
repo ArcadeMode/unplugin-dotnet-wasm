@@ -1,8 +1,9 @@
 import { existsSync, statSync } from 'node:fs';
-import { dirname, join, sep } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
 import { EXTENSION_PROBE_ORDER } from './extension-probe-order.js';
 import { type Logger, NULL_LOGGER } from './logger.js';
+import { hasExtension, stripLeadingSlash, toPosixPath } from './path-utils.js';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -61,25 +62,6 @@ interface NodePattern {
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
-
-/** Convert an OS path to forward-slash POSIX form. No-op on Linux/macOS. */
-function toPosix(p: string): string {
-  return sep === '\\' ? p.replace(/\\/g, '/') : p;
-}
-
-function stripLeadingSlash(p: string): string {
-  return p.startsWith('/') ? p.slice(1) : p;
-}
-
-/**
- * Returns true when the last path segment contains a `.` after its first
- * character (so `dotnet.js` → true, `wasm-bootstrap` → false,
- * `.gitignore` → false).
- */
-function hasExtension(posixPath: string): boolean {
-  const base = posixPath.split('/').pop() ?? '';
-  return base.lastIndexOf('.') > 0;
-}
 
 /** statSync that returns true iff the path exists and is a regular file. */
 function isFile(absPath: string): boolean {
@@ -170,7 +152,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   }
 
   function list(virtualDir: string): string[] {
-    const norm = stripLeadingSlash(toPosix(virtualDir)).replace(/\/$/, '');
+    const norm = stripLeadingSlash(toPosixPath(virtualDir)).replace(/\/$/, '');
     const prefix = norm === '' ? '' : `${norm}/`;
     const prefixKey = prefix.toLowerCase();
     const found: string[] = [];
@@ -204,7 +186,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   }
 
   function resolve(virtualPath: string): ResolvedAsset | undefined {
-    const vp = stripLeadingSlash(toPosix(virtualPath));
+    const vp = stripLeadingSlash(toPosixPath(virtualPath));
     const key = vp.toLowerCase();
 
     // 1. Exact map lookup.
@@ -261,7 +243,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   }
 
   function resolveFile(assetFile: string): ResolvedFile | undefined {
-    const posixFile = stripLeadingSlash(toPosix(assetFile));
+    const posixFile = stripLeadingSlash(toPosixPath(assetFile));
     for (const rawRoot of manifest.ContentRoots) {
       const absPath = join(rawRoot, posixFile);
       if (isFile(absPath)) return { physicalPath: absPath };
