@@ -1,5 +1,7 @@
 # Engineering Specification: `unplugin-dotnet-static-assets`
 
+> Companion file: [execution-plan.md](execution-plan.md). This file describes the target system; the execution plan tracks build order, milestones, and acceptance criteria.
+
 ## 1. Mission
 
 A .NET WebAssembly project produces static web assets in **one of two shapes**:
@@ -7,7 +9,7 @@ A .NET WebAssembly project produces static web assets in **one of two shapes**:
 1. **Scattered** — typical after `dotnet build`. Files live across `wwwroot/`, `bin/<tfm>/wwwroot/`, intermediate `obj/`, NuGet caches, and SDK runtime packs. A manifest, `{Project}.staticwebassets.runtime.json`, glues them into a single virtual tree.
 2. **Consolidated** — typical after `dotnet publish` (or a hand-staged copy). Every file already lives side-by-side under one output directory. No runtime manifest is required to resolve them.
 
-This plugin handles **both** shapes, presenting them to JavaScript bundlers (Vite, Webpack, Rollup, esbuild, Rspack) — and to the developer's editor — as a single coherent directory, and serving them in dev with the response headers the production runtime expects.
+This plugin handles **both** shapes, presenting them to JavaScript bundlers (Vite first; Webpack, Rollup, esbuild, Rspack planned) — and to the developer's editor — as a single coherent directory, and serving them in dev with the response headers the production runtime expects.
 
 > **One-liner:** Mount .NET static-web-assets output (scattered *or* consolidated) as a virtual module namespace, with optional production-fidelity headers and preload hints.
 
@@ -22,11 +24,6 @@ The plugin runs a single resolution pipeline. The endpoints manifest (`{Project}
 | Endpoints manifest              | **Required**                                                       | **Required**                                                        |
 | Runtime manifest                | Present — VFS built from `ContentRoots` + tree                    | Absent — VFS seeded from `Endpoints[].AssetFile` rooted at the manifest directory |
 | Cross-root resolution           | Yes (core feature)                                                 | Not needed — single root                                            |
-| File watching                   | All `ContentRoots` watched, debounced re-read of manifest          | Single directory watched                                            |
-| IDE `paths` / `.d.ts` emission  | Yes (cross-root tree confuses the language service)                | Not needed — directory layout matches virtual tree                  |
-| Dev-server headers from endpoints | Yes                                                              | Yes                                                                 |
-| Preload emission                | Yes                                                                | Yes                                                                 |
-| Boot-manifest rewrite on hashing | Yes                                                               | Yes                                                                 |
 
 ### 2.1 Manifest discovery
 
@@ -122,14 +119,14 @@ Given a request `source` (the importer is *not* consulted; see the rationale bel
 1. **Normalise.** Strip a leading `./` and any leading `/`; convert to POSIX; lowercase for the lookup key.
 2. **Endpoint route alias (exact-path case).** If the endpoints manifest is available, probe the precomputed `Map<route, EndpointMatch>` (see §4) with the normalised key. On hit, replace the lookup key with the matching `AssetFile` before continuing — this is what lets already-extension-qualified specifiers like `_framework/Library.wasm` resolve to fingerprinted physical files like `_framework/Library.9mhy6srgqs.wasm`.
 3. **Flat map lookup.** Probe the precomputed `Map<virtualPath, ResolvedAsset>` built from every explicit `Asset` node in the manifest tree.
-4. **Extension / index probing (bare specifiers only).** If `source` has no file extension, for each candidate `resolveExtensions` suffix: (a) probe the flat VFS map with `${source}${ext}`; (b) **if that misses, also probe the endpoint map with `${source}${ext}` and if found, resolve `assetFile` via steps 3+6 below**. Repeat for `${source}/index${ext}` variants.
-5. **Pattern fallthrough.** For each `Patterns` entry whose virtual prefix matches `source`, `statSync` the candidate physical path `join(ContentRoots[i], source)` once. Bare specifiers retry per probe extension and per `index.<ext>` suffix. **Successful hits are cached back into the map** so subsequent calls are O(1); negative results are not cached so a file dropped between rebuilds is picked up the next call. **There is never a directory scan** — only targeted single-file stats.
+4. **Extension / index probing (bare specifiers only).** If `source` has no file extension, for each candidate suffix in the built-in extension probe order: (a) probe the flat VFS map with `${source}${ext}`; (b) **if that misses, also probe the endpoint map with `${source}${ext}` and if found, resolve `assetFile` via steps 3+6 below**. Repeat for `${source}/index${ext}` variants.
+5. **Pattern fallthrough.** For each `Patterns` entry whose virtual prefix matches `source`, `statSync` the candidate physical path `join(ContentRoots[i], source)` once. Bare specifiers retry per probe extension and per `index.<ext>` suffix. **There is never a directory scan** — only targeted single-file stats.
 6. **Endpoint-aliased FS fallback.** If step 2 or step 4(b) produced an endpoint alias but steps 3–5 all missed (the aliased asset file is not in the VFS flat map and not covered by a pattern), `statSync` `join(ContentRoots[i], assetFile)` for each content root in declaration order; first hit wins. This covers fingerprinted physical files that live in the build-output content root but are not enumerated by the runtime manifest's `Asset` tree.
 7. **Miss → hand back to the bundler.** Return `undefined`. The bundler's native resolver then walks relative to the importer's physical directory, which is the right behaviour for everything that isn't a static-web-asset (consuming-project imports, `node_modules`, sibling build-output files imported from within the same build-output directory).
 
 **Why the importer is not consulted.** When `import './_framework/dotnet.js'` runs from `wwwroot/main.ts`, the plugin's only contribution is *"is `_framework/dotnet.js` a virtual path in the manifest?"* — the answer is yes, and it returns the absolute path the manifest points at. From that point on, `dotnet.js` (now a real file on disk) does its own `import './dotnet.native.wasm'` and the bundler resolves it natively against `dotnet.js`'s physical directory. The plugin only re-engages when another virtual lookup is asked for. This keeps the plugin a pure overlay and avoids fighting the bundler for ownership of relative-path semantics.
 
-**`.ts` shadows `.d.ts`.** If steps 2–3 yield both a `.ts`/`.tsx` *and* a sibling `.d.ts` for the same bare specifier, the implementation file wins for the bundler **and** the language service (the emitted `paths` entry lists it first). A `debug`-level warning is logged once per shadowed pair; the warning is emitted by `buildVfs` through the injected `Logger` at construction time — the VFS does not expose the shadowed-pair set externally. The lone `.d.ts + .js` pair seen with framework files (`_framework/dotnet.d.ts` + `_framework/dotnet.js`) is the happy path and is left alone.
+**`.ts` shadows `.d.ts`.** If steps 2–3 yield both a `.ts`/`.tsx` *and* a sibling `.d.ts` for the same bare specifier, the implementation file wins for the bundler. A `debug`-level warning is logged once per shadowed pair; the warning is emitted by `buildVfs` through the injected `Logger` at construction time — the VFS does not expose the shadowed-pair set externally. The lone `.d.ts + .js` pair seen with framework files (`_framework/dotnet.d.ts` + `_framework/dotnet.js`) is the happy path and is left alone.
 
 Casing: **case-insensitive lookup, case-preserving emit**. Defuses Windows ↔ Linux drift without breaking strict-case servers.
 
@@ -218,340 +215,24 @@ When the runtime manifest is present (scattered build output), the plugin is not
 - A developer browsing the project sees **one coherent `_framework/` listing**, not two half-empty mirrors of source vs. build output.
 - **Navigate To File** (`Ctrl+P`) lists `_framework/Library.wasm` once, at its virtual path.
 
-To deliver this, the plugin emits a tiny set of TypeScript helper files when the runtime manifest is in play (scattered content roots that the language service would otherwise see as disjoint directories). **Quiet by default — nothing lands in the user's source tree.**
+A future milestone will deliver this by emitting a small set of TypeScript helpers (a self-contained `tsconfig.json` + ambient `.d.ts` shims) into `node_modules/.dotnet-vfs/`, opted in via a single `extends` line the user adds to their own `tsconfig.json`. The plugin never auto-patches the user's tsconfig, and the cache directory is removed when the runtime manifest disappears. Detailed contract deferred until the milestone is scheduled — see [Future Work](#13-future-work).
 
-#### Quiet-emission contract
+## 6. Public API
 
-1. **Default target is `node_modules/.dotnet-vfs/`**, mirroring the convention used by Vite (`node_modules/.vite/`), esbuild (`node_modules/.cache/esbuild/`), and Prisma (`node_modules/.prisma/`). `node_modules` is already gitignored everywhere, gets wiped by `npm ci`, and never appears in PRs.
-2. **Layout changes clean up after themselves.** When discovery finds only an endpoints manifest (single-directory layout), or when no manifest is found at all, the plugin **deletes** `node_modules/.dotnet-vfs/` on the next run. No stale artifacts surviving a `dotnet publish`.
-3. **The user's `tsconfig.json` is never auto-patched.** The plugin emits a self-contained tsconfig into its cache directory; the user opts in with a single `extends` line they add themselves. The plugin logs **one** info-level hint on first run if the opt-in is missing; never warns again.
-4. **Opt-in escape hatches** exist for users who *want* the artifacts visible (e.g. to commit a snapshot for offline reviewers). When `vfsOutDir` points inside the source tree, the plugin auto-writes a marked block into the nearest `.gitignore` unless `vfsGitignore: false`.
-5. **Builds work either way.** The emitted files only affect the TypeScript language service / editor; the bundler graph never depends on them.
+The plugin exports a single factory whose options are a **discriminated union** of two variants:
 
-#### Emitted directory layout
+- **Discovery variant** — pass `projectRoot` + optional `configuration` / `targetFramework` / `isPublish`. The plugin walks `<projectRoot>/bin/<configuration>/<targetFramework>[/publish]/` to find the manifests.
+- **Explicit variant** — pass `dotnetOutputDir` directly. The plugin reads the manifests from that exact directory.
 
-```text
-node_modules/.dotnet-vfs/
-├─ tsconfig.json        # extends-friendly; `paths` populated from the active manifest
-├─ dotnet-vfs.d.ts      # ambient shims for binary URL imports (.wasm, .dat, .pdb, …)
-├─ manifest.snapshot    # sha256 + mtime of the source manifests — staleness check
-└─ .gitignore           # contains "*"; belt-and-braces for any tooling that escapes node_modules
-```
+The two are mutually exclusive: discovery options and `dotnetOutputDir` may not coexist. Both variants share `projectName` (required) and `logLevel` (optional, default `'warn'`).
 
-`tsconfig.json` contents (worked example for the TypeShim manifest):
-
-```jsonc
-// node_modules/.dotnet-vfs/tsconfig.json — generated, do not edit
-{
-  "compilerOptions": {
-    "baseUrl": "../..",
-    "paths": {
-      "_framework/*": [
-        "./wwwroot/_framework/*",
-        "./bin/wwwroot/_framework/*"
-      ]
-    }
-  },
-  "include": ["./dotnet-vfs.d.ts"]
-}
-```
-
-The user enables IDE parity with one line in their own `tsconfig.json`:
-
-```jsonc
-{
-  "extends": "./node_modules/.dotnet-vfs/tsconfig.json"
-}
-```
-
-If the `extends` line is absent on the first run, the plugin logs (once, at info level):
-
-> `[dotnet-static-assets] IDE parity available. Add "extends": "./node_modules/.dotnet-vfs/tsconfig.json" to your tsconfig to enable cross-root Go-to-Definition. (Set emitTypeScriptPaths: false to silence.)`
-
-The build still works without the opt-in; only the editor UX is degraded.
-
-When only an endpoints manifest is found there's one real directory, so the IDE already sees it — the plugin emits nothing. If `node_modules/.dotnet-vfs/` exists from a previous run with a runtime manifest, it is removed.
-
-## 6. Repository Layout
-
-```
-unplugin-dotnet-static-assets/
-├─ src/
-│  ├─ core/
-│  │  ├─ manifest-runtime.ts   # Runtime (VFS) manifest types + Zod parser
-│  │  ├─ manifest-endpoints.ts # Endpoints manifest types + Zod parser
-│  │  ├─ discover.ts           # Auto-locate both manifests (runtime + endpoints)
-│  │  ├─ vfs.ts                # Virtual filesystem: tree walk, lookup, pattern expansion (runtime-manifest path) or endpoints-seeded (endpoints-only path)
-│  │  ├─ endpoints.ts          # Headers, preload, fingerprint index
-│  │  ├─ vfs-emit.ts          # Quiet IDE-parity emitter (runtime-manifest path only): node_modules/.dotnet-vfs/
-│  │  └─ logger.ts
-│  ├─ unplugin/
-│  │  ├─ index.ts              # Shared unplugin factory (resolveId / load / watch)
-│  │  ├─ emit.ts               # Per-bundler binary emission strategy
-│  │  ├─ devserver.ts          # Vite/Webpack dev middleware (headers from endpoints.json)
-│  │  └─ html.ts               # Preload-link injection helpers
-│  ├─ vite.ts                  # Re-export wrapper
-│  ├─ webpack.ts
-│  ├─ rollup.ts
-│  ├─ esbuild.ts
-│  ├─ rspack.ts
-│  └─ index.ts
-├─ test/
-│  ├─ fixtures/
-│  │  ├─ TypeShim/             # Scattered `dotnet build` output: runtime + endpoints manifest
-│  │  └─ TypeShim-publish/     # Consolidated `dotnet publish` output: flat, endpoints manifest only
-│  ├─ unit/
-│  └─ integration/             # Scripted Vite/Webpack/Rollup builds per mode
-├─ package.json
-├─ tsup.config.ts
-└─ README.md
-```
-
-`package.json` exports:
-
-```jsonc
-{
-  "name": "unplugin-dotnet-static-assets",
-  "type": "module",
-  "exports": {
-    ".":         { "types": "./dist/index.d.ts",   "import": "./dist/index.js",   "require": "./dist/index.cjs" },
-    "./vite":    { "types": "./dist/vite.d.ts",    "import": "./dist/vite.js",    "require": "./dist/vite.cjs" },
-    "./webpack": { "types": "./dist/webpack.d.ts", "import": "./dist/webpack.js", "require": "./dist/webpack.cjs" },
-    "./rollup":  { "types": "./dist/rollup.d.ts",  "import": "./dist/rollup.js",  "require": "./dist/rollup.cjs" },
-    "./esbuild": { "types": "./dist/esbuild.d.ts", "import": "./dist/esbuild.js", "require": "./dist/esbuild.cjs" },
-    "./rspack":  { "types": "./dist/rspack.d.ts",  "import": "./dist/rspack.js",  "require": "./dist/rspack.cjs" }
-  },
-  "files": ["dist"]
-}
-```
-
-## 7. Phased Execution Plan
-
-Each phase ends with **acceptance criteria** that must pass in CI against both fixtures.
-
-### Phase 1 — Manifest Parsers, Mode Detection, VFS
-
-**Goal:** Parse both manifests, detect the operating mode, and expose a fast in-memory model.
-
-Tasks:
-1. Strict TypeScript types for `RuntimeManifest`, `EndpointsManifest`, plus subtypes. Validate with Zod at load time.
-2. `discover({ projectRoot })` — locate `*.staticwebassets.runtime.json` and `*.staticwebassets.endpoints.json`; classify mode.
-3. `buildVfs(runtime)` — flatten the tree into `Map<virtualPath, ResolvedAsset>` for O(1) lookup, the original tree for directory listings, and a compiled `Patterns` matcher.
-4. `buildEndpointsIndex(endpoints)` — `Map<route, Endpoint>`, plus reverse index `Map<assetFile, Endpoint[]>` for fingerprinted-variant lookup.
-5. Extension and `index.*` probing in lookup (driven by `resolveExtensions`), with the `.ts` shadows `.d.ts` rule and a one-shot debug warning per shadowed pair.
-6. POSIX normalisation internally; preserve on-disk casing for emit; case-insensitive lookup keys.
-
-**Acceptance:**
-- `vfs.resolve("_framework/dotnet.d.ts")` → absolute path under `ContentRoots[0]` (scattered fixture).
-- `vfs.resolve("_framework/dotnet.js")` → absolute path under `ContentRoots[1]` (scattered fixture).
-- `vfs.resolve("wasm-bootstrap")` (extensionless) → `wasm-bootstrap.ts` from the fixture.
-- `vfs.resolve("some-dir")` for a directory containing `index.ts` resolves to that file.
-- A virtual path with both `foo.ts` and `foo.d.ts` resolves to `foo.ts`; a `debug`-level warning is emitted once.
-- `endpoints.findByRoute("main.58dhsr9ua1.js")` returns the fingerprinted variant pointing at `main.js`.
-- `endpoints.findByAsset("main.js")` returns both canonical and fingerprinted entries.
-- Discovery handles both layouts: the scattered fixture yields a runtime-manifest-driven VFS; the consolidated fixture (no runtime manifest, endpoints manifest present) yields an endpoints-seeded VFS.
-- 10 000 lookups under 50 ms.
-
-### Phase 2 — Unplugin Core (mode-aware)
-
-**Goal:** Single `unplugin` factory consumed by every bundler, dispatching on mode.
-
-Tasks:
-1. `resolveId(source, _importer)` — importer-blind manifest lookup against the VFS (see §3.2). Returns `null` on miss so the host bundler's native resolver handles non-virtual paths.
-2. `load(id)` — stream raw bytes for binaries; pass text through to the bundler pipeline.
-3. `addWatchFile(absPath)` for every resolved asset (across all `ContentRoots` when the runtime manifest is present; under the endpoints manifest's directory otherwise).
-4. Multi-target build via `tsup` (ESM + CJS) for each subpath export.
-
-**Acceptance:**
-- A Vite project where `main.ts` imports `./_framework/dotnet.js` builds without manual aliases when the runtime manifest is present.
-- The same project, pointed at the publish output via `dotnetOutputDir`, builds against the endpoints-seeded VFS with no other config changes (typical pattern: `mode === 'production' ? dotnetOutputDir : projectRoot + configuration` in the Vite config factory).
-- Editing `bin/wwwroot/_framework/dotnet.js` invalidates the correct module in dev (runtime-manifest path).
-
-### Phase 3 — Binary Asset Pipeline (per bundler)
-
-**Goal:** `.wasm`, `.dat`, `.pdb`, and managed assemblies land in the output graph correctly, regardless of which manifest combination discovery found.
-
-Tasks:
-1. **Vite / Rollup:** `this.emitFile({ type: 'asset' })`; honour `preserveWasmFilenames` to disable hashing.
-2. **Webpack / Rspack:** inject `asset/resource` rule for plugin-owned ids; mark them initial (no async split).
-3. **esbuild:** register a `loader: 'file'` namespace.
-4. Pre-compressed siblings (`.br`, `.gz`) — discover beside each asset and pass through.
-
-**Acceptance:**
-- `vite build` produces `dist/_framework/dotnet.native.wasm` with correct bytes; JS references point at the emitted filename.
-- Webpack does **not** split `dotnet.native.wasm` into a lazy chunk.
-- `.br` / `.gz` siblings ship alongside originals when present.
-
-### Phase 4 — Dev Server, Headers, Preload, Boot Manifest Rewrite
-
-**Goal:** Production-fidelity dev loop; correct runtime boot under hashed output.
-
-Tasks:
-1. `configureServer` (Vite) / `devServer` middleware (Webpack) — for every request whose path matches an `Endpoints[].Route`, stream the corresponding `AssetFile` and apply its `ResponseHeaders` verbatim (with the stale-`Content-Length` recomputation).
-2. Selectors — when present, vary the response by `Accept-Encoding` etc.
-3. Preload emission — generate `<link rel=preload …>` HTML fragments from `EndpointProperties.Preload*`. Expose them via a stable hook (`getPreloadLinks()`) and, where the host bundler has an HTML pipeline (Vite `transformIndexHtml`, Webpack `HtmlWebpackPlugin`), inject them.
-4. Watch all content roots (runtime-manifest path) or the endpoints-manifest directory (endpoints-only path); invalidate on change and re-read endpoints.json on its own change (100 ms debounce).
-5. `generateBundle` — if the host bundler hashes `.wasm`/`.dll` outputs, rewrite the boot manifest (`blazor.boot.json` / `mono-config.json`) so the loader's filename list matches the emitted names.
-6. **IDE-parity cache (runtime-manifest path only):** when `emitTypeScriptPaths` is enabled, write `tsconfig.json`, `dotnet-vfs.d.ts`, `manifest.snapshot`, and `.gitignore` into `node_modules/.dotnet-vfs/`. When only the endpoints manifest is present — or when the manifest disappears — remove that directory. Log the one-time `extends`-line hint at `info` level if the user's tsconfig doesn't reference it. Honour `vfsOutDir` and `vfsGitignore` for users who want the artifacts in a visible location.
-
-**Acceptance:**
-- Browser receives `Content-Type: application/wasm` for `_framework/dotnet.native.wasm` in dev.
-- `_framework/dotnet.js` is served with the exact header set listed in endpoints.json (modulo recomputed `Content-Length`).
-- `main.58dhsr9ua1.js` is reachable and served with `Cache-Control: max-age=31536000, immutable`; `main.js` is reachable with `Cache-Control: no-cache`.
-- Generated HTML contains `<link rel="preload" as="script" crossorigin="anonymous" fetchpriority="high">` for the `webassembly` preload group.
-- Hashed production build boots end-to-end in headless Chromium.
-- **Go to Definition** in VS Code on a symbol from `_framework/dotnet.js` lands in `_framework/dotnet.d.ts`, despite the two files originating from different content roots (runtime-manifest path).
-- After removing the runtime manifest (falling back to the endpoints-only path), `node_modules/.dotnet-vfs/` no longer exists on the next build — no stale `paths` polluting the editor.
-
-### Phase 5 — Documentation, Examples, Release
-
-- Per-bundler integration snippets (Vite, Webpack, Rollup, esbuild, Rspack).
-- Side-by-side recipes for the **scattered build output** (project root + discovery) and the **consolidated publish output** (`dotnetOutputDir`).
-- Troubleshooting playbook: case sensitivity, missing manifest, multi-project monorepo, endpoint header overrides.
-- SemVer policy, changelog automation, release pipeline.
-
-## 8. Public API
-
-Options are a **discriminated union** of two variants:
-
-- **Discovery** — the plugin walks `<projectRoot>/bin/<configuration>/<targetFramework>/` to find the manifests. Typical for dev / `dotnet build`.
-- **Explicit** — the caller passes `dotnetOutputDir` directly. Typical for prod / `dotnet publish`, where the runtime manifest is absent and the user knows exactly where the publish output lives.
-
-The two are **mutually exclusive**: discovery options (`projectRoot`, `configuration`, `targetFramework`) and `dotnetOutputDir` may not coexist. All other options are shared.
-
-```ts
-export type DotnetAssetsOptions =
-  & DotnetAssetsBaseOptions
-  & (DotnetAssetsDiscoveryOptions | DotnetAssetsExplicitOptions);
-
-export interface DotnetAssetsBaseOptions {
-  /**
-   * The .NET project name. Used to construct the manifest filenames
-   * (`{projectName}.staticwebassets.runtime.json` and `.endpoints.json`).
-   */
-  projectName: string;
-
-  /**
-   * Path to {Project}.staticwebassets.endpoints.json. Auto-discovered alongside
-   * the runtime manifest / manifest directory. Pass `false` to ignore it entirely.
-   */
-  endpointsPath?: string | false;
-
-  /**
-   * Apply `ResponseHeaders` from endpoints.json in the dev middleware.
-   * Default: true when endpoints.json is found.
-   */
-  applyEndpointHeaders?: boolean;
-
-  /**
-   * Pass every header from endpoints.json through unchanged, including the
-   * known-broken `.d.ts → video/vnd.dlna.mpeg-tts` MIME mapping.
-   * Default: false (plugin overrides a small allow-list of known offenders).
-   */
-  respectAllEndpointHeaders?: boolean;
-
-  /**
-   * Emit `<link rel="preload">` tags from `EndpointProperties.Preload*`.
-   * Default: true when the host bundler exposes an HTML pipeline.
-   */
-  emitPreloadHints?: boolean;
-
-  /**
-   * Extension probe order for extensionless imports of VFS-owned files.
-   * Mirrors a TS / bundler resolve.extensions list. `index.<ext>` lookup uses the same list.
-   * Default: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json'].
-   */
-  resolveExtensions?: string[];
-
-  /**
-   * Register every resolved asset with the bundler's watcher.
-   * Default: true in dev, false in build.
-   */
-  watch?: boolean;
-
-  /**
-   * Preserve original filenames for runtime-critical binaries
-   * (.wasm, .dat, blazor.boot.json, mono-config.json).
-   * Default: true.
-   */
-  preserveWasmFilenames?: boolean;
-
-  /**
-   * Emit IDE-parity helpers (`tsconfig.json` + `dotnet-vfs.d.ts`) so editors share
-   * the virtual view. Only emitted when the runtime manifest is present; otherwise any previous output is removed.
-   *
-   *   'auto' — enabled when the runtime manifest is present and a `tsconfig.json` is found in the project (default).
-   *   true   — always enabled when the runtime manifest is present.
-   *   false  — never emit; remove any prior cache directory.
-   */
-  emitTypeScriptPaths?: boolean | 'auto';
-
-  /**
-   * Override the emission directory. Default: `<projectRoot>/node_modules/.dotnet-vfs/`.
-   * If the override points inside the source tree, the plugin auto-writes a marked
-   * block into the nearest `.gitignore` (see `vfsGitignore`).
-   */
-  vfsOutDir?: string;
-
-  /**
-   * When `vfsOutDir` is inside the source tree, append a `# unplugin-dotnet-static-assets`
-   * marker block to the nearest `.gitignore`. Default: true.
-   */
-  vfsGitignore?: boolean;
-
-  /** Verbosity. Default: 'warn'. */
-  logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug';
-}
-
-/**
- * Discovery variant — the plugin walks `<projectRoot>/bin/<configuration>/<targetFramework>/`
- * to locate the manifests. `dotnetOutputDir` MUST NOT be set on this variant.
- */
-export interface DotnetAssetsDiscoveryOptions {
-  /**
-   * Absolute or workspace-relative path to the .NET project directory
-   * (the one containing the .csproj). Used as the root for manifest discovery.
-   */
-  projectRoot: string;
-
-  /**
-   * MSBuild configuration to look under (`bin/<Configuration>/...`). Default: `'Debug'`.
-   * To switch on bundler mode, wire it in the caller's config (e.g. Vite's
-   * `defineConfig(({ mode }) => ({ ... configuration: mode === 'production' ? 'Release' : 'Debug' }))`).
-   */
-  configuration?: string;
-
-  /**
-   * Target framework moniker (`bin/<Configuration>/<TargetFramework>/...`).
-   * Required for multi-TFM projects; otherwise auto-detected.
-   */
-  targetFramework?: string;
-
-  dotnetOutputDir?: never;
-}
-
-/**
- * Explicit-path variant — the caller supplies the .NET build/publish output directory
- * directly. Discovery options (`projectRoot`, `configuration`, `targetFramework`) MUST NOT be set.
- *
- * `dotnetOutputDir` points at the directory containing `{projectName}.staticwebassets.endpoints.json`
- * (and optionally the runtime manifest sibling). The runtime manifest may or may not exist on
- * disk — absent is the normal `dotnet publish` case. The endpoints manifest is required.
- */
-export interface DotnetAssetsExplicitOptions {
-  dotnetOutputDir: string;
-
-  projectRoot?: never;
-  configuration?: never;
-  targetFramework?: never;
-}
-```
+The exact TypeScript types live in [`packages/unplugin-dotnet-static-assets/src/types.ts`](packages/unplugin-dotnet-static-assets/src/types.ts) — that file is the source of truth for the public API. See §7 for working examples.
 
 Defaults are part of the public contract; changes require a major version bump.
 
-## 9. Consumption
+## 7. Consumption
 
-### 9.1 Pointing at a project root (scattered build output)
+### 7.1 Pointing at a project root (scattered build output)
 
 ```ts
 // vite.config.ts
@@ -560,19 +241,17 @@ import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
 export default {
   plugins: [
     DotnetAssets({
-      // runtime.json found under ./bin → the VFS is built from the manifest tree
       projectName: 'Library',
       projectRoot: './sample/Library',
-      emitTypeScriptPaths: true,
       logLevel: 'info',
     }),
   ],
 };
 ```
 
-### 9.2 Pointing at a consolidated publish folder
+### 7.2 Pointing at a consolidated publish folder
 
-No `mode` switch; the bundler's own mode picks the variant:
+The bundler's own mode picks the variant — same plugin, mode-switched options:
 
 ```ts
 // vite.config.ts
@@ -586,7 +265,6 @@ export default defineConfig(({ mode }) => ({
       ...(mode === 'production'
         ? { dotnetOutputDir: './publish' }                                     // consolidated publish output
         : { projectRoot: '../Library', targetFramework: 'net10.0' }),            // scattered build output
-      // endpoints.json is auto-loaded from the same directory in both setups → preload hints still work
     }),
   ],
 }));
@@ -594,65 +272,7 @@ export default defineConfig(({ mode }) => ({
 
 For a publish output the `runtime.json` file inside `dotnetOutputDir` will not exist — that's the signal that triggers the endpoints-seeded VFS. The sibling `Library.staticwebassets.endpoints.json` is what gets actually read.
 
-### 9.3 npm workspaces (.NET project as a sibling package)
-
-The plugin doesn't synthesise package metadata. If you want bare-specifier ergonomics, wire the .NET project up as a workspace member with its own `package.json` and let npm/pnpm/yarn handle the resolution:
-
-```
-repo/
-├─ package.json          # { "workspaces": ["dotnet-lib", "web"] }
-├─ dotnet-lib/
-│  ├─ package.json       # { "name": "@me/dotnet-lib", "main": "./wwwroot/main.ts" }
-│  ├─ Library.csproj
-│  └─ bin/Debug/net8.0/wwwroot/  # runtime.json + assets land here
-└─ web/
-   ├─ package.json       # { "dependencies": { "@me/dotnet-lib": "*" } }
-   └─ vite.config.ts
-```
-
-```ts
-// web/vite.config.ts
-import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
-
-export default {
-  plugins: [
-    DotnetAssets({
-      projectRoot: '../dotnet-lib',  // point the plugin at the sibling
-      // emitTypeScriptPaths defaults to 'auto' → writes web/node_modules/.dotnet-vfs/
-    }),
-  ],
-};
-```
-
-Contract:
-
-- `projectRoot` defaults to the **consuming workspace's** root (Vite `config.root` / Webpack `context`), never the monorepo root. Point it elsewhere when the .NET output lives in a sibling.
-- The IDE-parity cache lives under the consuming workspace's `node_modules/.dotnet-vfs/`. Each workspace that loads the plugin gets its own cache; nothing is shared at the monorepo root.
-- Bare specifiers (`import x from '@me/dotnet-lib'`) are **passed through untouched** to the host bundler's resolver, so npm's workspace symlink does its normal job. The plugin only intercepts virtual paths it owns (the manifest entries and relative imports between them).
-
-### 9.4 Webpack & Rollup
-
-```js
-// webpack.config.js
-const DotnetAssets = require('unplugin-dotnet-static-assets/webpack');
-
-module.exports = {
-  plugins: [DotnetAssets({ preserveWasmFilenames: true })],
-};
-```
-
-```js
-// rollup.config.js
-import DotnetAssets from 'unplugin-dotnet-static-assets/rollup';
-
-export default {
-  input: 'src/main.ts',
-  output: { file: 'dist/bundle.js', format: 'esm' },
-  plugins: [DotnetAssets()],
-};
-```
-
-## 10. Caveats & Mitigations
+## 8. Caveats & Mitigations
 
 | # | Risk                                                              | Mitigation                                                                                              |
 |---|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
@@ -660,62 +280,47 @@ export default {
 | 2 | Case sensitivity (Windows vs. Linux CI)                           | Case-insensitive lookup keys; preserve on-disk casing on emit; CI validation step.                      |
 | 3 | Aggressive code-splitting separating runtime binaries             | Mark plugin-owned assets as non-async; force `asset/resource` (Webpack) / fixed `assetFileNames` (Vite).|
 | 4 | Manifest churn between `dotnet build` and bundler start           | Re-read both manifests on watcher events with 100 ms debounce.                                          |
-| 5 | Multiple manifests in a monorepo                                  | Require `projectRoot` or explicit `dotnetOutputDir` when >1 candidate is found; clear error otherwise.     |
-| 6 | TypeScript editor unaware of the virtual tree (scattered content roots) | Quiet emission to `node_modules/.dotnet-vfs/` plus a one-line `extends` opt-in. No source-tree pollution; layout changes remove the cache.  |
-| 7 | Hashed filenames break the runtime loader                         | Rewrite `blazor.boot.json` / `mono-config.json` in `generateBundle` to match emitted filenames.         |
-| 8 | Stale `Content-Length` / `Last-Modified` in endpoints.json        | Recompute from the file in dev when the underlying asset has been touched.                              |
-| 9 | Same `AssetFile` mapped to multiple `Route`s (fingerprint variants) | Index by both; canonical for HMR, fingerprinted preferred in production HTML.                          |
-| 10 | Broken `.d.ts → video/vnd.dlna.mpeg-tts` MIME from .NET           | Built-in override table; opt-out via `respectAllEndpointHeaders: true`.                                 |
-| 11 | Misdetection in monorepos / nested publish folders               | VFS construction is artefact-driven (presence of `runtime.json`). For ambiguous setups, callers pass `dotnetOutputDir` explicitly. |
-| 12 | Wrong `bin/<Configuration>` chosen (Debug vs Release vs custom)  | Explicit `configuration` option (defaults to `Debug`). Callers wire bundler-mode-based switching themselves (Vite `defineConfig(({ mode }) => …)`). The plugin doesn't auto-pick. |
-| 13 | Multi-TFM project (`net8.0` + `net9.0`) ambiguous                | Require `targetFramework`; fail loudly with the enumerated candidate list, like `dotnet run` does.       |
-| 14 | Generated IDE-parity files leaking into PRs                       | Default emission to `node_modules/.dotnet-vfs/`; never auto-patch user tsconfig; auto-gitignore when `vfsOutDir` is inside source. |
-| 15 | Stale `paths` from a previous runtime-manifest run breaking an endpoints-only build | On every run, delete the cache directory when the runtime manifest is absent, when `emitTypeScriptPaths: false`, or when the source manifests disappear. |
-| 16 | `projectRoot` resolved against the monorepo root in a workspace setup | Default `projectRoot` to the consuming workspace (Vite `config.root` / Webpack `context`); document the sibling-package recipe (§9.3). |
-| 17 | Extensionless import where both `.ts` and `.d.ts` exist for the same name | `.ts` wins; emitted `paths` orders the implementation first; one-shot `debug` warning per shadowed pair. |
+| 5 | Multiple manifests in a monorepo                                  | Require `projectRoot` or explicit `dotnetOutputDir` when >1 candidate is found; clear error otherwise.  |
+| 6 | Stale `Content-Length` / `Last-Modified` in endpoints.json        | Recompute from the file in dev when the underlying asset has been touched.                              |
+| 7 | Same `AssetFile` mapped to multiple `Route`s (fingerprint variants) | Index by both; canonical for HMR, fingerprinted preferred in production HTML.                          |
+| 8 | Broken `.d.ts → video/vnd.dlna.mpeg-tts` MIME from .NET           | Built-in override table; opt-out via `respectAllEndpointHeaders: true`.                                 |
+| 9 | Misdetection in monorepos / nested publish folders                | VFS construction is artefact-driven (presence of `runtime.json`). For ambiguous setups, callers pass `dotnetOutputDir` explicitly. |
+| 10 | Wrong `bin/<Configuration>` chosen (Debug vs Release vs custom)  | Explicit `configuration` option (defaults to `Debug`). Callers wire bundler-mode-based switching themselves (Vite `defineConfig(({ mode }) => …)`). The plugin doesn't auto-pick. |
+| 11 | Multi-TFM project (`net8.0` + `net9.0`) ambiguous                | Require `targetFramework`; fail loudly with the enumerated candidate list, like `dotnet run` does.       |
+| 12 | Extensionless import where both `.ts` and `.d.ts` exist for the same name | `.ts` wins; one-shot `debug` warning per shadowed pair.                                          |
 
-## 11. Test Strategy
+## 9. Test Strategy
 
-- **Unit** — schema parsing (runtime + endpoints), VFS lookups, pattern expansion, path normalisation, case-folding, fingerprint index, header override table, artefact-driven VFS selection.
-- **Fixtures**:
-  - `test/fixtures/TypeShim/` — scattered build output, both manifests committed, two content roots.
-  - `test/fixtures/TypeShim-publish/` — consolidated publish output, endpoints.json only.
-- **Integration** — scripted production builds for Vite, Webpack, Rollup, esbuild against both fixtures; assert emitted files and reference rewrites.
-- **Dev-server contract test** — for every endpoint in the fixture, hit the dev server and assert that the served headers match endpoints.json (modulo recomputed `Content-Length`).
-- **Preload test** — assert generated HTML contains a correctly-ordered `<link rel="preload">` block for the `webassembly` group.
-- **E2E** — Playwright boots the bundled output in headless Chromium against both fixtures; asserts a successful runtime call into the .NET assembly.
-- **Editor parity** (runtime-manifest path) — automated TypeScript language-service test: from `main.ts`, "Go to Definition" on a symbol declared in `_framework/dotnet.d.ts` (ContentRoot 0) returns the correct file, even though the corresponding `_framework/dotnet.js` lives in ContentRoot 1.
-- **Quiet-emission lifecycle** — (a) a run with the runtime manifest and `emitTypeScriptPaths: 'auto'` creates only `node_modules/.dotnet-vfs/` and nothing in the source tree; the user's `tsconfig.json` is byte-identical before and after. (b) Switching to an endpoints-only run (or removing the manifest) deletes the cache directory on the next run. (c) Setting `vfsOutDir: './.dotnet-vfs'` triggers an automatic `.gitignore` append with the documented marker, idempotent across reruns.
-- **Resolution suite** — extensionless imports resolve via `resolveExtensions`; `import './some-dir'` resolves to `some-dir/index.ts` when present; custom `resolveExtensions` order is respected; bare specifiers we don't own are passed through to the host resolver untouched.
-- **`.ts` / `.d.ts` shadowing** — fixture with both `foo.ts` and `foo.d.ts` at the same virtual path. Assert the bundler loads `foo.ts`, the emitted `tsconfig` `paths` list it first, the language-service "Go to Definition" lands in `foo.ts`, and a `debug`-level shadowing warning is emitted exactly once.
-- **Workspaces fixture** — monorepo with `web/` (the consuming workspace) and `dotnet-lib/` (sibling with `bin/Debug/net8.0/wwwroot/{runtime,endpoints}.json`). Assert the plugin loads when invoked from `web/`, writes only `web/node_modules/.dotnet-vfs/`, leaves the monorepo root untouched, and that bare-specifier imports of `@me/dotnet-lib` are *not* intercepted (npm's workspace symlink does the resolution).
-- **Discovery state machine** — fixtures with `bin/Debug/net8.0/` only, `bin/Release/net8.0/` only, both (newer Release), and multi-TFM (`net8.0` + `net9.0`). Assert correct selection, correct hard-failure messages, and that the staleness warning fires when an older configuration is forced.
+- **Unit** — schema parsing (runtime + endpoints), VFS lookups, pattern expansion, path normalisation, case-folding, fingerprint index, header override table, the `.ts` shadows `.d.ts` rule, artefact-driven VFS selection.
+- **Integration** — scripted production builds through Vite for both fixtures (scattered build, consolidated publish); assert emitted files and reference rewrites.
+- **E2E** — Playwright boots the bundled output in headless Chromium against both fixtures and asserts a successful `[TSExport]` round-trip into .NET.
 - **Performance** — 10 000-lookup budget of 50 ms, tracked in CI.
 
-## 12. Compatibility Matrix
+Fixtures live under `test/fixtures/`; the integration suite is parameterised so each additional bundler (or fingerprint state) can be added without per-shape duplication.
+
+## 10. Compatibility Matrix
 
 | Component   | Minimum | Notes                                                                |
 |-------------|---------|----------------------------------------------------------------------|
-| Node.js     | 18 LTS  | ESM-first.                                                           |
+| Node.js     | 20 LTS  | ESM-first.                                                           |
 | .NET SDK    | 8.0     | Uses the `staticwebassets.runtime.json` + `…endpoints.json` shape from .NET 8 onward. |
-| Vite        | 5.x     |                                                                      |
-| Webpack     | 5.x     |                                                                      |
-| Rollup      | 4.x     |                                                                      |
-| esbuild     | 0.21+   |                                                                      |
-| Rspack      | 1.x     |                                                                      |
-| TypeScript  | 5.0+    | Required for optional `paths` emission (runtime-manifest layouts).   |
+| Vite        | 5.x     | First bundler supported.                                             |
+| TypeScript  | 5.0+    | Required for the optional IDE-parity `paths` emission (Future Work). |
 
-## 13. Non-Goals
+Other bundlers (Webpack, Rollup, esbuild, Rspack) are planned — see [Future Work](#13-future-work).
+
+## 11. Non-Goals
 
 - Replacing `dotnet build` or `dotnet publish` — the plugin **consumes** their outputs.
 - Replacing ASP.NET Core static-files middleware in production — endpoint headers are applied **only in dev**.
 - Re-implementing the Blazor / .NET WebAssembly runtime loader.
 - Modifying `.wasm` bytes (no AOT, no trimming, no instrumentation).
 - Serving content-negotiated variants in production (Selectors → dev only; production hosting handles negotiation).
-- **Synthesising an npm package** from the .NET output. Any `package.json` emitted by the .NET project is treated as a plain virtual file. Bare-specifier imports (`import x from '@scope/pkg'`) are never claimed by this plugin; if you want that ergonomics, install the .NET project as an npm workspace member (§9.3) and let your package manager do the resolution.
+- Subresource Integrity (SRI) emission. The .NET loader does its own internal hash check on `.wasm`/`.dll`/`.dat` content; browser-side SRI applies only to `<script>` / `<link>` tags (not `fetch` or `WebAssembly.instantiateStreaming`), so its only effect would be on the entry `dotnet.js` tag. Marginal value, brittle wiring against hashed bundler filenames.
+- **Synthesising an npm package** from the .NET output. Any `package.json` emitted by the .NET project is treated as a plain virtual file. Bare-specifier imports (`import x from '@scope/pkg'`) are never claimed by this plugin; if you want that ergonomics, install the .NET project as an npm workspace member and let your package manager do the resolution.
 - Parsing the emitted `package.json`'s `name`, `exports`, `main`, `types`, or `imports` fields. The plugin's mental model is *files in a virtual directory*, not *a package*.
 
-## 14. Glossary
+## 12. Glossary
 
 - **Content root** — an absolute directory path listed in `ContentRoots`. Files reference it by index.
 - **Virtual path** — the path as it appears in `Root` (browser-/bundler-facing).
@@ -724,3 +329,17 @@ export default {
 - **Endpoint** — a `Endpoints[]` entry: a `Route → AssetFile` mapping with headers and properties.
 - **Fingerprinted route** — an alias of an `AssetFile` with a hash segment in its filename, served with `Cache-Control: immutable`.
 - **IDE parity** — the property that editors see the same virtual tree the bundler sees (relevant when files live across multiple content roots).
+
+## 13. Future Work
+
+Items deferred past `0.1.0-rc`. Most map to backlog milestones in [execution-plan.md](execution-plan.md).
+
+- **Dev-server middleware** — apply `ResponseHeaders` from endpoints.json verbatim (with stale-`Content-Length` recomputation), handle `Selectors` content-negotiation, watch + invalidate on manifest churn.
+- **Preload `<link>` injection** — emit preload tags from `EndpointProperties.Preload*` for the `webassembly` group, ordered by `PreloadOrder`, via `transformIndexHtml`. Endpoint lookup already carries the data.
+- **IDE-parity emission** — when the runtime manifest spans multiple content roots, emit `tsconfig.json` + `dotnet-vfs.d.ts` (+ snapshot + `.gitignore`) into `node_modules/.dotnet-vfs/`. Opt-in via a single `extends` line; never auto-patch the user's `tsconfig.json`; remove the cache when the runtime manifest disappears.
+- **Configurable extension probe order** — `resolveExtensions` option. Currently a built-in constant in `core/extension-probes.ts`; add a user option if a real consumer needs to tweak it.
+- **Boot-manifest rewrite** — when the host bundler hashes `.wasm`/`.dll` outputs, rewrite `blazor.boot.json` / `mono-config.json` in `generateBundle` so the loader's filename list matches emitted names.
+- **Additional bundler adapters** — Webpack, Rollup, esbuild, Rspack. Validates the unplugin abstraction; each needs a per-bundler asset-emission strategy.
+- **npm workspaces recipe** — fixture + docs for using the .NET project as a sibling workspace member, so bare specifiers (`import x from '@scope/dotnet-lib'`) resolve through the package manager rather than the plugin.
+- **Compression sibling pass-through** (`.br` / `.gz` next to each asset).
+- **Watch-mode HMR** — `addWatchFile` for every VFS asset, debounced manifest re-read on change, dev HMR invalidation when `dotnet build` / `dotnet watch` rewrites the bin output.
