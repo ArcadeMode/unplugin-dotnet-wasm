@@ -1,7 +1,5 @@
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { discoverManifests } from './discover.js';
 
 // ---------------------------------------------------------------------------
@@ -97,12 +95,14 @@ describe('discoverManifests — dotnetOutputDir (explicit, publish dir)', () => 
   });
 });
 
-describe('discoverManifests — synthetic missing manifest', () => {
+const NONEXISTENT_ROOT = resolve(__dirname, '../../.test-tmp/does-not-exist');
+
+describe('discoverManifests — missing manifest', () => {
   it('throws when no manifest exists in the TFM dir', () => {
-    expect(() => discoverManifests({ projectRoot: join(tmpdir(), `dotnet-wasm-bundler-discover-test-${Date.now()}`), projectName: 'SomeProj', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
+    expect(() => discoverManifests({ projectRoot: NONEXISTENT_ROOT, projectName: 'SomeProj', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
   });
 
   it('throws when the configuration directory does not exist', () => {
-    expect(() => discoverManifests({ projectRoot: join(tmpdir(), `dotnet-wasm-bundler-discover-test-${Date.now()}`), projectName: 'Proj', configuration: 'Release' })).toThrowError(/Endpoints manifest not found/);
+    expect(() => discoverManifests({ projectRoot: NONEXISTENT_ROOT, projectName: 'Proj', configuration: 'Release' })).toThrowError(/Endpoints manifest not found/);
   });
 });

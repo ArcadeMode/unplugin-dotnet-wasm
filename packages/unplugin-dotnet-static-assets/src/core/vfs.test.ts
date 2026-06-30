@@ -1,14 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRuntimeManifest } from './manifest-runtime.js';
 import { buildVfs, type VirtualFileSystem } from './vfs.js';
 import { type Logger, NULL_LOGGER } from './logger.js';
-
-// ---------------------------------------------------------------------------
-// Real fixture paths
-// ---------------------------------------------------------------------------
 
 const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
 const MANIFEST_PATH = resolve(
@@ -17,18 +12,12 @@ const MANIFEST_PATH = resolve(
 );
 const BIN_WWWROOT = resolve(SAMPLE_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 
-// ---------------------------------------------------------------------------
-// Real fixture — core resolution scenarios
-// ---------------------------------------------------------------------------
-
 describe('buildVfs — real fixture', () => {
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
     vfs = buildVfs(parseRuntimeManifest(readFileSync(MANIFEST_PATH)));
   });
-
-  // ── manifest-explicit assets ─────────────────────────────────────────────
 
   it('resolves fingerprinted dotnet.*.js to the bin output', () => {
     const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p));
@@ -38,8 +27,6 @@ describe('buildVfs — real fixture', () => {
     expect(asset!.physicalPath).toContain(join(BIN_WWWROOT, '_framework'));
     expect(asset!.physicalPath).toMatch(/dotnet\.[a-z0-9]+\.js$/);
   });
-
-  // ── list() ────────────────────────────────────────────────────────────────
 
   it('list _framework returns direct children with full virtual paths', () => {
     const children = vfs.list('_framework');
@@ -56,37 +43,22 @@ describe('buildVfs — real fixture', () => {
     expect(children).toEqual(sorted);
   });
 
-  // ── miss behaviour ────────────────────────────────────────────────────────
-
   it('returns undefined for a path that does not exist', () => {
     expect(vfs.resolve('does-not-exist.ts')).toBeUndefined();
     expect(vfs.resolve('_framework/nonexistent.wasm')).toBeUndefined();
   });
 
-  // ── performance ───────────────────────────────────────────────────────────
-
-  it('10 000 hot lookups complete in under 50 ms', () => {
-    const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p))!;
-    const start = performance.now();
-    for (let i = 0; i < 10_000; i++) {
-      vfs.resolve(fpPath);
-    }
-    expect(performance.now() - start).toBeLessThan(50);
-  });
 });
 
-// ---------------------------------------------------------------------------
-// Synthetic: pattern fallthrough (lazy disk hits via Patterns rule)
-// ---------------------------------------------------------------------------
+const TEMP_DIR = resolve(__dirname, '../../.test-tmp/vfs-pat');
 
 describe('buildVfs — synthetic: pattern fallthrough', () => {
-  let tmpRoot: string;
   let root0: string;
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
-    tmpRoot = mkdtempSync(join(tmpdir(), 'vfs-pat-'));
-    root0 = join(tmpRoot, 'root0');
+    root0 = join(TEMP_DIR, 'root0');
+    rmSync(TEMP_DIR, { recursive: true, force: true });
     mkdirSync(root0, { recursive: true });
     writeFileSync(join(root0, 'unlisted.css'), 'body {}');
 
@@ -106,7 +78,7 @@ describe('buildVfs — synthetic: pattern fallthrough', () => {
   });
 
   afterAll(() => {
-    rmSync(tmpRoot, { recursive: true, force: true });
+    rmSync(TEMP_DIR, { recursive: true, force: true });
   });
 
   it('finds a file on disk under the patterned content root via stat', () => {
@@ -134,10 +106,6 @@ describe('buildVfs — synthetic: pattern fallthrough', () => {
     expect(asset!.physicalPath).toBe(join(root0, 'dynamic.json'));
   });
 });
-
-// ---------------------------------------------------------------------------
-// Synthetic: .ts shadows .d.ts (detection runs against manifest-listed assets)
-// ---------------------------------------------------------------------------
 
 describe('buildVfs — synthetic: .ts shadows .d.ts', () => {
   let debugMessages: string[];

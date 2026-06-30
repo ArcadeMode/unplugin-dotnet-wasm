@@ -1,6 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AssetResolver } from './asset-resolver.js';
 import { buildVfs, type VirtualFileSystem, type ResolvedAsset } from './vfs.js';
@@ -8,10 +7,6 @@ import { buildEndpointLookup } from './endpoint-lookup.js';
 import type { EndpointLookup, EndpointMatch } from './endpoint-lookup.js';
 import { parseRuntimeManifest } from './manifest-runtime.js';
 import { parseEndpointsManifest } from './manifest-endpoints.js';
-
-// ---------------------------------------------------------------------------
-// Stub helpers
-// ---------------------------------------------------------------------------
 
 function stubVfs(opts?: {
   resolve?: VirtualFileSystem['resolve'];
@@ -27,10 +22,6 @@ function stubVfs(opts?: {
 function vfsAsset(physicalPath: string): ResolvedAsset {
   return { virtualPath: physicalPath, physicalPath };
 }
-
-// ---------------------------------------------------------------------------
-// Input normalisation
-// ---------------------------------------------------------------------------
 
 describe('AssetResolver — input normalisation', () => {
   it('returns null for an empty string', () => {
@@ -60,10 +51,6 @@ describe('AssetResolver — input normalisation', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Probe expansion
-// ---------------------------------------------------------------------------
-
 describe('AssetResolver — probe expansion', () => {
   it('does not expand probes when the source already has a file extension', () => {
     const resolveFn = vi.fn().mockReturnValue(undefined);
@@ -90,10 +77,6 @@ describe('AssetResolver — probe expansion', () => {
     expect(resolveFn).toHaveBeenCalledTimes(2);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Endpoint alias paths
-// ---------------------------------------------------------------------------
 
 describe('AssetResolver — endpoint alias paths', () => {
   const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js' };
@@ -127,19 +110,11 @@ describe('AssetResolver — endpoint alias paths', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Full miss
-// ---------------------------------------------------------------------------
-
 describe('AssetResolver — full miss', () => {
   it('returns null when both VFS and endpoint lookup miss for every probe', () => {
     expect(new AssetResolver(stubVfs(), new Map()).resolve('nonexistent.wasm')).toBeNull();
   });
 });
-
-// ---------------------------------------------------------------------------
-// Real fixture — end-to-end probing through a real VFS + endpoint lookup
-// ---------------------------------------------------------------------------
 
 const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
 const RUNTIME_MANIFEST = resolve(SAMPLE_ROOT, 'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json');
@@ -161,18 +136,15 @@ describe('AssetResolver — real fixture', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Synthetic: probing through pattern fallthrough (real disk, no fixture)
-// ---------------------------------------------------------------------------
+const TEMP_DIR = resolve(__dirname, '../../.test-tmp/ar-probe');
 
 describe('AssetResolver — probing through pattern fallthrough', () => {
-  let tmpRoot: string;
   let root0: string;
   let r: AssetResolver;
 
   beforeAll(() => {
-    tmpRoot = mkdtempSync(join(tmpdir(), 'ar-probe-'));
-    root0 = join(tmpRoot, 'root0');
+    root0 = join(TEMP_DIR, 'root0');
+    rmSync(TEMP_DIR, { recursive: true, force: true });
     mkdirSync(join(root0, 'some-dir'), { recursive: true });
     writeFileSync(join(root0, 'bare.ts'), 'export const bare = 1;');
     writeFileSync(join(root0, 'some-dir', 'index.ts'), 'export default 42;');
@@ -193,7 +165,7 @@ describe('AssetResolver — probing through pattern fallthrough', () => {
   });
 
   afterAll(() => {
-    rmSync(tmpRoot, { recursive: true, force: true });
+    rmSync(TEMP_DIR, { recursive: true, force: true });
   });
 
   it('extensionless bare specifier resolves via .ts probe', () => {
