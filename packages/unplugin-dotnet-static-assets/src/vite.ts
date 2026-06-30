@@ -1,8 +1,5 @@
 import { dotnetStaticAssets } from './unplugin/index.js';
 
-/**
- * Vite-specific adapter.
- * Implementation begins in M1.5.
- */
-export default dotnetStaticAssets.vite;
-export const DotnetAssets = dotnetStaticAssets.vite;
+const DotnetAssets = dotnetStaticAssets.vite;
+export default DotnetAssets;
+export { DotnetAssets as 'module.exports' };

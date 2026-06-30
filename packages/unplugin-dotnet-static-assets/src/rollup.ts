@@ -1,5 +1,5 @@
-import unplugin from './vite.js';
+import { dotnetStaticAssets } from './unplugin/index.js';
 
-const rollup = unplugin.rollup;
-export default rollup;
-export { rollup as 'module.exports' };
+const DotnetAssets = dotnetStaticAssets.rollup;
+export default DotnetAssets;
+export { DotnetAssets as 'module.exports' };
