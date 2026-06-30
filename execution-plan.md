@@ -45,7 +45,7 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
 - `discoverManifests(opts): { runtimeManifestPath, endpointsManifestPath }`.
 - **Explicit options exposed from M1** (mirrors `plan.md` §8):
   - `projectRoot: string` — required for M1; the .NET project directory (the one containing the `.csproj`).
-  - `configuration?: string` — default `'Debug'`. The full default-resolution chain (env var, bundler mode, etc.) lands in M2.4.
+  - `configuration?: string` — default `'Debug'`. Callers wire bundler-mode-based switching themselves (e.g. Vite's `defineConfig(({ mode }) => ({ ... configuration: mode === 'production' ? 'Release' : 'Debug' }))`).
   - `targetFramework?: string` — if omitted, the discovery globs `<projectRoot>/bin/<configuration>/*/` and requires exactly one TFM directory; else hard-fail with the enumerated candidates.
   - `dotnetOutputDir?: string` — if set, the other discovery axes are forbidden (enforced by the discriminated union in `DotnetAssetsOptions`). The directory must contain the endpoints manifest; the runtime manifest sibling may or may not exist (it won't, for a publish output).
 - Algorithm for M1:
@@ -53,7 +53,6 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
   2. Otherwise construct `<projectRoot>/bin/<configuration>/<targetFramework>` from supplied/defaulted options, filling each unset axis with the unique-directory rule above. Glob `*.staticwebassets.runtime.json` inside it.
   3. On zero hits, throw with a clear message naming the directory searched and the resolved axes.
   4. On multiple hits in the *same* directory (unlikely but possible), throw with the candidate list.
-- Ranking across siblings (e.g. Debug vs Release both present), mtime-based staleness warnings, env-var resolution: **deferred to M2.4**. M1 just needs deterministic behaviour given the options.
 
 **Done when:** unit tests prove:
 - Default options (`{ projectRoot: 'Library' }`) resolve to `Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json` against the fixture.
@@ -382,9 +381,9 @@ Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fi
 
 ---
 
-## M2 — Consolidated `dotnet publish` output + discovery hardening
+## M2 — Consolidated `dotnet publish` output
 
-**Outcome:** the same Vite consumer can be pointed at a consolidated publish output by passing `dotnetOutputDir` and builds with no other config changes. The plugin transparently falls back to seeding the VFS from the endpoints manifest when the runtime manifest is absent. Discovery handles multi-config layouts and produces useful errors.
+**Outcome:** the same Vite consumer can be pointed at a consolidated publish output by passing `dotnetOutputDir` and builds with no other config changes. The plugin transparently falls back to seeding the VFS from the endpoints manifest when the runtime manifest is absent.
 
 There is **no** `mode` option and **no** `publishDir` option. VFS construction is determined by whether `{Project}.staticwebassets.runtime.json` exists at the discovered (or explicitly supplied) location — see `plan.md` §2.1. The discriminated `DotnetAssetsOptions` union already encodes the two ways a caller addresses the manifests: discovery (`projectRoot` + axes) or explicit (`dotnetOutputDir`). Callers wire dev vs prod through the bundler's own mode (e.g. Vite's `defineConfig(({ mode }) => ...)`).
 
@@ -404,16 +403,7 @@ The existing `discoverManifests` already returns `runtimeManifestPath: null` whe
 - Resolver behaviour (`resolveId` / `load`) is unchanged — it talks to the VFS through the same interface.
 - Unit test: build the VFS from a publish fixture's endpoints manifest, assert `_framework/dotnet.js` resolves to a real file under the publish dir, assert canonical-name imports (`_framework/Library.wasm`) resolve through the same endpoint-alias path the M1.7 work added.
 
-### M2.3 — Discovery hardening (ranking, fallback defaults, staleness)
-
-The option *surface* (`configuration`, `targetFramework`) was already exposed in M1.3, but M1 keeps the algorithm strict: unique-candidate-or-fail. M2.3 makes the algorithm intelligent when options are partial or absent:
-
-- Implement the ranked search from `plan.md` §2.2: explicit-tightest-path → loose glob with axis ranking → mtime tiebreaker.
-- Expand the `configuration` default-resolution chain: option ▸ `process.env.DOTNET_CONFIGURATION` ▸ Vite `config.mode === 'production' ? 'Release' : 'Debug'` ▸ `Debug` fallback.
-- Staleness warning when the chosen manifest's mtime is older than a sibling under `bin/`.
-- New synthetic fixtures (no real builds needed): `bin/Debug/net8.0/…/runtime.json`, `bin/Release/net8.0/…/runtime.json` (newer), multi-TFM (`net8.0 + net9.0`).
-
-### M2.4 — E2E integration test for the consolidated publish layout
+### M2.3 — E2E integration test for the consolidated publish layout
 
 - New consumer fixture `test/fixtures/library-publish-consumer` (or a second build script on the existing `library-build` fixture) that wires the plugin with `defineConfig(({ mode }) => ({ plugins: [DotnetAssets({ projectName: 'Library', ...(mode === 'production' ? { dotnetOutputDir: '../library-publish' } : { projectRoot: '../Library', targetFramework: 'net10.0' }) })] }))`.
 - Same Playwright assertions as M1.6, run against `vite build --mode production`.
@@ -422,7 +412,6 @@ The option *surface* (`configuration`, `targetFramework`) was already exposed in
 ### M2 acceptance summary
 
 - Both `dotnet build` and `dotnet publish` outputs work; the same plugin source resolves both layouts based purely on what's present on disk at the configured path.
-- Discovery makes good choices in standard repos and complains clearly when it can't.
 - The discriminated `DotnetAssetsOptions` union makes dev/prod wiring a Vite-mode conditional, not a plugin-mode option.
 - Still: no endpoints.json behaviour beyond resolution, no dev server, no IDE emission, still Vite-only.
 
@@ -499,4 +488,4 @@ Documented as "out of scope for now" in every PR description, with a link back t
 
 - One PR per sub-milestone (M1.1, M1.2, …). Each PR ships passing tests for *its* slice.
 - After M3, we re-read `plan.md` and this file together, prune anything that didn't survive contact with reality, and pick the next milestone.
-- Whenever a real-world quirk shows up that the spec didn't anticipate (very likely — see `OutputPath=./bin/` flat layout already), the discovery in M1.3 becomes the test case for M2.4's hardened version.
+- Whenever a real-world quirk shows up that the spec didn't anticipate (very likely — see `OutputPath=./bin/` flat layout already), file it as a follow-up against M1.3's discovery and add a regression fixture in the same PR that fixes it.

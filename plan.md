@@ -40,41 +40,22 @@ Which path is taken is therefore a function of which `dotnet` command produced t
 
 ### 2.2 Build configuration & target-framework discovery
 
-`.NET` writes its outputs to `bin/<Configuration>/<TargetFramework>[/publish]/…`, so any search under `bin/` faces three orthogonal axes:
+`.NET` writes its outputs to `bin/<Configuration>/<TargetFramework>[/publish]/…`. Discovery is explicit: the caller tells the plugin which configuration and target framework to look under. There is no globbing, no ranking, no mtime tiebreaking, no env-var fallback, and no bundler-mode auto-pick — the caller knows their project better than the plugin can guess.
 
-| Axis              | Examples                       | Source of truth                                                                          |
-|-------------------|--------------------------------|------------------------------------------------------------------------------------------|
-| Configuration     | `Debug`, `Release`, `Staging`  | `options.configuration` ▸ `process.env.DOTNET_CONFIGURATION` ▸ bundler mode ▸ `Debug`    |
-| Target framework  | `net8.0`, `net9.0`             | `options.targetFramework` ▸ unique match ▸ fail                                          |
+| Axis              | Examples                       | Source of truth                                  |
+|-------------------|--------------------------------|--------------------------------------------------|
+| Configuration     | `Debug`, `Release`, `Staging`  | `options.configuration` ▸ `'Debug'`              |
+| Target framework  | `net8.0`, `net9.0`             | `options.targetFramework` ▸ unique match ▸ fail  |
 
 *(There is no "Build vs Publish" axis. Publish outputs are addressed by passing `dotnetOutputDir` directly; discovery only deals with the `bin/<Configuration>/<TargetFramework>/` layout that `dotnet build` produces.)*
 
 Resolution proceeds top-down, first hit wins:
 
-1. **Explicit override.** If `options.dotnetOutputDir` is set, use it verbatim — no globbing, no ranking. The runtime manifest inside that directory may or may not exist (it won't, for a publish output); the endpoints manifest **must**.
-2. **Tight candidate path.** Construct `<projectRoot>/bin/<configuration>/<targetFramework>/` from whatever options are provided. Look there for `{ProjectName}.staticwebassets.runtime.json` and `{ProjectName}.staticwebassets.endpoints.json`.
-3. **Loose search.** If any axis is unset, scan `<projectRoot>/bin/**` for candidates and **rank**:
-   1. exact `configuration` match (case-insensitive);
-   2. exact `targetFramework` match;
-   3. **mtime descending** ("most recently built") as the final tiebreaker.
-4. **Hard fail** with the enumerated candidate list when the top two are still indistinguishable, or when a required axis is ambiguous (e.g. multi-TFM project with no `targetFramework` set). Same posture as `dotnet run` on a multi-target project.
+1. **Explicit override.** If `options.dotnetOutputDir` is set, use it verbatim. The runtime manifest inside that directory may or may not exist (it won't, for a publish output); the endpoints manifest **must**.
+2. **Tight candidate path.** Construct `<projectRoot>/bin/<configuration>/<targetFramework>/` from supplied options, defaulting `configuration` to `'Debug'`. If `targetFramework` is omitted, glob `<projectRoot>/bin/<configuration>/*/` and require exactly one TFM directory; otherwise hard-fail with the enumerated candidates.
+3. Look in that directory for `{ProjectName}.staticwebassets.endpoints.json` (required) and `{ProjectName}.staticwebassets.runtime.json` (optional). On miss, throw with a message naming the directory searched and the resolved axes.
 
-#### Default `configuration` resolution
-
-In order, first hit wins:
-
-1. `options.configuration`
-2. `process.env.DOTNET_CONFIGURATION`
-3. Bundler mode signal — Vite `config.mode === 'production'` or Webpack `mode: 'production'` → `Release`; otherwise `Debug`.
-4. Fallback `Debug` (matches `dotnet build` default).
-
-#### Staleness guard
-
-Developers regularly switch between `dotnet build` and `dotnet build -c Release`. If the chosen manifest's mtime is **older than another sibling found under `bin/`**, the plugin logs a warning at `logLevel >= warn`:
-
-> `[dotnet-static-assets] Using Debug/net8.0 manifest (mtime 2026-06-25 11:02:14), but Release/net8.0 was built more recently (mtime 2026-06-25 14:09:41). Set { configuration: 'Release' } or DOTNET_CONFIGURATION=Release to switch.`
-
-This catches the "why is the browser still serving yesterday's `.wasm`" class of bug without silently changing behavior.
+Callers who need to switch Debug ↔ Release per bundler mode do so in their own config, e.g. Vite's `defineConfig(({ mode }) => ({ plugins: [DotnetAssets({ projectRoot: '../Library', configuration: mode === 'production' ? 'Release' : 'Debug' })] }))`. The plugin doesn't infer build configuration from the host bundler.
 
 #### `dotnet watch` interaction
 
@@ -547,9 +528,9 @@ export interface DotnetAssetsDiscoveryOptions {
   projectRoot: string;
 
   /**
-   * MSBuild configuration to look under (`bin/<Configuration>/...`).
-   * Default: `process.env.DOTNET_CONFIGURATION` ▸ `'Release'` when the host bundler
-   * is in production mode ▸ `'Debug'`.
+   * MSBuild configuration to look under (`bin/<Configuration>/...`). Default: `'Debug'`.
+   * To switch on bundler mode, wire it in the caller's config (e.g. Vite's
+   * `defineConfig(({ mode }) => ({ ... configuration: mode === 'production' ? 'Release' : 'Debug' }))`).
    */
   configuration?: string;
 
@@ -699,7 +680,7 @@ export default {
 | 9 | Same `AssetFile` mapped to multiple `Route`s (fingerprint variants) | Index by both; canonical for HMR, fingerprinted preferred in production HTML.                          |
 | 10 | Broken `.d.ts → video/vnd.dlna.mpeg-tts` MIME from .NET           | Built-in override table; opt-out via `respectAllEndpointHeaders: true`.                                 |
 | 11 | Misdetection in monorepos / nested publish folders               | VFS construction is artefact-driven (presence of `runtime.json`). For ambiguous setups, callers pass `dotnetOutputDir` explicitly. |
-| 12 | Wrong `bin/<Configuration>` chosen (Debug vs Release vs custom)  | Ranked discovery (§2.2) with `configuration` option, `DOTNET_CONFIGURATION` env, bundler-mode signal, and mtime-based staleness warning. |
+| 12 | Wrong `bin/<Configuration>` chosen (Debug vs Release vs custom)  | Explicit `configuration` option (defaults to `Debug`). Callers wire bundler-mode-based switching themselves (Vite `defineConfig(({ mode }) => …)`). The plugin doesn't auto-pick. |
 | 13 | Multi-TFM project (`net8.0` + `net9.0`) ambiguous                | Require `targetFramework`; fail loudly with the enumerated candidate list, like `dotnet run` does.       |
 | 14 | Generated IDE-parity files leaking into PRs                       | Default emission to `node_modules/.dotnet-vfs/`; never auto-patch user tsconfig; auto-gitignore when `vfsOutDir` is inside source. |
 | 15 | Stale `paths` from a previous runtime-manifest run breaking an endpoints-only build | On every run, delete the cache directory when the runtime manifest is absent, when `emitTypeScriptPaths: false`, or when the source manifests disappear. |
