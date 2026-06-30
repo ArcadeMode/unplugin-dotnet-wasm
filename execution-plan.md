@@ -437,11 +437,9 @@ After M2 we have a usable production-only plugin for Vite (build-time only, scat
 - **M5 — Webpack adapter**: second bundler, requires `asset/resource` rule injection and chunk-splitting opt-out. Validates the unplugin abstraction.
 - **M6 — IDE-parity emission**: the quiet `node_modules/.dotnet-vfs/` cache with `tsconfig.json` + `dotnet-vfs.d.ts`; layout-flip cleanup; one-shot info-level `extends` hint.
 - **M7 — Preload `<link>` injection**: emit preload tags from `EndpointProperties.Preload*` for the `webassembly` group, ordered by `PreloadOrder`, via `transformIndexHtml`. Endpoint lookup already carries everything needed.
-- **M8 — Compression sibling pass-through** (`.br` / `.gz` next to each asset).
-- **M9 — Boot-manifest rewrite** when the host bundler hashes `.wasm`/`.dll` outputs (`blazor.boot.json` / `mono-config.json`).
-- **M10 — Rollup / esbuild / Rspack adapters**.
-- **M11 — Playwright E2E**: headless-Chromium boot that proves the runtime actually executes a managed call.
-- **M12 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition.
+- **M8 — Rollup / esbuild / Rspack adapters**.
+- **M9 — Playwright E2E**: headless-Chromium boot that proves the runtime actually executes a managed call.
+- **M10 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition.
 
 Each of these is its own milestone-sized chunk. **Plan out M3/M4/M5 (or whichever combination we want) at that checkpoint** — we'll know more once M1 and M2 are real code in someone's hands.
 
