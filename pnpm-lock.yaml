@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -49,7 +52,7 @@ importers:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@26.0.0)
 
-  test/fixtures/library-build:
+  test/fixtures/library-build-vite:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
@@ -822,6 +825,11 @@ packages:
   console-clear@1.1.1:
     resolution: {integrity: sha512-pMD+MVR538ipqkG5JXeOEbKWS5um1H4LUUccUQG68qpeqBYbzYy79Gh55jkd2TtPdRfUaLWdv6LPP//5Zt0aPQ==}
     engines: {node: '>=4'}
+
+  cross-env@7.0.3:
+    resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
+    engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
+    hasBin: true
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -2021,6 +2029,10 @@ snapshots:
   consola@3.4.2: {}
 
   console-clear@1.1.1: {}
+
+  cross-env@7.0.3:
+    dependencies:
+      cross-spawn: 7.0.6
 
   cross-spawn@7.0.6:
     dependencies:

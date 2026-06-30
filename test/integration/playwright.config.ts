@@ -3,7 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const DIST_DIR = resolve(__dirname, '../fixtures/library-build/dist');
+const BUNDLER = process.env.BUNDLER ?? 'vite';
+const DIST_DIR = process.env.DIST_DIR
+  ?? resolve(__dirname, `../fixtures/library-build-${BUNDLER}/dist`);
 
 export default defineConfig({
   testDir: '.',
