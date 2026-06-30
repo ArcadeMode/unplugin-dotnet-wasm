@@ -9,11 +9,11 @@ A .NET WebAssembly project produces static web assets in **one of two shapes**:
 
 This plugin handles **both** shapes, presenting them to JavaScript bundlers (Vite, Webpack, Rollup, esbuild, Rspack) — and to the developer's editor — as a single coherent directory, and serving them in dev with the response headers the production runtime expects.
 
-> **One-liner:** Mount .NET static-web-assets output (scattered *or* consolidated) as a virtual module namespace, with optional production-fidelity headers, preload hints, and Subresource Integrity.
+> **One-liner:** Mount .NET static-web-assets output (scattered *or* consolidated) as a virtual module namespace, with optional production-fidelity headers and preload hints.
 
 ## 2. Discovery & VFS Construction
 
-The plugin runs a single resolution pipeline. The endpoints manifest (`{Project}.staticwebassets.endpoints.json`) is the source of truth for routes, fingerprints, response headers, preload hints, and SRI — it is **always required**. The runtime manifest (`{Project}.staticwebassets.runtime.json`) is what makes the VFS aware of scattered content roots; it is **optional**. The two combinations differ only in how the VFS is constructed:
+The plugin runs a single resolution pipeline. The endpoints manifest (`{Project}.staticwebassets.endpoints.json`) is the source of truth for routes, fingerprints, response headers, and preload hints — it is **always required**. The runtime manifest (`{Project}.staticwebassets.runtime.json`) is what makes the VFS aware of scattered content roots; it is **optional**. The two combinations differ only in how the VFS is constructed:
 
 | Aspect                          | **With runtime manifest** *(typical `dotnet build`)*               | **Without runtime manifest** *(typical `dotnet publish`)*           |
 |---------------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------|
@@ -25,7 +25,7 @@ The plugin runs a single resolution pipeline. The endpoints manifest (`{Project}
 | File watching                   | All `ContentRoots` watched, debounced re-read of manifest          | Single directory watched                                            |
 | IDE `paths` / `.d.ts` emission  | Yes (cross-root tree confuses the language service)                | Not needed — directory layout matches virtual tree                  |
 | Dev-server headers from endpoints | Yes                                                              | Yes                                                                 |
-| Preload / SRI emission          | Yes                                                                | Yes                                                                 |
+| Preload emission                | Yes                                                                | Yes                                                                 |
 | Boot-manifest rewrite on hashing | Yes                                                               | Yes                                                                 |
 
 ### 2.1 Manifest discovery
@@ -137,7 +137,7 @@ When no runtime manifest is present, the VFS is seeded directly from `Endpoints[
 
 ## 4. Manifest B — `{Project}.staticwebassets.endpoints.json`
 
-Describes how each asset should be **served**: response headers, SRI hashes, preload hints, and fingerprinted route aliases.
+Describes how each asset should be **served**: response headers, preload hints, and fingerprinted route aliases.
 
 ```jsonc
 {
@@ -161,8 +161,7 @@ Describes how each asset should be **served**: response headers, SRI hashes, pre
         { "Name": "PreloadGroup",       "Value": "webassembly" },
         { "Name": "PreloadOrder",       "Value": "1" },
         { "Name": "PreloadPriority",    "Value": "high" },
-        { "Name": "PreloadRel",         "Value": "preload" },
-        { "Name": "integrity",          "Value": "sha256-Bqc…fH0=" }
+        { "Name": "PreloadRel",         "Value": "preload" }
       ]
     },
 
@@ -178,7 +177,6 @@ Describes how each asset should be **served**: response headers, SRI hashes, pre
       ],
       "EndpointProperties": [
         { "Name": "fingerprint", "Value": "58dhsr9ua1" },
-        { "Name": "integrity",   "Value": "sha256-y6rVIFW1mLuoTKbJp7q5WBr5fFz3ar1zKLWIRDK4Hk0=" },
         { "Name": "label",       "Value": "main.js" }
       ]
     }
@@ -195,7 +193,6 @@ Describes how each asset should be **served**: response headers, SRI hashes, pre
 - `Endpoints[].Selectors` — content-negotiation hints (e.g. `Accept-Encoding: br`). Often empty; the parser must accept them.
 - `Endpoints[].ResponseHeaders` — applied verbatim by the dev middleware, with sensible overrides for stale `Content-Length` / `Last-Modified` when the file has been edited.
 - `Endpoints[].EndpointProperties` — non-header metadata. The plugin recognises:
-  - `integrity` → Subresource Integrity (SRI) hash.
   - `fingerprint`, `label` → fingerprinted-route bookkeeping.
   - `PreloadAs`, `PreloadCrossorigin`, `PreloadGroup`, `PreloadOrder`, `PreloadPriority`, `PreloadRel` → `<link rel="preload">` generation.
   - Unknown properties are kept verbatim and exposed to user hooks.
@@ -203,9 +200,8 @@ Describes how each asset should be **served**: response headers, SRI hashes, pre
 ### 4.2 Plugin use cases
 
 1. **Dev middleware headers** — serve every request with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime would see, so the .NET loader behaves identically in dev and prod. Stream bytes from the physical file; rewrite stale `Content-Length` automatically.
-2. **Preload emission** — when the host generates HTML, inject `<link rel="preload" as="script" crossorigin="anonymous" integrity="…" fetchpriority="high">` for entries in `PreloadGroup: webassembly`, ordered by `PreloadOrder`.
-3. **Integrity propagation** — surface SRI hashes so the bundler can attach `integrity="…"` to emitted `<script>` / `<link>` tags.
-4. **Fingerprint awareness** — recognise both `main.js` and `main.<hash>.js` as the same `AssetFile`. The resolver consumes this alias (§3.2 steps 2 and 4b, implemented in M1.7) so consumer imports use canonical names while physical files on disk carry fingerprints. Production HTML prefers the immutable fingerprinted route; canonical routes are exposed for tooling.
+2. **Preload emission** — when the host generates HTML, inject `<link rel="preload" as="script" crossorigin="anonymous" fetchpriority="high">` for entries in `PreloadGroup: webassembly`, ordered by `PreloadOrder`.
+3. **Fingerprint awareness** — recognise both `main.js` and `main.<hash>.js` as the same `AssetFile`. The resolver consumes this alias (§3.2 steps 2 and 4b, implemented in M1.7) so consumer imports use canonical names while physical files on disk carry fingerprints. Production HTML prefers the immutable fingerprinted route; canonical routes are exposed for tooling.
 
 ### 4.3 Known oddities
 
@@ -286,14 +282,14 @@ unplugin-dotnet-static-assets/
 │  │  ├─ manifest-endpoints.ts # Endpoints manifest types + Zod parser
 │  │  ├─ discover.ts           # Auto-locate both manifests (runtime + endpoints)
 │  │  ├─ vfs.ts                # Virtual filesystem: tree walk, lookup, pattern expansion (runtime-manifest path) or endpoints-seeded (endpoints-only path)
-│  │  ├─ endpoints.ts          # Headers, SRI, preload, fingerprint index
+│  │  ├─ endpoints.ts          # Headers, preload, fingerprint index
 │  │  ├─ vfs-emit.ts          # Quiet IDE-parity emitter (runtime-manifest path only): node_modules/.dotnet-vfs/
 │  │  └─ logger.ts
 │  ├─ unplugin/
 │  │  ├─ index.ts              # Shared unplugin factory (resolveId / load / watch)
 │  │  ├─ emit.ts               # Per-bundler binary emission strategy
 │  │  ├─ devserver.ts          # Vite/Webpack dev middleware (headers from endpoints.json)
-│  │  └─ html.ts               # Preload-link / SRI injection helpers
+│  │  └─ html.ts               # Preload-link injection helpers
 │  ├─ vite.ts                  # Re-export wrapper
 │  ├─ webpack.ts
 │  ├─ rollup.ts
@@ -380,13 +376,11 @@ Tasks:
 2. **Webpack / Rspack:** inject `asset/resource` rule for plugin-owned ids; mark them initial (no async split).
 3. **esbuild:** register a `loader: 'file'` namespace.
 4. Pre-compressed siblings (`.br`, `.gz`) — discover beside each asset and pass through.
-5. When endpoints.json exposes an SRI hash, propagate it to the emitted asset's metadata so the bundler can attach `integrity="…"`.
 
 **Acceptance:**
 - `vite build` produces `dist/_framework/dotnet.native.wasm` with correct bytes; JS references point at the emitted filename.
 - Webpack does **not** split `dotnet.native.wasm` into a lazy chunk.
 - `.br` / `.gz` siblings ship alongside originals when present.
-- Emitted `<script src="…dotnet.js">` carries the SRI hash recorded in endpoints.json.
 
 ### Phase 4 — Dev Server, Headers, Preload, Boot Manifest Rewrite
 
@@ -404,7 +398,7 @@ Tasks:
 - Browser receives `Content-Type: application/wasm` for `_framework/dotnet.native.wasm` in dev.
 - `_framework/dotnet.js` is served with the exact header set listed in endpoints.json (modulo recomputed `Content-Length`).
 - `main.58dhsr9ua1.js` is reachable and served with `Cache-Control: max-age=31536000, immutable`; `main.js` is reachable with `Cache-Control: no-cache`.
-- Generated HTML contains `<link rel="preload" as="script" crossorigin="anonymous" integrity="sha256-…" fetchpriority="high">` for the `webassembly` preload group.
+- Generated HTML contains `<link rel="preload" as="script" crossorigin="anonymous" fetchpriority="high">` for the `webassembly` preload group.
 - Hashed production build boots end-to-end in headless Chromium.
 - **Go to Definition** in VS Code on a symbol from `_framework/dotnet.js` lands in `_framework/dotnet.d.ts`, despite the two files originating from different content roots (runtime-manifest path).
 - After removing the runtime manifest (falling back to the endpoints-only path), `node_modules/.dotnet-vfs/` no longer exists on the next build — no stale `paths` polluting the editor.
@@ -461,13 +455,6 @@ export interface DotnetAssetsBaseOptions {
    * Default: true when the host bundler exposes an HTML pipeline.
    */
   emitPreloadHints?: boolean;
-
-  /**
-   * Attach `integrity="…"` to emitted <script> / <link> tags from
-   * `EndpointProperties.integrity`.
-   * Default: true when endpoints.json is found.
-   */
-  emitSubresourceIntegrity?: boolean;
 
   /**
    * Extension probe order for extensionless imports of VFS-owned files.
@@ -599,7 +586,7 @@ export default defineConfig(({ mode }) => ({
       ...(mode === 'production'
         ? { dotnetOutputDir: './publish' }                                     // consolidated publish output
         : { projectRoot: '../Library', targetFramework: 'net10.0' }),            // scattered build output
-      // endpoints.json is auto-loaded from the same directory in both setups → SRI + preload still work
+      // endpoints.json is auto-loaded from the same directory in both setups → preload hints still work
     }),
   ],
 }));
@@ -693,7 +680,7 @@ export default {
 - **Fixtures**:
   - `test/fixtures/TypeShim/` — scattered build output, both manifests committed, two content roots.
   - `test/fixtures/TypeShim-publish/` — consolidated publish output, endpoints.json only.
-- **Integration** — scripted production builds for Vite, Webpack, Rollup, esbuild against both fixtures; assert emitted files, reference rewrites, SRI attribute presence.
+- **Integration** — scripted production builds for Vite, Webpack, Rollup, esbuild against both fixtures; assert emitted files and reference rewrites.
 - **Dev-server contract test** — for every endpoint in the fixture, hit the dev server and assert that the served headers match endpoints.json (modulo recomputed `Content-Length`).
 - **Preload test** — assert generated HTML contains a correctly-ordered `<link rel="preload">` block for the `webassembly` group.
 - **E2E** — Playwright boots the bundled output in headless Chromium against both fixtures; asserts a successful runtime call into the .NET assembly.

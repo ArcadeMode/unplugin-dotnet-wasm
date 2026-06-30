@@ -1,6 +1,6 @@
 # Execution Plan: `unplugin-dotnet-static-assets`
 
-Companion to `plan.md`. The spec describes the full target system; this file is the **build order**. Each milestone is small enough to ship and verify on its own. We stop at M3 and decide whether to continue, change scope, or rip something out.
+Companion to `plan.md`. The spec describes the full target system; this file is the **build order**. Each milestone is small enough to ship and verify on its own. We stop at M2 and decide whether to continue, change scope, or rip something out.
 
 ## Anchor fixture
 
@@ -74,18 +74,18 @@ End-to-end success for M1 means: a Vite project imports `./Library/wwwroot/main.
   where `ResolvedAsset = { virtualPath: string; physicalPath: string }` and `ResolvedFile = { physicalPath: string }`.
 - **The VFS contains only what the manifest declares to be virtual.** Every explicit `Asset` node is ingested into an internal `lookup` map at construction time. Files that exist on disk but are not enumerated and do not fall under a matching `Patterns` entry are *not* part of the VFS — callers treat a `resolve()` miss as a signal to delegate to the host bundler's native resolver.
 - POSIX normalisation internally, case-insensitive lookup key (lowercase), case-preserving `physicalPath`.
-- Extension probe order lives in `src/core/extension-probe-order.ts`; imported by both `vfs.ts` and `unplugin/index.ts`. Becomes configurable in M3.
+- Extension probe order lives in `src/core/extension-probe-order.ts`; imported by both `vfs.ts` and `unplugin/index.ts`.
 - `.ts` shadows `.d.ts` rule: when both are enumerated, a `debug`-level warning is emitted through the injected `Logger` at construction time. The VFS does not expose a `shadowedPairs` set — logging is the only consumer.
 - Pattern fallthrough: when the map lookup + probes miss, evaluate each `Patterns` entry against the remaining virtual path; for each match, do **one `statSync`** against `join(ContentRoots[i], candidate)` (literal + per probe extension + `index.<ext>`). Hits are cached back into the internal map. **No directory enumeration anywhere** — the plugin never lists a directory; it only reads files the manifest names or the patterns point at.
 - `resolveFile(assetFile)` walks `ContentRoots` in declaration order, returns the first hit as `{ physicalPath }`, or `undefined`. Used for the §3.2 step-6 endpoint-aliased FS fallback in the plugin factory.
 
 ### M1.4b — Shared infrastructure
 
-- **`src/core/extension-probe-order.ts`**: single `EXTENSION_PROBE_ORDER` constant. Consumed by `vfs.ts` and `unplugin/index.ts`. Will become configurable in M3 via `resolveExtensions`.
-- **`src/core/logger.ts`**: `Logger` interface (`error / warn / info / debug`) + `createConsoleLogger(level, prefix)` factory + `NULL_LOGGER` no-op constant. All future diagnostic output routes through a `Logger`; no module outside `logger.ts` calls `console.*` directly (lint rule deferred to M3).
+- **`src/core/extension-probe-order.ts`**: single `EXTENSION_PROBE_ORDER` constant. Consumed by `vfs.ts` and `unplugin/index.ts`.
+- **`src/core/logger.ts`**: `Logger` interface (`error / warn / info / debug`) + `createConsoleLogger(level, prefix)` factory + `NULL_LOGGER` no-op constant. All future diagnostic output routes through a `Logger`; no module outside `logger.ts` calls `console.*` directly (lint rule deferred).
   - `createConsoleLogger` applies level gating internally — call sites write `logger.debug("…")` unconditionally.
   - `NULL_LOGGER` keeps unit tests quiet without per-test mock setup.
-  - When Rollup/Vite plugin context logging is wired in M3, implement a `viteLoggerAdapter(ctx): Logger`; the rest of the codebase is unchanged.
+  - If/when Rollup/Vite plugin-context logging is wired up (post-0.1.0), implement a `viteLoggerAdapter(ctx): Logger`; the rest of the codebase is unchanged.
 
 **Done when:** tests prove:
 - `resolve('_framework/dotnet.js')` → root 2 absolute path.
@@ -199,7 +199,7 @@ A small vitest spec that drives `vite build` programmatically and asserts the bu
 
 The M1.5 fixture forces `WasmFingerprintAssets=false` so the SDK-emitted `dotnet.js` imports canonical names (`./dotnet.native.wasm`) and the runtime-manifest VFS can resolve them directly. That is not the realistic .NET production layout: in real builds `WasmFingerprintAssets` defaults to true, the SDK-emitted runtime JS uses fingerprinted imports (`./dotnet.native.veuqw8a0w9.wasm`), and the on-disk physical filenames embed those fingerprints. M1.7 makes the plugin work for that layout by consulting the sibling **endpoints manifest** (`{ProjectName}.staticwebassets.endpoints.json`) **before** the VFS to translate canonical routes into their fingerprinted asset files.
 
-The same endpoint lookup will later drive dev-server static handling (response headers, integrity hashes, preload hints — already described in `plan.md` §4.2), so M1.7 establishes the parsing and lookup infrastructure that M3+ will reuse.
+The same endpoint lookup will later drive dev-server static handling (response headers, preload hints — already described in `plan.md` §4.2), so M1.7 also establishes the parsing and lookup infrastructure that the future dev-server work will reuse.
 
 #### Endpoints manifest schema (verified against the M1.6 fixture, 432 endpoints)
 
@@ -225,9 +225,8 @@ The same endpoint lookup will later drive dev-server static handling (response h
         { "Name": "Last-Modified",  "Value": "…" }
       ],
       "EndpointProperties": [
-        // Observed Name values: fingerprint, integrity, label,
+        // Observed Name values: fingerprint, label,
         // PreloadAs, PreloadCrossorigin, PreloadGroup, PreloadOrder, PreloadPriority, PreloadRel.
-        { "Name": "integrity",          "Value": "sha256-…" },
         { "Name": "fingerprint",        "Value": "9mhy6srgqs" }, // present on fingerprinted-route rows
         { "Name": "label",              "Value": "_framework/Library.wasm" } // canonical alias
       ]
@@ -236,7 +235,7 @@ The same endpoint lookup will later drive dev-server static handling (response h
 }
 ```
 
-**Properties M1.7 actually consumes:** `Version`, `ManifestType`, `Endpoints[].Route`, `Endpoints[].AssetFile`, `Endpoints[].Selectors` (only to filter compressed variants), `EndpointProperties` entries whose `Name` is `integrity` (carried through, not enforced) or `fingerprint`/`label` (informational). All other headers and preload properties are parsed and preserved but not consumed until the dev-server milestone.
+**Properties M1.7 actually consumes:** `Version`, `ManifestType`, `Endpoints[].Route`, `Endpoints[].AssetFile`, `Endpoints[].Selectors` (only to filter compressed variants), `EndpointProperties` entries whose `Name` is `fingerprint`/`label` (informational). All other headers and preload properties are parsed and preserved but not consumed until the dev-server milestone.
 
 **Lookup-map shape:**
 
@@ -244,8 +243,6 @@ The same endpoint lookup will later drive dev-server static handling (response h
 interface EndpointMatch {
   /** Asset path relative to a content root, POSIX, no leading slash. */
   readonly assetFile: string;
-  /** Subresource integrity hash, carried through for future dev-server use. */
-  readonly integrity?: string;
   /** Fingerprint segment when present in EndpointProperties. */
   readonly fingerprint?: string;
   /** "label" property when present (the canonical route name for a fingerprinted row). */
@@ -317,7 +314,7 @@ Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fi
 - Tests in `manifest-endpoints.test.ts` against the real fixture:
   - parses without throwing;
   - has at least one endpoint with `Route === '_framework/Library.wasm'` and an `AssetFile` matching `/Library\.[a-z0-9]+\.wasm$/`;
-  - confirms presence of `integrity`, `fingerprint`, `label` EndpointProperty names across the fixture;
+  - confirms presence of `fingerprint`, `label` EndpointProperty names across the fixture;
   - rejects malformed input (missing `Endpoints`, wrong type) with `ManifestParseError`.
 
 #### M1.7.d — Endpoint lookup transform
@@ -328,7 +325,7 @@ Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fi
   1. Strip leading `/` from `Route` and `AssetFile`, POSIX-normalise both.
   2. Skip endpoints whose `Selectors` contain any entry with `Name === 'Content-Encoding'` (compressed variants).
   3. For the surviving rows, build a `Map<route, EndpointMatch>`. If two surviving endpoints share the same `Route`, throw `EndpointLookupError` — the SDK should not emit that, and being loud now beats silent confusion later.
-- Tests covering: route normalisation, compressed-selector filtering, duplicate-route throw, presence/absence of `fingerprint`/`label`/`integrity` properties round-tripped through the lookup.
+- Tests covering: route normalisation, compressed-selector filtering, duplicate-route throw, presence/absence of `fingerprint`/`label` properties round-tripped through the lookup.
 
 #### M1.7.e — Discovery extension
 
@@ -377,6 +374,7 @@ Confirmed findings from running `pnpm build:library:fingerprint && pnpm build:fi
 
 - One bundler (Vite), one mode (Manifest), one fixture (under `test/fixtures/Library/`), no dev-server integration.
 - Fingerprint-aware resolution via the endpoints manifest is implemented (M1.7): consumer imports use canonical names (`_framework/dotnet`, `_framework/Library.wasm`) while the plugin transparently resolves them to fingerprinted physical files on disk.
+- The endpoints manifest is parsed end-to-end (Zod schema covering `Version`, `ManifestType`, `Endpoints[].Route / AssetFile / Selectors / ResponseHeaders / EndpointProperties`) and reduced to a typed `EndpointLookup` keyed by route, with `assetFile` (plus `fingerprint`/`label` when present) carried through. Compressed variants are filtered out. The lookup is consumed by the resolver today; the same parsing + index is what any future dev-server / preload work will build on without re-parsing.
 - A reviewer can clone the repo, run `pnpm install && pnpm test` (and `pnpm test:e2e` once Playwright is installed locally), and see a real `dotnet`-built WASM project — with default fingerprinting on — compile through Vite **and** boot in a real headless browser with `[TSExport]` calls round-tripping into .NET and back.
 
 ---
@@ -409,67 +407,47 @@ The existing `discoverManifests` already returns `runtimeManifestPath: null` whe
 - Same Playwright assertions as M1.6, run against `vite build --mode production`.
 - Plus: deleting the publish dir then re-running fails with the expected discovery error (not a stack trace).
 
+### M2.4 — README + sample consumer
+
+Final item before cutting `0.1.0-rc`. The original M3 milestone (SRI propagation + configurable `resolveExtensions` + API freeze + README) was pruned entirely: SRI emission has been dropped from the project (the .NET loader does its own internal hash check on `.wasm` / `.dll` / `.dat` content, browser SRI would only protect the entry `<script>` tag, and the spec no longer carries it); `resolveExtensions` can't be inherited from Rollup so adding it speculatively is unused complexity; and an "API freeze" ceremony is moot before any external consumer exists. The endpoints parser landed inside M1.7. What remains worth doing is the README + sample, relocated here.
+
+- A short README at the package root with both wiring recipes the spec drafts:
+  - **Scattered build output** (`projectRoot` + `configuration` + `targetFramework`).
+  - **Consolidated publish output** (`dotnetOutputDir`).
+  - The `defineConfig(({ mode }) => …)` recipe for switching between them per Vite mode.
+  - Note that the endpoints manifest is parsed end-to-end and the `EndpointLookup` is exposed for downstream tooling, but the plugin itself does not currently emit preload tags — that's downstream work.
+- One working sample consumer (either the existing `library-build` fixture documented as a sample, or a minimal npm-workspaces variant from `plan.md` §9.3 if it fits in <50 LOC of glue).
+- TS docstrings on the user-facing types (`DotnetAssetsOptions`, both discriminated-union variants) are tightened where they're thin.
+
 ### M2 acceptance summary
 
 - Both `dotnet build` and `dotnet publish` outputs work; the same plugin source resolves both layouts based purely on what's present on disk at the configured path.
 - The discriminated `DotnetAssetsOptions` union makes dev/prod wiring a Vite-mode conditional, not a plugin-mode option.
-- Still: no endpoints.json behaviour beyond resolution, no dev server, no IDE emission, still Vite-only.
+- README + sample show the two wiring recipes; the exported TypeScript types are the public API surface for `0.1.0-rc`.
+- Still: no endpoints.json behaviour beyond resolution (no preload tags), no dev server, no IDE emission, still Vite-only.
 
 ---
 
-## M3 — Endpoints manifest (build-time only) + ergonomics polish
+## ⏸ Checkpoint — decide before M3
 
-**Outcome:** the endpoints manifest is consumed where it materially affects the production build (SRI hashes propagated to emitted `<script>` / `<link>` tags). No dev-server work yet. Plus the small bits of polish that make a public release usable.
+After M2 we have a usable production-only plugin for Vite (build-time only, scattered + consolidated layouts, fingerprint-aware, README + sample, ready to cut `0.1.0-rc`). Before we keep going, we pick from the open backlog. Possible next bites, **roughly in order of likely value**:
 
-### M3.1 — Endpoints parser
+- **M3 — Dev server (Vite first)**: `configureServer` middleware that streams VFS files with the right `Content-Type` (`application/wasm` etc.), applies `ResponseHeaders` from endpoints.json verbatim (with stale-`Content-Length` recomputation), and handles fingerprinted route aliases.
+- **M4 — Change detection / watch**: `addWatchFile` for every VFS asset, debounced manifest re-read on change, dev HMR invalidation when `dotnet build` rewrites the bin output.
+- **M5 — Webpack adapter**: second bundler, requires `asset/resource` rule injection and chunk-splitting opt-out. Validates the unplugin abstraction.
+- **M6 — IDE-parity emission**: the quiet `node_modules/.dotnet-vfs/` cache with `tsconfig.json` + `dotnet-vfs.d.ts`; layout-flip cleanup; one-shot info-level `extends` hint.
+- **M7 — Preload `<link>` injection**: emit preload tags from `EndpointProperties.Preload*` for the `webassembly` group, ordered by `PreloadOrder`, via `transformIndexHtml`. Endpoint lookup already carries everything needed.
+- **M8 — Compression sibling pass-through** (`.br` / `.gz` next to each asset).
+- **M9 — Boot-manifest rewrite** when the host bundler hashes `.wasm`/`.dll` outputs (`blazor.boot.json` / `mono-config.json`).
+- **M10 — Rollup / esbuild / Rspack adapters**.
+- **M11 — Playwright E2E**: headless-Chromium boot that proves the runtime actually executes a managed call.
+- **M12 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition.
 
-- File: `src/core/manifest-endpoints.ts`. Zod schema for `Version`, `ManifestType`, `Endpoints[]` (`Route`, `AssetFile`, `Selectors`, `ResponseHeaders`, `EndpointProperties`).
-- `buildEndpointsIndex`: `Map<route, Endpoint>` plus reverse index `Map<assetFile, Endpoint[]>` for fingerprinted variants.
-- Auto-discover alongside the runtime manifest / assets dir; `endpointsPath?: string | false` option.
-
-### M3.2 — SRI propagation in the production bundle
-
-- Pull `EndpointProperties.integrity` for each asset that the plugin emits, store it on the asset's metadata.
-- Vite-only path for now: hook `transformIndexHtml` to add `integrity` and `crossorigin` to emitted `<script>` / `<link>` tags when the URL maps to a known endpoint.
-- Integration test: assert the produced `index.html` contains the expected `integrity="sha256-…"` attribute for `dotnet.js`.
-
-### M3.3 — Configurable resolveExtensions + public API freeze
-
-- Add `resolveExtensions?: string[]` option; default unchanged.
-- Document the API surface (TS doc comments + a generated `api.md`); freeze it for `0.1.0`.
-
-### M3.4 — Readme + sample consumer
-
-- A short README with the scattered build-output and consolidated publish recipes (the spec already drafts these).
-- Wire the npm workspaces fixture from `plan.md` §9.3 if it can be built in <50 LOC of glue.
-
-### M3 acceptance summary
-
-- Endpoints metadata participates in production output (SRI), but no runtime/dev coupling.
-- API is stable enough to publish a `0.1.0`.
+Each of these is its own milestone-sized chunk. **Plan out M3/M4/M5 (or whichever combination we want) at that checkpoint** — we'll know more once M1 and M2 are real code in someone's hands.
 
 ---
 
-## ⏸ Checkpoint — decide before M4
-
-After M3 we have a usable production-only plugin for Vite. Before we keep going, we pick from the open backlog. Possible next bites, **roughly in order of likely value**:
-
-- **M4 — Dev server (Vite first)**: `configureServer` middleware that streams VFS files with the right `Content-Type` (`application/wasm` etc.), applies `ResponseHeaders` from endpoints.json verbatim (with stale-`Content-Length` recomputation), and handles fingerprinted route aliases.
-- **M5 — Change detection / watch**: `addWatchFile` for every VFS asset, debounced manifest re-read on change, dev HMR invalidation when `dotnet build` rewrites the bin output.
-- **M6 — Webpack adapter**: second bundler, requires `asset/resource` rule injection and chunk-splitting opt-out. Validates the unplugin abstraction.
-- **M7 — IDE-parity emission**: the quiet `node_modules/.dotnet-vfs/` cache with `tsconfig.json` + `dotnet-vfs.d.ts`; Mode-flip cleanup; one-shot info-level `extends` hint.
-- **M8 — Preload `<link>` injection**: emit preload tags from `EndpointProperties.Preload*` for the `webassembly` group, ordered by `PreloadOrder`.
-- **M9 — Compression sibling pass-through** (`.br` / `.gz` next to each asset).
-- **M10 — Boot-manifest rewrite** when the host bundler hashes `.wasm`/`.dll` outputs (`blazor.boot.json` / `mono-config.json`).
-- **M11 — Rollup / esbuild / Rspack adapters**.
-- **M12 — Playwright E2E**: headless-Chromium boot that proves the runtime actually executes a managed call.
-- **M13 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition.
-
-Each of these is its own milestone-sized chunk. **Plan out M4/M5/M6 (or whichever combination we want) at that checkpoint** — we'll know more once M1–M3 are real code.
-
----
-
-## What we are deliberately *not* doing in M1–M3
+## What we are deliberately *not* doing in M1–M2
 
 - Webpack, Rollup, esbuild, Rspack — Vite only.
 - Dev server, MIME headers, HMR.
@@ -487,5 +465,5 @@ Documented as "out of scope for now" in every PR description, with a link back t
 ## Operating mode for the implementation
 
 - One PR per sub-milestone (M1.1, M1.2, …). Each PR ships passing tests for *its* slice.
-- After M3, we re-read `plan.md` and this file together, prune anything that didn't survive contact with reality, and pick the next milestone.
+- After M2, we re-read `plan.md` and this file together, prune anything that didn't survive contact with reality, and pick the next milestone.
 - Whenever a real-world quirk shows up that the spec didn't anticipate (very likely — see `OutputPath=./bin/` flat layout already), file it as a follow-up against M1.3's discovery and add a regression fixture in the same PR that fixes it.

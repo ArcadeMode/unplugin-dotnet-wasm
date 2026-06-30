@@ -4,8 +4,6 @@ import { stripLeadingSlash, toPosixPath } from './path-utils.js';
 export interface EndpointMatch {
   /** Physical file path relative to the .NET application root */
   readonly assetFile: string;
-  /** SRI hash value */
-  readonly integrity?: string;
   /** Hash token */
   readonly fingerprint?: string;
   /**
@@ -54,15 +52,11 @@ function isCompressed(endpoint: Endpoint): boolean {
 }
 
 function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
-  let integrity: string | undefined;
   let fingerprint: string | undefined;
   let label: string | undefined;
 
   for (const prop of endpoint.EndpointProperties) {
     switch (prop.Name) {
-      case 'integrity':
-        integrity = prop.Value;
-        break;
       case 'fingerprint':
         fingerprint = prop.Value;
         break;
@@ -73,7 +67,6 @@ function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
   }
 
   const result: EndpointMatch = { assetFile };
-  if (integrity !== undefined) (result as { integrity?: string }).integrity = integrity;
   if (fingerprint !== undefined) (result as { fingerprint?: string }).fingerprint = fingerprint;
   if (label !== undefined) (result as { label?: string }).label = label;
   return result;

@@ -23,7 +23,6 @@ const ResponseHeaderSchema = z.object({
  *
  * Observed Name values:
  *   - fingerprint        — the hash segment embedded in a fingerprinted route
- *   - integrity          — SRI hash (sha256-…)
  *   - label              — canonical alias for a fingerprinted-route entry
  *   - PreloadAs          — value for <link rel="preload" as="…">
  *   - PreloadCrossorigin — crossorigin attribute value

@@ -50,14 +50,6 @@ describe('parseEndpointsManifest', () => {
     expect(ep!.AssetFile).toMatch(/^_framework\/dotnet\.native(\.[a-z0-9]+)?\.wasm$/);
   });
 
-  it('at least one endpoint has an "integrity" EndpointProperty', () => {
-    const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const hasIntegrity = manifest.Endpoints.some(e =>
-      e.EndpointProperties.some(p => p.Name === 'integrity'),
-    );
-    expect(hasIntegrity).toBe(true);
-  });
-
   it('at least one endpoint has a "fingerprint" EndpointProperty', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const hasFp = manifest.Endpoints.some(e =>

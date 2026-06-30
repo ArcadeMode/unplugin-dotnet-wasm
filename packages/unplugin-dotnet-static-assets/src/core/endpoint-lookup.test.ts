@@ -69,12 +69,6 @@ describe('buildEndpointLookup', () => {
     expect(match.assetFile).toMatch(/^_framework\/Library(\.[a-z0-9]+)?\.wasm$/);
   });
 
-  it('at least one entry has an integrity value', () => {
-    const lookup = buildEndpointLookup(loadFixture());
-    const entries = [...lookup.values()];
-    expect(entries.some(m => m.integrity !== undefined)).toBe(true);
-  });
-
   it('at least one entry has a fingerprint value', () => {
     const lookup = buildEndpointLookup(loadFixture());
     const entries = [...lookup.values()];
@@ -144,17 +138,6 @@ describe('buildEndpointLookup', () => {
     expect(buildEndpointLookup(manifest).size).toBe(1);
   });
 
-  it('extracts integrity from EndpointProperties', () => {
-    const lookup = buildEndpointLookup(
-      makeManifest([
-        makeEndpoint('_framework/foo.wasm', '_framework/foo.abc.wasm', [
-          { Name: 'integrity', Value: 'sha256-abc=' },
-        ]),
-      ]),
-    );
-    expect(lookup.get('_framework/foo.wasm')?.integrity).toBe('sha256-abc=');
-  });
-
   it('extracts fingerprint from EndpointProperties', () => {
     const lookup = buildEndpointLookup(
       makeManifest([
@@ -175,13 +158,6 @@ describe('buildEndpointLookup', () => {
       ]),
     );
     expect(lookup.get('_framework/foo.abc.wasm')?.label).toBe('_framework/foo.wasm');
-  });
-
-  it('leaves integrity undefined when not present', () => {
-    const lookup = buildEndpointLookup(
-      makeManifest([makeEndpoint('_framework/foo.js', '_framework/foo.abc.js')]),
-    );
-    expect(lookup.get('_framework/foo.js')?.integrity).toBeUndefined();
   });
 
   it('throws EndpointLookupBuildError on duplicate uncompressed routes', () => {
