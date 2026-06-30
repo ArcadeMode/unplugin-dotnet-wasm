@@ -8,12 +8,12 @@ import {
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../../test/fixtures/Library/bin/Debug/net10.0/Library.staticwebassets.endpoints.json',
+  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json',
 );
 
 describe('parseEndpointsManifest', () => {
-  // Happy path — real manifest from the Library fixture
-  it('parses the real Library manifest without errors', () => {
+  // Happy path — real manifest from the SampleLibrary fixture
+  it('parses the real SampleLibrary manifest without errors', () => {
     const raw = readFileSync(FIXTURE_MANIFEST, 'utf8');
     expect(() => parseEndpointsManifest(raw)).not.toThrow();
   });
@@ -29,11 +29,11 @@ describe('parseEndpointsManifest', () => {
     expect(manifest.Endpoints.length).toBeGreaterThanOrEqual(100);
   });
 
-  it('contains a canonical _framework/Library.wasm endpoint with a resolved AssetFile', () => {
+  it('contains a canonical _framework/SampleLibrary.wasm endpoint with a resolved AssetFile', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const ep = manifest.Endpoints.find(e => e.Route === '_framework/Library.wasm');
+    const ep = manifest.Endpoints.find(e => e.Route === '_framework/SampleLibrary.wasm');
     expect(ep).toBeDefined();
-    expect(ep!.AssetFile).toMatch(/^_framework\/Library(\.[a-z0-9]+)?\.wasm$/);
+    expect(ep!.AssetFile).toMatch(/^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/);
   });
 
   it('contains a canonical _framework/dotnet.js endpoint with a resolved AssetFile', () => {

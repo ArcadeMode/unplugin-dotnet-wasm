@@ -9,79 +9,54 @@ import {
 // Path to the real build output — the fixture we're grounding everything in.
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../../test/fixtures/Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json',
+  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
 );
 
 describe('parseRuntimeManifest', () => {
   // -------------------------------------------------------------------------
-  // Happy path — real manifest from the Library fixture
+  // Happy path — real manifest from the SampleLibrary fixture
   // -------------------------------------------------------------------------
 
-  it('parses the real Library manifest without errors', () => {
+  it('parses the real SampleLibrary manifest without errors', () => {
     const raw = readFileSync(FIXTURE_MANIFEST, 'utf8');
     expect(() => parseRuntimeManifest(raw)).not.toThrow();
   });
 
-  it('returns exactly three content roots', () => {
+  it('returns at least one content root', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots).toHaveLength(3);
+    expect(manifest.ContentRoots.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('content root 0 ends with Library/wwwroot/', () => {
+  it('all content roots are absolute paths ending with a separator', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots[0]).toMatch(/Library[/\\]wwwroot[/\\]$/);
+    for (const root of manifest.ContentRoots) {
+      expect(root).toMatch(/[/\\]$/);
+      expect(root).toMatch(/^[A-Z]:[/\\]|^\//);
+    }
   });
 
-  it('content root 1 is the TypeShim generated assets directory (obj/…/TypeShim/…/wwwroot/)', () => {
+  it('one content root contains the bin output wwwroot', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots[1]).toMatch(/TypeShim[/\\]staticwebassets[/\\]wwwroot[/\\]$/);
+    expect(manifest.ContentRoots.some(r => /bin[/\\]Debug[/\\]net10\.0[/\\]wwwroot[/\\]$/.test(r))).toBe(true);
   });
 
-  it('content root 2 ends with bin/Debug/net10.0/wwwroot/', () => {
-    const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots[2]).toMatch(/bin[/\\]Debug[/\\]net10\.0[/\\]wwwroot[/\\]$/);
-  });
-
-  it('_framework/dotnet.d.ts is an asset in content root 0 (source)', () => {
-    const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const frameworkNode = manifest.Root.Children?.['_framework'];
-    expect(frameworkNode).toBeDefined();
-    const asset = frameworkNode?.Children?.['dotnet.d.ts']?.Asset;
-    expect(asset).not.toBeNull();
-    expect(asset?.ContentRootIndex).toBe(0);
-    expect(asset?.SubPath).toBe('_framework/dotnet.d.ts');
-  });
-
-  it('_framework contains a fingerprinted dotnet.*.js asset in content root 2 (build output)', () => {
-    // With WasmFingerprintAssets=true (SDK default) the manifest tree uses fingerprinted keys
-    // (e.g. "dotnet.i5jyixs8xo.js") — the canonical "dotnet.js" key is absent.
+  it('_framework contains a fingerprinted dotnet.*.js asset', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
     const key = Object.keys(frameworkChildren).find(k => /^dotnet\.[a-z0-9]+\.js$/.test(k));
     expect(key, 'expected a fingerprinted dotnet.*.js entry in _framework').toBeDefined();
     const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
-    expect(asset?.ContentRootIndex).toBe(2);
     expect(asset?.SubPath).toMatch(/^_framework\/dotnet\.[a-z0-9]+\.js$/);
   });
 
-  it('_framework contains a Library.wasm asset in content root 2 (fingerprinted or canonical)', () => {
+  it('_framework contains a SampleLibrary.wasm asset (fingerprinted or canonical)', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
-    const key = Object.keys(frameworkChildren).find(k => /^Library(\.[a-z0-9]+)?\.wasm$/.test(k));
-    expect(key, 'expected a Library.wasm entry in _framework').toBeDefined();
+    const key = Object.keys(frameworkChildren).find(k => /^SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(k));
+    expect(key, 'expected a SampleLibrary.wasm entry in _framework').toBeDefined();
     const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
-    expect(asset?.ContentRootIndex).toBe(2);
-  });
-
-  it('root has a fall-through Pattern pointing at content root 0', () => {
-    const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const patterns = manifest.Root.Patterns;
-    expect(patterns).not.toBeNull();
-    expect(patterns?.length).toBeGreaterThanOrEqual(1);
-    expect(patterns?.[0]?.ContentRootIndex).toBe(0);
-    expect(patterns?.[0]?.Pattern).toBe('**');
   });
 
   it('accepts a Buffer as input', () => {

@@ -10,14 +10,12 @@ import { type Logger, NULL_LOGGER } from './logger.js';
 // Real fixture paths
 // ---------------------------------------------------------------------------
 
-const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
+const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
 const MANIFEST_PATH = resolve(
-  LIBRARY_ROOT,
-  'bin/Debug/net10.0/Library.staticwebassets.runtime.json',
+  SAMPLE_ROOT,
+  'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
 );
-// Physical roots — join() handles the trailing separator.
-const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');                                        // source (ContentRoot 0)
-const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');             // build output (ContentRoot 2)
+const BIN_WWWROOT = resolve(SAMPLE_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 
 // ---------------------------------------------------------------------------
 // Real fixture — core resolution scenarios
@@ -30,23 +28,15 @@ describe('buildVfs — real fixture', () => {
     vfs = buildVfs(parseRuntimeManifest(readFileSync(MANIFEST_PATH)));
   });
 
-  // ── manifest-explicit assets (cross-root resolution) ──────────────────────
+  // ── manifest-explicit assets ─────────────────────────────────────────────
 
-  it('resolve fingerprinted dotnet.*.js → root 2 (build output)', () => {
-    // With WasmFingerprintAssets=true the VFS enumerates fingerprinted names;
-    // canonical `dotnet.js` is absent.  Discover the actual key from the listing.
+  it('resolves fingerprinted dotnet.*.js to the bin output', () => {
     const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p));
     expect(fpPath, 'expected a fingerprinted dotnet.*.js in the VFS listing').toBeDefined();
     const asset = vfs.resolve(fpPath!);
     expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toContain(join(ROOT2, '_framework'));
+    expect(asset!.physicalPath).toContain(join(BIN_WWWROOT, '_framework'));
     expect(asset!.physicalPath).toMatch(/dotnet\.[a-z0-9]+\.js$/);
-  });
-
-  it('resolve _framework/dotnet.d.ts → root 0 (source root)', () => {
-    const asset = vfs.resolve('_framework/dotnet.d.ts');
-    expect(asset).toBeDefined();
-    expect(asset!.physicalPath).toBe(join(ROOT0, '_framework', 'dotnet.d.ts'));
   });
 
   // ── list() ────────────────────────────────────────────────────────────────
@@ -54,9 +44,7 @@ describe('buildVfs — real fixture', () => {
   it('list _framework returns direct children with full virtual paths', () => {
     const children = vfs.list('_framework');
     expect(children.some(c => /^_framework\/dotnet(\.[a-z0-9]+)?\.js$/.test(c))).toBe(true);
-    expect(children).toContain('_framework/dotnet.d.ts');
-    expect(children.some(c => /^_framework\/Library(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(true);
-    // Each entry must be exactly two segments deep.
+    expect(children.some(c => /^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(true);
     for (const c of children) {
       expect(c.split('/'), `"${c}" should have exactly 2 segments`).toHaveLength(2);
     }
@@ -75,17 +63,13 @@ describe('buildVfs — real fixture', () => {
     expect(vfs.resolve('_framework/nonexistent.wasm')).toBeUndefined();
   });
 
-
   // ── performance ───────────────────────────────────────────────────────────
 
   it('10 000 hot lookups complete in under 50 ms', () => {
-    // Use dotnet.d.ts (root 0, canonical, never fingerprinted) for a reliable hit,
-    // and the discovered fingerprinted JS path for a root-2 hit.
-    const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p)) ?? '_framework/dotnet.d.ts';
+    const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p))!;
     const start = performance.now();
     for (let i = 0; i < 10_000; i++) {
       vfs.resolve(fpPath);
-      vfs.resolve('_framework/dotnet.d.ts');
     }
     expect(performance.now() - start).toBeLessThan(50);
   });

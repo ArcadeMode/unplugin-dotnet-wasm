@@ -10,7 +10,7 @@ import {
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../../test/fixtures/Library/bin/Debug/net10.0/Library.staticwebassets.endpoints.json',
+  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json',
 );
 
 function loadFixture(): EndpointsManifest {
@@ -38,7 +38,7 @@ function makeEndpoint(
 
 describe('buildEndpointLookup', () => {
 
-  it('builds without errors from the real Library fixture', () => {
+  it('builds without errors from the real SampleLibrary fixture', () => {
     expect(() => buildEndpointLookup(loadFixture())).not.toThrow();
   });
 
@@ -47,9 +47,9 @@ describe('buildEndpointLookup', () => {
     expect(lookup.size).toBeGreaterThan(0);
   });
 
-  it('canonical route _framework/Library.wasm is present', () => {
+  it('canonical route _framework/SampleLibrary.wasm is present', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    expect(lookup.has('_framework/Library.wasm')).toBe(true);
+    expect(lookup.has('_framework/SampleLibrary.wasm')).toBe(true);
   });
 
   it('canonical route _framework/dotnet.js is present', () => {
@@ -63,10 +63,10 @@ describe('buildEndpointLookup', () => {
     expect(match.assetFile).toMatch(/^_framework\/dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
-  it('_framework/Library.wasm assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
+  it('_framework/SampleLibrary.wasm assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    const match = lookup.get('_framework/Library.wasm') as EndpointMatch;
-    expect(match.assetFile).toMatch(/^_framework\/Library(\.[a-z0-9]+)?\.wasm$/);
+    const match = lookup.get('_framework/SampleLibrary.wasm') as EndpointMatch;
+    expect(match.assetFile).toMatch(/^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/);
   });
 
   it('at least one entry has a fingerprint value', () => {
@@ -75,18 +75,18 @@ describe('buildEndpointLookup', () => {
     expect(entries.some(m => m.fingerprint !== undefined)).toBe(true);
   });
 
-  it('the fingerprinted route for Library.wasm carries a label back to canonical', () => {
+  it('the fingerprinted route for SampleLibrary.wasm carries a label back to canonical', () => {
     const manifest = loadFixture();
     // Find the fingerprinted Route row — absent when WasmFingerprintAssets=false.
     const fpEndpoint = manifest.Endpoints.find(e =>
-      /^_framework\/Library\.[a-z0-9]+\.wasm$/.test(e.Route),
+      /^_framework\/SampleLibrary\.[a-z0-9]+\.wasm$/.test(e.Route),
     );
     // TODO: add a parameter so we can skip this test when WasmFingerprintAssets=false, rather than silently passing.
     if (!fpEndpoint) return; // no separate fingerprinted route when fingerprinting is disabled
     const lookup = buildEndpointLookup(manifest);
     const fpRoute = fpEndpoint!.Route;
     const match = lookup.get(fpRoute) as EndpointMatch;
-    expect(match.label).toBe('_framework/Library.wasm');
+    expect(match.label).toBe('_framework/SampleLibrary.wasm');
   });
 
   it('strips a leading slash from Route', () => {

@@ -15,6 +15,22 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  packages/samples/sample-vite:
+    dependencies:
+      unplugin-dotnet-static-assets:
+        specifier: workspace:*
+        version: link:../../unplugin-dotnet-static-assets
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.0
+        version: 6.1.3
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.3(@types/node@26.0.0)
+
   packages/unplugin-dotnet-static-assets:
     dependencies:
       unplugin:

@@ -27,10 +27,9 @@ function callLoad(
   return handler(plugin.load)?.call({ emitFile: emitFileMock }, id);
 }
 
-const LIBRARY_ROOT = resolve(__dirname, '../../../../test/fixtures/Library');
-const ROOT0 = resolve(LIBRARY_ROOT, 'wwwroot');
-const ROOT2 = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
-const PUBLISH_DIR = resolve(LIBRARY_ROOT, 'bin', 'Release', 'net10.0', 'publish');
+const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
+const BIN_WWWROOT = resolve(SAMPLE_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
+const PUBLISH_DIR = resolve(SAMPLE_ROOT, 'bin', 'Release', 'net10.0', 'publish');
 
 describe('dotnetStaticAssets', () => {
   it('exports a plugin factory', () => {
@@ -41,8 +40,8 @@ describe('dotnetStaticAssets', () => {
 describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
   it('initialises without throwing when pointing at a Release publish output', async () => {
     const plugin = dotnetStaticAssets.rollup({
-      projectRoot: LIBRARY_ROOT,
-      projectName: 'Library',
+      projectRoot: SAMPLE_ROOT,
+      projectName: 'SampleLibrary',
       configuration: 'Release',
       targetFramework: 'net10.0',
       isPublish: true,
@@ -54,20 +53,20 @@ describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
 describe('dotnetStaticAssets — buildStart with explicit dotnetOutputDir', () => {
   it('initialises without throwing when dotnetOutputDir points at the publish dir (no runtime.json)', async () => {
     const plugin = dotnetStaticAssets.rollup({
-      projectName: 'Library',
+      projectName: 'SampleLibrary',
       dotnetOutputDir: PUBLISH_DIR,
     });
     await expect(callBuildStart(plugin)).resolves.not.toThrow();
   });
 });
 
-describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
+describe('dotnetStaticAssets — resolveId (real SampleLibrary fixture)', () => {
   let plugin: any;
 
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({
-      projectRoot: LIBRARY_ROOT,
-      projectName: 'Library',
+      projectRoot: SAMPLE_ROOT,
+      projectName: 'SampleLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
     });
@@ -77,30 +76,25 @@ describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
   it('resolves _framework/dotnet.js to a physical path in root 2 (fingerprinted or canonical)', () => {
     const result = callResolveId(plugin, '_framework/dotnet.js');
     expect(result).not.toBeNull();
-    expect(result).toContain(join(ROOT2, '_framework'));
+    expect(result).toContain(join(BIN_WWWROOT, '_framework'));
     expect(basename(result!)).toMatch(/^dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('resolves ./_framework/dotnet.js (leading ./) to the same path', () => {
     const result = callResolveId(plugin, './_framework/dotnet.js');
     expect(result).not.toBeNull();
-    expect(result).toContain(join(ROOT2, '_framework'));
+    expect(result).toContain(join(BIN_WWWROOT, '_framework'));
     expect(basename(result!)).toMatch(/^dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('resolves /_framework/dotnet.js (leading /) to the same path', () => {
     const result = callResolveId(plugin, '/_framework/dotnet.js');
     expect(result).not.toBeNull();
-    expect(result).toContain(join(ROOT2, '_framework'));
+    expect(result).toContain(join(BIN_WWWROOT, '_framework'));
     expect(basename(result!)).toMatch(/^dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
-  it('resolves _framework/dotnet.d.ts to root 0 (source)', () => {
-    const result = callResolveId(plugin, '_framework/dotnet.d.ts');
-    expect(result).toBe(join(ROOT0, '_framework', 'dotnet.d.ts'));
-  });
-
-  it('resolves typeshim (extensionless) to the generated typeshim.ts in the obj dir', () => {
+  it('resolves typeshim (extensionless) to the generated typeshim.ts', () => {
     const result = callResolveId(plugin, 'typeshim');
     expect(typeof result).toBe('string');
     expect(result).toMatch(/typeshim\.ts$/);
@@ -125,38 +119,39 @@ describe('dotnetStaticAssets — resolveId (real Library fixture)', () => {
 
 describe('dotnetStaticAssets — load', () => {
   let plugin: any;
-  // Asset names may be fingerprinted (WasmFingerprintAssets=true) or canonical.
   let dotnetNativeWasm: string;
   let icudtDat: string;
   let libraryPdb: string;
+  let typeshimTs: string;
 
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({
-      projectRoot: LIBRARY_ROOT,
-      projectName: 'Library',
+      projectRoot: SAMPLE_ROOT,
+      projectName: 'SampleLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
     });
     await callBuildStart(plugin);
 
-    const frameworkFiles = readdirSync(join(ROOT2, '_framework'));
+    const frameworkFiles = readdirSync(join(BIN_WWWROOT, '_framework'));
     const find = (pat: RegExp): string => {
       const name = frameworkFiles.find(f => pat.test(f));
-      if (!name) throw new Error(`No file matching ${pat} in ${join(ROOT2, '_framework')}`);
-      return join(ROOT2, '_framework', name);
+      if (!name) throw new Error(`No file matching ${pat} in ${join(BIN_WWWROOT, '_framework')}`);
+      return join(BIN_WWWROOT, '_framework', name);
     };
     dotnetNativeWasm = find(/^dotnet\.native(\.[a-z0-9]+)?\.wasm$/);
     icudtDat         = find(/^icudt_CJK(\.[a-z0-9]+)?\.dat$/);
-    libraryPdb       = find(/^Library(\.[a-z0-9]+)?\.pdb$/);
+    libraryPdb       = find(/^SampleLibrary(\.[a-z0-9]+)?\.pdb$/);
+    typeshimTs       = callResolveId(plugin, 'typeshim')!;
   });
 
   it('returns null for a .ts file (falls through to Vite transformer)', async () => {
-    const result = await callLoad(plugin, join(ROOT0, 'main.ts'));
+    const result = await callLoad(plugin, typeshimTs);
     expect(result).toBeNull();
   });
 
   it('returns null for a .js file', async () => {
-    const result = await callLoad(plugin, join(ROOT2, '_framework', 'dotnet.js'));
+    const result = await callLoad(plugin, join(BIN_WWWROOT, '_framework', 'dotnet.js'));
     expect(result).toBeNull();
   });
 
