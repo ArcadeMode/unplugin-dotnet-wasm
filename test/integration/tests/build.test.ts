@@ -1,13 +1,13 @@
 import { it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
-import { IsolatedViteBuild } from './bundler-build-helper.js';
-import { describeWhen, currentBundler } from './test-matrix.js';
+import { IsolatedViteBuild } from '../bundler-build-helper.js';
+import { describeWhen, currentBundler } from '../test-matrix.js';
 
 // Prerequisite: the plugin dist must be built before running this test.
 
-const FIXTURE_DIR = resolve(__dirname, `../fixtures/library-build-${currentBundler}`);
-const LIBRARY_DIR = resolve(__dirname, '../fixtures/Library');
+const FIXTURE_DIR = resolve(__dirname, `../../fixtures/library-build-${currentBundler}`);
+const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 
 describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('M1.6.b — build smoke (Debug scattered output)', () => {
   const vb = new IsolatedViteBuild('m1-default');
