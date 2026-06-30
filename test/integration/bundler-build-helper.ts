@@ -6,20 +6,14 @@ import { rmSync } from 'node:fs';
 import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
 
-// ---------------------------------------------------------------------------
-// Bundler-agnostic base. Reserves the shape integration tests assert against;
-// only the Vite implementation exists today. Webpack/Rspack/Rollup adapters
-// will subclass when the matching plugin adapters land.
-// ---------------------------------------------------------------------------
-
 export abstract class IsolatedBundlerBuild {
   readonly warnings: string[] = [];
   readonly outDir: string;
   protected readonly baseDir: string;
 
-  protected constructor(toolName: string, label: string) {
+  protected constructor(bundlerName: string, protected readonly fixtureDir: string, label: string) {
     const id = `${label}-${randomBytes(4).toString('hex')}`;
-    this.baseDir = join(tmpdir(), `dotnet-${toolName}-smoke`, id);
+    this.baseDir = join(fixtureDir, '.tmp-test', `${bundlerName}-build`, id);
     this.outDir  = join(this.baseDir, 'dist');
   }
 
@@ -28,27 +22,22 @@ export abstract class IsolatedBundlerBuild {
     return join(this.outDir, 'assets');
   }
 
-  abstract build(fixtureDir: string, options: DotnetAssetsOptions): Promise<void>;
+  abstract build(options: DotnetAssetsOptions): Promise<void>;
 
   cleanup(): void {
     rmSync(this.baseDir, { recursive: true, force: true });
   }
 }
 
-// ---------------------------------------------------------------------------
-// Vite implementation
-// ---------------------------------------------------------------------------
-
 export class IsolatedViteBuild extends IsolatedBundlerBuild {
   private readonly cacheDir: string;
 
-  constructor(label = 'smoke') {
-    super('vite', label);
+  constructor(fixtureDir: string, label: string) {
+    super('vite', fixtureDir, label);
     this.cacheDir = join(this.baseDir, '.vite');
   }
 
   async build(
-    root: string,
     pluginOptions: DotnetAssetsOptions,
     extra: InlineConfig = {},
   ): Promise<void> {
@@ -58,7 +47,7 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
     logger.warn = (msg, opts) => { this.warnings.push(msg); orig(msg, opts); };
 
     await viteBuild({
-      root,
+      root: this.fixtureDir,
       configFile: false,
       logLevel: 'warn',
       customLogger: logger,
@@ -67,7 +56,7 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
       ...extra,
       build: {
         outDir: this.outDir,
-        rollupOptions: { input: resolve(root, 'index.html') },
+        rollupOptions: { input: resolve(this.fixtureDir, 'index.html') },
         ...extra.build,
       },
     });

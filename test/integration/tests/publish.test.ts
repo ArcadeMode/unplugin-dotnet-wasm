@@ -49,10 +49,10 @@ function assertPublishBuild(vb: IsolatedViteBuild): void {
   });
 }
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('M2 — Vite publish build (isPublish: true)', () => {
-  const vb = new IsolatedViteBuild('m2-ispublish');
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Vite publish build (isPublish: true)', () => {
+  const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-ispublish');
 
-  beforeAll(() => vb.build(FIXTURE_DIR, {
+  beforeAll(() => vb.build({
     projectRoot: LIBRARY_DIR,
     projectName: 'Library',
     configuration: 'Release',
@@ -65,10 +65,10 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('M2 — Vite publish 
   assertPublishBuild(vb);
 });
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('M2 — Vite publish build (explicit dotnetOutputDir)', () => {
-  const vb = new IsolatedViteBuild('m2-dotnet-output-dir');
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Vite publish build (explicit dotnetOutputDir)', () => {
+  const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-dotnet-output-dir');
 
-  beforeAll(() => vb.build(FIXTURE_DIR, {
+  beforeAll(() => vb.build({
     projectName: 'Library',
     dotnetOutputDir: PUBLISH_DIR,
   }), 30_000);
@@ -79,12 +79,12 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('M2 — Vite publish 
 });
 
 
-describeWhen({ shapes: ['none'] })('M2.3 — DiscoveryError when publish output is absent', () => {
+describeWhen({ shapes: ['none'] })('DiscoveryError when publish output is absent', () => {
   it('isPublish: true → fails naming the searched publish dir', async () => {
-    const vb = new IsolatedViteBuild('m2-3-discovery');
+    const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-3-discovery');
     try {
       const expectedDir = join(PUBLISH_DIR);
-      await expect(vb.build(FIXTURE_DIR, {
+      await expect(vb.build({
         projectRoot: LIBRARY_DIR,
         projectName: 'Library',
         configuration: 'Release',
@@ -93,7 +93,7 @@ describeWhen({ shapes: ['none'] })('M2.3 — DiscoveryError when publish output 
       })).rejects.toThrow(/Endpoints manifest not found at .*publish/);
 
       // Re-run to capture the error object so we can assert the dir literally.
-      const err = await vb.build(FIXTURE_DIR, {
+      const err = await vb.build({
         projectRoot: LIBRARY_DIR,
         projectName: 'Library',
         configuration: 'Release',
@@ -107,15 +107,15 @@ describeWhen({ shapes: ['none'] })('M2.3 — DiscoveryError when publish output 
   }, 30_000);
 
   it('dotnetOutputDir: <missing> → fails naming the given dir', async () => {
-    const vb = new IsolatedViteBuild('m2-3-explicit');
+    const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-3-explicit');
     const missingDir = join(tmpdir(), `dotnet-wasm-bundler-missing-${Date.now()}`);
     try {
-      await expect(vb.build(FIXTURE_DIR, {
+      await expect(vb.build({
         projectName: 'Library',
         dotnetOutputDir: missingDir,
       })).rejects.toThrow(/Endpoints manifest not found/);
 
-      const err = await vb.build(FIXTURE_DIR, {
+      const err = await vb.build({
         projectName: 'Library',
         dotnetOutputDir: missingDir,
       }).catch((e: unknown) => e as Error);

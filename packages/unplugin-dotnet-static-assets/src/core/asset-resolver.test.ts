@@ -23,7 +23,7 @@ function vfsAsset(physicalPath: string): ResolvedAsset {
   return { virtualPath: physicalPath, physicalPath };
 }
 
-describe('AssetResolver — input normalisation', () => {
+describe('AssetResolver input normalisation', () => {
   it('returns null for an empty string', () => {
     expect(new AssetResolver(stubVfs(), new Map()).resolve('')).toBeNull();
   });
@@ -51,7 +51,7 @@ describe('AssetResolver — input normalisation', () => {
   });
 });
 
-describe('AssetResolver — probe expansion', () => {
+describe('AssetResolver probe expansion', () => {
   it('does not expand probes when the source already has a file extension', () => {
     const resolveFn = vi.fn().mockReturnValue(undefined);
     new AssetResolver(stubVfs({ resolve: resolveFn }), new Map()).resolve('foo.js');
@@ -78,7 +78,7 @@ describe('AssetResolver — probe expansion', () => {
   });
 });
 
-describe('AssetResolver — endpoint alias paths', () => {
+describe('AssetResolver endpoint alias paths', () => {
   const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js' };
   const lookup: EndpointLookup = new Map([['_framework/dotnet.js', fpMatch]]);
 
@@ -110,7 +110,7 @@ describe('AssetResolver — endpoint alias paths', () => {
   });
 });
 
-describe('AssetResolver — full miss', () => {
+describe('AssetResolver full miss', () => {
   it('returns null when both VFS and endpoint lookup miss for every probe', () => {
     expect(new AssetResolver(stubVfs(), new Map()).resolve('nonexistent.wasm')).toBeNull();
   });
@@ -120,7 +120,7 @@ const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
 const RUNTIME_MANIFEST = resolve(SAMPLE_ROOT, 'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json');
 const ENDPOINTS_MANIFEST = resolve(SAMPLE_ROOT, 'bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json');
 
-describe('AssetResolver — real fixture', () => {
+describe('AssetResolver real fixture', () => {
   let r: AssetResolver;
 
   beforeAll(() => {
@@ -138,7 +138,7 @@ describe('AssetResolver — real fixture', () => {
 
 const TEMP_DIR = resolve(__dirname, '../../.test-tmp/ar-probe');
 
-describe('AssetResolver — probing through pattern fallthrough', () => {
+describe('AssetResolver probing through pattern fallthrough', () => {
   let root0: string;
   let r: AssetResolver;
 

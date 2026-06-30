@@ -9,10 +9,10 @@ import { describeWhen, currentBundler } from '../test-matrix.js';
 const FIXTURE_DIR = resolve(__dirname, `../../fixtures/library-build-${currentBundler}`);
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('M1.6.b — build smoke (Debug scattered output)', () => {
-  const vb = new IsolatedViteBuild('m1-default');
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Build non-publish (Debug config + scattered output)', () => {
+  const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm1-default');
 
-  beforeAll(() => vb.build(FIXTURE_DIR, {
+  beforeAll(() => vb.build({
     projectRoot: LIBRARY_DIR,
     projectName: 'Library',
     configuration: 'Debug',

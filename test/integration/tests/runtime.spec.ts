@@ -15,7 +15,7 @@ declare global {
   var __libReady: boolean;
 }
 
-test.describe('M1.6.c — WASM interop', () => {
+test.describe('WASM interop runtime behavior', () => {
   test.describe.configure({ mode: 'serial' });
 
   let pg!: Page;

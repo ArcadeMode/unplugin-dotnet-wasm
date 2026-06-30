@@ -12,7 +12,7 @@ const MANIFEST_PATH = resolve(
 );
 const BIN_WWWROOT = resolve(SAMPLE_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 
-describe('buildVfs — real fixture', () => {
+describe('buildVfs with real fixture', () => {
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
@@ -52,7 +52,7 @@ describe('buildVfs — real fixture', () => {
 
 const TEMP_DIR = resolve(__dirname, '../../.test-tmp/vfs-pat');
 
-describe('buildVfs — synthetic: pattern fallthrough', () => {
+describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
   let root0: string;
   let vfs: VirtualFileSystem;
 
@@ -107,7 +107,7 @@ describe('buildVfs — synthetic: pattern fallthrough', () => {
   });
 });
 
-describe('buildVfs — synthetic: .ts shadows .d.ts', () => {
+describe('buildVfs with synthetic manifest: .ts shadows .d.ts', () => {
   let debugMessages: string[];
   let vfs: VirtualFileSystem;
 

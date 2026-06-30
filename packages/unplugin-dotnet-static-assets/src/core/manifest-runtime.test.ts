@@ -6,17 +6,12 @@ import {
   ManifestParseError,
 } from './manifest-runtime.js';
 
-// Path to the real build output — the fixture we're grounding everything in.
 const FIXTURE_MANIFEST = resolve(
   __dirname,
   '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
 );
 
 describe('parseRuntimeManifest', () => {
-  // -------------------------------------------------------------------------
-  // Happy path — real manifest from the SampleLibrary fixture
-  // -------------------------------------------------------------------------
-
   it('parses the real SampleLibrary manifest without errors', () => {
     const raw = readFileSync(FIXTURE_MANIFEST, 'utf8');
     expect(() => parseRuntimeManifest(raw)).not.toThrow();
@@ -63,10 +58,6 @@ describe('parseRuntimeManifest', () => {
     const buf = readFileSync(FIXTURE_MANIFEST);
     expect(() => parseRuntimeManifest(buf)).not.toThrow();
   });
-
-  // -------------------------------------------------------------------------
-  // Error cases
-  // -------------------------------------------------------------------------
 
   it('throws ManifestParseError for invalid JSON', () => {
     expect(() => parseRuntimeManifest('not json {')).toThrowError(ManifestParseError);
