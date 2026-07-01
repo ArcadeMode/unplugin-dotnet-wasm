@@ -57,7 +57,7 @@ Vite dev server, HMR, IDE-parity emission, preload `<link>` tags, other bundlers
 
 After M2 we have a usable production-only plugin for Vite (build-time only, scattered + consolidated layouts, fingerprint-aware, README + sample, ready to cut `0.1.0-rc`). Before we keep going, we pick from the open backlog. Possible next bites, **roughly in order of likely value**:
 
-- **M3 — All build-time bundlers**: broaden from Vite/Rollup to every unplugin-supported build-time bundler (webpack, rspack, esbuild, rolldown, farm; vite build and rsbuild ride on rollup/rspack respectively). Requires per-bundler asset-emission strategies and a `BUNDLER` axis on the test matrix. Validates the unplugin abstraction. Hybrid execution: spike all bundlers first (parallel, throwaway), split the plugin once, then batch fixtures + matrix. **Decided — full plan in the M3 section below.**
+- **M3 — All build-time bundlers**: broaden from Vite/Rollup to every unplugin-supported build-time bundler (webpack, rspack, rsbuild, esbuild, rolldown, farm, bun; vite build rides on rollup). Requires per-bundler asset-emission strategies and a `BUNDLER` axis on the test matrix. Also gates on an unplugin 2 → 3 upgrade (Bun landed in v3.0.0, dedicated rsbuild adapter in v3.3.0). Hybrid execution: spike all bundlers first (parallel, throwaway), split the plugin once, then batch fixtures + matrix. **Decided — full plan in the M3 section below.**
 - **M4 — Dev server (Vite first)**: `configureServer` middleware that streams VFS files with the right `Content-Type` (`application/wasm` etc.), applies `ResponseHeaders` from endpoints.json verbatim (with stale-`Content-Length` recomputation), and handles fingerprinted route aliases.
 - **M5 — Change detection / watch**: `addWatchFile` for every VFS asset, debounced manifest re-read on change, dev HMR invalidation when `dotnet build` rewrites the bin output.
 - **M6 — IDE-parity emission**: the quiet `node_modules/.dotnet-vfs/` cache with `tsconfig.json` + `dotnet-vfs.d.ts`; layout-flip cleanup; one-shot info-level `extends` hint.
@@ -72,7 +72,9 @@ Each of these is its own milestone-sized chunk. **Plan out M3/M4/M5 (or whicheve
 
 **Outcome:** the same plugin source resolves the `Library/` fixture through every unplugin-supported build-time bundler that survives the M3.2 spike, with all four `[TSExport]` classes callable from the browser. Both fingerprint and no-fingerprint shapes green on every shipped bundler. No dev-server work (that's M4).
 
-**Bundler scope.** Direct targets requiring their own adapter and fixture: `webpack`, `rspack`, `esbuild`, `rolldown`, `farm`. Indirect targets that ride on a direct adapter and need no separate fixture: `vite` build → rollup path, `rsbuild` → rspack path. Explicitly deferred: `bun` (no unplugin adapter as of unplugin 2.3.11), `vite` dev (M4).
+**Bundler scope.** Direct targets requiring their own adapter and fixture: `webpack`, `rspack`, `rsbuild`, `esbuild`, `rolldown`, `farm`, `bun`. Indirect targets that ride on a direct adapter and need no separate fixture: `vite` build → rollup path. Explicitly deferred: `vite` dev (M4).
+
+**Prerequisite: unplugin 2.3.11 → 3.3.0.** Bun support landed in v3.0.0; the dedicated rsbuild adapter in v3.3.0 (2026-06-29). v3.0.0 is a major bump: ESM-only, drops Node 18 (we're on 20 — fine), removes the acorn dependency (we don't call `this.parse()`, so also fine). Ship the version bump as part of M3.4; keep the current webpack spike's "omit `load` on webpack" workaround unless a quick re-verification under 3.x shows the load-loader was made `raw: true` (cheap to check while doing the split).
 
 **Execution shape.** Hybrid: spike every direct target in parallel with throwaway code (M3.2), then split the plugin once informed by all spike outcomes (M3.4), then batch fixtures + matrix expansion (M3.5+). Any bundler whose spike fails is dropped from M3 and filed as a follow-up — acceptance is bounded by what passed the spike, not an all-or-nothing gate.
 
@@ -82,33 +84,65 @@ Approach A ("bundler-conditional plugin shape") won. Non-obvious finding: unplug
 
 ### M3.2 — Spike the remaining bundlers (parallel)
 
-One throwaway spike per remaining direct target, same shape as M3.1: `plugin.mjs` + `run.mjs` that emits one hashed `.wasm` referenced from the entry chunk, byte-identical to source. All spikes independent; can be interrupted; a red spike drops that bundler from M3.
+One throwaway spike per remaining direct target, same shape as M3.1: `plugin.mjs` + `run.mjs` that emits one hashed `.wasm` referenced from the entry chunk, byte-identical to source. All spikes independent; can be interrupted; a red spike drops that bundler from M3. **Do these under unplugin 3.3.0** — don't spike on 2.x since the plugin itself is bumping to 3.x in M3.4.
 
-Spike folders sit outside pnpm workspace globs at `test/spikes/asset-emission-<bundler>/`:
+Rather than one spike folder per bundler, the actual spike collapsed to a single `test/spikes/asset-emission/` with a shared `plugin.mjs` factory that branches on `meta.framework`, one config per bundler, and a `run.mjs` runner that drives all bundlers (or a subset via CLI args) and asserts exactly one `.wasm` emitted per bundler with byte-identical content to source. Simpler than N parallel folders and made the branch shapes directly comparable.
 
-- `-rspack/` — expected: same as webpack (asset-module rule via `rspack(compiler)` hook, no `load`). Confirms whether unplugin's rspack load-loader has the same binary-corruption pitfall.
-- `-esbuild/` — expected: `esbuild(build)` hook wiring an `onLoad` returning `{ contents, loader: 'file' }`, or raw bytes routed to esbuild's `file` loader. Unknowns: whether unplugin's esbuild load path is binary-safe; whether `loader: 'file'` triggers automatic hashed emission with a URL export.
-- `-rolldown/` — expected: current Rollup path (`emitFile` + `ROLLUP_FILE_URL_*`) works unchanged. Real question: does Rolldown's placeholder rewrite pass expand `ROLLUP_FILE_URL_*` at emit time yet?
-- `-farm/` — highest uncertainty. Farm has its own emit API and no Rollup placeholder. Spike answers whether there's a viable emit-and-reference path through Farm's plugin context, or whether Farm needs a distinct strategy (e.g. direct URL synthesis through Farm-specific config).
+#### M3.2 spike outcomes (all 9 direct targets PASS, byte-identical 17173B)
 
-**Done when:** every spike is either PASS (with strategy noted in one line under an "M3.2 spike outcomes" subsection added retroactively) or DEFERRED (with reason). Bun is not spiked here — it has no unplugin adapter and is a separate track.
+| Bundler | Time | Emit path | Notable finding |
+|---|---|---|---|
+| `rollup` | 0.2s | `this.emitFile({type:'asset'})` + `import.meta.ROLLUP_FILE_URL_<refId>` | baseline; unchanged from M3.1 |
+| `vite` (build) | 0.2s | rollup path | works with zero vite-specific code — rides `meta.framework === 'vite'` through the same rollup-family branch |
+| `webpack` | 0.7s | `{test:/\.wasm$/,type:'asset/resource'}` rule injected via `webpack(compiler)` | keep the M3.1 "omit `load` for webpack" workaround under unplugin 3.3.0 — the load-loader is still not `raw: true` |
+| `esbuild` | <0.1s | esbuild-native `.wasm` → `file` loader; register `build.onResolve` inside `esbuild.setup(build)` | **must drop `resolveId` for esbuild-family** — unplugin's resolveId return is placed in unplugin's own namespace, defeating esbuild's extension-loader mapping. Also: `plugin.esbuild` in unplugin 3.x is an object `{ setup, config, onResolveFilter, onLoadFilter, loader }`, not a bare `(build) => void` function |
+| `rspack` | 0.1s | same as webpack (asset-module rule via `rspack(compiler)`) | mirrors webpack — no additional workaround needed |
+| `rsbuild` | 0.1s | asset-module rule scoped by absolute path via `rsbuild.setup(api).modifyRspackConfig` | **rsbuild enables `experiments.asyncWebAssembly` by default**, and its built-in `.wasm → webassembly/async` rule runs ahead of a rule appended via `push`. Fix: (a) scope our rule with `include: <resolved abs path>` instead of a naked `test: /\.wasm$/`, so we only claim files our `resolveId` actually returned; (b) `unshift` (not `push`) into `config.module.rules` from the rsbuild hook so we take priority over the default rule for those specific files. Do **not** disable `experiments.asyncWebAssembly` — the scoped rule wins per-file without that, and disabling it would break any downstream `import { foo } from './their.wasm'`. **Verified non-interference in-spike**: a `rsbuild-mixed` scenario builds an entry that imports both our virtual specifier and a user-owned `other.wasm` (with named export `f`). rsbuild produces `static/assets/Library.<hash>.wasm` (17173B, byte-identical) *and* `static/wasm/<hash>.module.wasm` (30B, rsbuild's wasm-ESM chunk) — the named `{ f }` import links successfully, which is only possible if the default `webassembly/async` path is still handling the user file. |
+| `rolldown` | <0.1s | rollup path | placeholder rewrite for `ROLLUP_FILE_URL_*` works as-of rolldown 1.1.3 |
+| `farm` | 1.3s | rollup-shaped `resolveId` + `compilation.assets.include:['wasm']` in farm config | Farm needs the compilation config opt-in to treat `.wasm` as an emittable asset; the plugin's resolveId return is honored |
+| `bun` | 0.2s (installed 1.3.14) | esbuild-shaped path — mirrors esbuild; `plugin.bun.setup(build)` also object-shaped in unplugin 3.x | verified against Bun 1.3.14 on this machine via `Bun.build({loader:{'.wasm':'file'}, naming:{asset:'assets/[name]-[hash].[ext]'}})` |
+
+Result: **all 9 direct targets green** — no bundler dropped from the M3 roster. Spike lives at `test/spikes/asset-emission/` outside pnpm workspace globs; `node run.mjs` runs all 9 and prints a per-bundler pass/fail summary.
 
 ### M3.3 — Verify manifest/VFS core is bundler-agnostic
 
-Sanity check with `grep`: `discoverManifests`, `parseRuntimeManifest`, `parseEndpointsManifest`, `buildVfs`, `buildEmptyVfs`, `buildEndpointLookup`, `AssetResolver` must contain zero references to `vite`, `rollup`, `webpack`, `rspack`, `esbuild`, `rolldown`, `farm`, or `ROLLUP_`. If any leaked, extract them into `unplugin/index.ts`. Expected to be a no-op given the current split.
+Sanity check with `grep`: `discoverManifests`, `parseRuntimeManifest`, `parseEndpointsManifest`, `buildVfs`, `buildEmptyVfs`, `buildEndpointLookup`, `AssetResolver` must contain zero references to `vite`, `rollup`, `webpack`, `rspack`, `rsbuild`, `esbuild`, `rolldown`, `farm`, `bun`, or `ROLLUP_`. If any leaked, extract them into `unplugin/index.ts`. Expected to be a no-op given the current split.
 
-### M3.4 — Plugin split (one refactor, informed by all spike outcomes)
+### M3.4 — Plugin split + unplugin 3.x upgrade (one refactor, informed by all spike outcomes)
 
-`packages/unplugin-dotnet-static-assets/src/unplugin/index.ts` becomes bundler-conditional. The unplugin factory returns a plugin object shaped per `meta.framework`:
+Bundle two changes into one focused edit:
 
-- Rollup-family (`rollup`, `vite`, `rolldown`): existing `load` path (emit + `ROLLUP_FILE_URL_*`).
-- webpack-family (`webpack`, `rspack`): no `load` for binary extensions; the framework hook injects an `asset/resource` module rule.
-- `esbuild`: spike-determined path.
-- `farm`: spike-determined path.
+1. Bump `unplugin` dep in `packages/unplugin-dotnet-static-assets/package.json` from `^2.3.11` to `^3.3.0`. Confirm no CJS consumers rely on the old dual build (we're ESM-only already). Re-run the webpack spike briefly under 3.x; if the load-loader is now `raw: true`, drop the "omit `load` on webpack" workaround, otherwise keep it.
+2. Rewrite `packages/unplugin-dotnet-static-assets/src/unplugin/index.ts` to return a plugin object shaped per `meta.framework`, informed by the M3.2 spike:
+   - Rollup-family (`rollup`, `vite`, `rolldown`): existing `load` path (emit + `ROLLUP_FILE_URL_*`).
+   - webpack-family (`webpack`, `rspack`): no `load` for binary extensions; the framework hook injects an `asset/resource` module rule via `webpack(compiler)` / `rspack(compiler)`. **Scope the rule** with `include` (VFS-known absolute paths) or `test` (function over VFS membership), or append a `?dotnet-static-asset` marker in `resolveId` and match `resourceQuery` — don't use a naked `/\.wasm$/` regex, which would steal every `.wasm` in a downstream project.
+   - `rsbuild`: same scoped rule, but **`unshift`** it into `config.module.rules` from inside `rsbuild.setup(api).modifyRspackConfig` (not `push`) — rsbuild's built-in `.wasm` rule runs ahead of appended user rules, so ours has to come first to win for our files. `experiments.asyncWebAssembly` and `syncWebAssembly` stay at their defaults; the scoped rule wins per-file without touching them, and disabling them would break downstream `import { foo } from './their.wasm'`.
+   - esbuild-family (`esbuild`, `bun`): **drop `resolveId`** for binary extensions on this branch (unplugin's resolveId return is placed in a plugin-scoped namespace, which defeats the bundler's native extension-loader mapping). Register `build.onResolve` directly inside `plugin.esbuild.setup(build)` / `plugin.bun.setup(build)` so the file lands in the default namespace and the bundler's `.wasm` → `file` loader takes over. Note the object hook shape: `plugin.esbuild` and `plugin.bun` in unplugin 3.x are `{ setup, config, onResolveFilter, onLoadFilter, loader }` objects, not bare functions.
+   - `farm`: rollup-shaped `resolveId` + Farm-config opt-in `compilation.assets.include:['wasm']` (surfaced via plugin option docs since it's a farm-config change, not a plugin hook).
 
-Framework-specific re-exports at `src/{rollup,vite,webpack,esbuild}.ts` already exist; add `rspack.ts`, `rolldown.ts`, `farm.ts` matching the same shape, guarded on whichever bundlers passed M3.2.
+Framework-specific re-exports at `src/{rollup,vite,webpack,esbuild}.ts` already exist; add `src/{rspack,rsbuild,rolldown,farm,bun}.ts` matching the same shape, guarded on whichever bundlers passed M3.2.
 
-**Done when:** one focused edit lands the split; existing Vite tests still pass; the bundler-conditional branch is ~30–50 LOC and confined to `unplugin/index.ts`.
+**Decisions locked after M3.2 discussion:**
+
+- **Extension coverage:** the scoped rule / esbuild loader map / farm asset list covers `.wasm`, `.dat`, `.pdb` — the existing `BINARY_EXTENSIONS` set is authoritative. Same rule shape for all three; no per-extension branching.
+- **`.js` loader files (`dotnet.js`, `dotnet.native.js`, `dotnet.runtime.js`):** no special handling. `resolveId` returns the physical path; the bundler's normal JS pipeline processes them. Empirically verified on the shipping Vite sample/fixture.
+- **Text sidecars (`.js.map`, `.js.symbols.json`):** decide per-file when they surface; assume they ride the import graph the same as `.js` loader files. Not blocking M3.4.
+- **Rule scoping shape:** exact-path `include: [absolute path, ...]` sourced from `AssetResolver` — no regex predicates or query-string markers. This aligns with the "be exact" posture and shares the same file list the endpoints-manifest work in the next bullet will need.
+- **Endpoints-manifest treatment:** separate subtask, tracked before M3.5 (see below). Anything that comes in via the import graph works for asset emission; the *manifest* side may need extra work to record bundler-renamed asset paths so `staticwebassets` metadata (integrity, content-type) stays coherent.
+- **No name-preservation, no manifest rewriting.** `WasmBundlerFriendlyBootConfig=true` emits `dotnet.js` with real `import "./<asset>"` per asset, so bundler reference-rewriting carries the runtime lookup end-to-end. Verified: the shipping Vite fixture emits `Library-<hash>.wasm` / `dotnet.native-<hash>.wasm` / `icudt_EFIGS-<hash>.dat` and Playwright round-trips pass.
+- **File layout:** family-split under `src/unplugin/` — one file per family (`rollup.ts`, `webpack.ts`, `esbuild.ts`, `farm.ts` or similar) re-exported from `index.ts`. `meta.framework` dispatch lives in `index.ts`. Mirrors the fixture/sample-per-bundler convention.
+- **Base-path handling:** VFS/manifest core ignores base path. Verifying non-root `base` / `publicPath` / `output.publicPath` is a test-suite concern (M3.5+), not an M3.4 code concern.
+- **Bundler support scope:** ship all 9 in M3.4. Drop only if a specific one becomes unsustainable in practice; that decision is made per-bundler when observed, not up front.
+
+**Non-goals (do not reintroduce):**
+
+- Per-bundler `assetNames` / `output.assetFileNames` / `generator.filename` overrides to preserve `.NET`'s original filenames — unnecessary, and would fight users' output conventions.
+- Disabling `experiments.asyncWebAssembly` / `syncWebAssembly` globally on rspack/rsbuild — would break downstream `import { foo } from './their.wasm'`. Scoped `include` matches only our files and leaves the defaults intact.
+- Boot-config JSON rewriting — there is no `blazor.boot.json` in this project; the SDK emits `dotnet.js` with JS imports instead.
+
+**Endpoints-manifest / bundler-renamed assets (open subtask, pre-M3.5):** investigate how the staticwebassets endpoints manifest should reflect assets after the bundler hashes and relocates them. Options: (a) leave manifest untouched and rely on the runtime import bindings for lookup; (b) post-process manifest with bundler-produced rename table. Decide before M3.5 fixtures land so integration tests exercise the correct expectation.
+
+**Done when:** one focused edit lands both the dep bump and the split; existing Vite tests still pass; the bundler-conditional branch is ~40–60 LOC and confined to `unplugin/` (may be split across family files, still counted as one region).
 
 ### M3.5 — Fixture batch
 
@@ -149,7 +183,7 @@ All fixtures ship in one PR — they're structurally identical.
 - Each shipped bundler's fixture produces a bootable bundle whose `Library.<fp>.wasm` matches source bytes.
 - Playwright interop passes against every shipped bundler.
 
-**Non-goals for M3** (deliberate): dev servers (M4), HMR, source-map fidelity, Bun, any bundler whose M3.2 spike was deferred.
+**Non-goals for M3** (deliberate): dev servers (M4), HMR, source-map fidelity.
 
 ---
 
@@ -175,8 +209,6 @@ Re-read `plan.md` and this file together before committing to the next one.
 - Boot-manifest rewriting.
 - Compression siblings.
 - npm-package synthesis from emitted `package.json` (see Non-Goals in spec).
-- Bun support (no unplugin adapter as of 2.3.11).
-- Any bundler whose M3.2 spike was deferred.
 
 Documented as "out of scope for now" in every PR description, with a link back to this file.
 

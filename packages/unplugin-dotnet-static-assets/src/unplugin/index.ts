@@ -42,6 +42,11 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions) 
     },
 
     async load(id: string) {
+      // Chosen strategy (M3.1 spike): Rollup-native emit + ROLLUP_FILE_URL placeholder.
+      // On webpack this hook must be *omitted* — unplugin's webpack load-loader is not
+      // `raw: true`, so binary bytes passing through it get UTF-8 round-tripped and
+      // corrupted. Webpack support (M3.3+) injects an `asset/resource` module rule via
+      // the `webpack(compiler)` hook and returns a plugin object without `load`.
       const lastDot = id.lastIndexOf('.');
       if (lastDot === -1) return null;
       const ext = id.slice(lastDot);
