@@ -57,112 +57,111 @@ Vite dev server, HMR, IDE-parity emission, preload `<link>` tags, other bundlers
 
 After M2 we have a usable production-only plugin for Vite (build-time only, scattered + consolidated layouts, fingerprint-aware, README + sample, ready to cut `0.1.0-rc`). Before we keep going, we pick from the open backlog. Possible next bites, **roughly in order of likely value**:
 
-- **M3 — Webpack adapter**: second bundler, requires cross-bundler binary-asset emission strategy (Rollup's `emitFile` + `ROLLUP_FILE_URL_*` doesn't exist in webpack) and a `BUNDLER` axis on the test matrix. Validates the unplugin abstraction. **Decided — full plan in the M3 section below.**
+- **M3 — All build-time bundlers**: broaden from Vite/Rollup to every unplugin-supported build-time bundler (webpack, rspack, esbuild, rolldown, farm; vite build and rsbuild ride on rollup/rspack respectively). Requires per-bundler asset-emission strategies and a `BUNDLER` axis on the test matrix. Validates the unplugin abstraction. Hybrid execution: spike all bundlers first (parallel, throwaway), split the plugin once, then batch fixtures + matrix. **Decided — full plan in the M3 section below.**
 - **M4 — Dev server (Vite first)**: `configureServer` middleware that streams VFS files with the right `Content-Type` (`application/wasm` etc.), applies `ResponseHeaders` from endpoints.json verbatim (with stale-`Content-Length` recomputation), and handles fingerprinted route aliases.
 - **M5 — Change detection / watch**: `addWatchFile` for every VFS asset, debounced manifest re-read on change, dev HMR invalidation when `dotnet build` rewrites the bin output.
 - **M6 — IDE-parity emission**: the quiet `node_modules/.dotnet-vfs/` cache with `tsconfig.json` + `dotnet-vfs.d.ts`; layout-flip cleanup; one-shot info-level `extends` hint.
 - **M7 — Preload `<link>` injection**: emit preload tags from `EndpointProperties.Preload*` for the `webassembly` group, ordered by `PreloadOrder`, via `transformIndexHtml`. Endpoint lookup already carries everything needed.
-- **M8 — Rollup / esbuild / Rspack adapters** (round out unplugin coverage once webpack is proven).
-- **M9 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition (companion to M6).
+- **M8 — IDE-parity language-service test**: automated TS server probe to prove cross-root Go-to-Definition (companion to M6).
 
 Each of these is its own milestone-sized chunk. **Plan out M3/M4/M5 (or whichever combination we want) at that checkpoint** — we'll know more once M1 and M2 are real code in someone's hands.
 
 ---
 
-## M3 — Webpack adapter
+## M3 — All build-time bundlers
 
-**Outcome:** the same plugin source resolves the `Library/` fixture through webpack build with all four `[TSExport]` classes (Echo, Counter, AsyncOps, Throws) callable from the browser. Both fingerprint and no-fingerprint shapes green. No dev-server work (that's M4 later).
+**Outcome:** the same plugin source resolves the `Library/` fixture through every unplugin-supported build-time bundler that survives the M3.2 spike, with all four `[TSExport]` classes callable from the browser. Both fingerprint and no-fingerprint shapes green on every shipped bundler. No dev-server work (that's M4).
 
-### M3.1 — Design spike: binary-asset emission on both Rollup and webpack
+**Bundler scope.** Direct targets requiring their own adapter and fixture: `webpack`, `rspack`, `esbuild`, `rolldown`, `farm`. Indirect targets that ride on a direct adapter and need no separate fixture: `vite` build → rollup path, `rsbuild` → rspack path. Explicitly deferred: `bun` (no unplugin adapter as of unplugin 2.3.11), `vite` dev (M4).
 
-The current `load` hook uses Rollup-native `this.emitFile({ type: 'asset' })` + `import.meta.ROLLUP_FILE_URL_<refId>` (see `packages/unplugin-dotnet-static-assets/src/unplugin/index.ts`). That placeholder is Rollup-only — webpack has no equivalent, and unplugin does **not** unify it.
+**Execution shape.** Hybrid: spike every direct target in parallel with throwaway code (M3.2), then split the plugin once informed by all spike outcomes (M3.4), then batch fixtures + matrix expansion (M3.5+). Any bundler whose spike fails is dropped from M3 and filed as a follow-up — acceptance is bounded by what passed the spike, not an all-or-nothing gate.
 
-Three viable strategies; pick one before writing fixture code:
+### M3.1 — Design spike: webpack (shipped)
 
-- **A. Bundler-conditional `load`.** Inject a webpack `module.rules` entry (`{ test: /\.(wasm|dat|pdb)$/, type: 'asset/resource' }`) via unplugin's `webpack(compiler)` hook. In `load`, detect framework (`meta.framework === 'webpack'`) and return raw buffers; on Rollup/Vite, keep the current emit-and-reference code path. Two code paths, but each bundler uses its idiomatic pipeline.
-- **B. `new URL('./x.wasm', import.meta.url)` pattern.** Portable across webpack 5, Rollup, and esbuild. Works only when the module id survives as an absolute physical path so `import.meta.url` resolves correctly — currently true. Single code path but relies on all bundlers implementing the static-analysis pattern correctly.
-- **C. Bundler-agnostic via unplugin's `context.emitFile` shim.** unplugin claims to normalize `emitFile`, but the *reference-back* mechanism from `load` is not portable — so this doesn't cleanly solve the problem.
+Approach A ("bundler-conditional plugin shape") won. Non-obvious finding: unplugin's webpack load-loader is not `raw: true`, so a `load` hook returning `null` still round-trips the file bytes through UTF-8 and corrupts binaries. Fix: **omit `load` entirely for webpack** and rely on an `asset/resource` `module.rules` entry injected via the `webpack(compiler)` hook. Choice captured as a comment on the `load` hook in `packages/unplugin-dotnet-static-assets/src/unplugin/index.ts`. Throwaway spike at `test/spikes/asset-emission/`.
 
-Recommendation: **A** as the primary path; **B** as fallback if webpack's `asset/resource` rule injection is fragile. Write a throwaway spike that produces a `dist/main.js` referencing an emitted `.wasm` file for each candidate; whichever ships in ≤50 LOC of plugin code wins. Done when the chosen approach is captured as a short comment on the `load` hook and both a Rollup and a webpack minimal repro produce a correct URL to a `.wasm` file.
+### M3.2 — Spike the remaining bundlers (parallel)
 
-### M3.2 — Verify manifest/VFS core is bundler-agnostic
+One throwaway spike per remaining direct target, same shape as M3.1: `plugin.mjs` + `run.mjs` that emits one hashed `.wasm` referenced from the entry chunk, byte-identical to source. All spikes independent; can be interrupted; a red spike drops that bundler from M3.
 
-Sanity check with `grep`: `discoverManifests`, `parseRuntimeManifest`, `parseEndpointsManifest`, `buildVfs`, `buildEmptyVfs`, `buildEndpointLookup`, `AssetResolver` must contain zero references to `vite`, `rollup`, `webpack`, or `ROLLUP_`. If any leaked, extract them into `unplugin/index.ts`. **Expected to be a no-op** given the current split, but confirming now avoids surprise later.
+Spike folders sit outside pnpm workspace globs at `test/spikes/asset-emission-<bundler>/`:
 
-### M3.3 — Webpack consumer fixture
+- `-rspack/` — expected: same as webpack (asset-module rule via `rspack(compiler)` hook, no `load`). Confirms whether unplugin's rspack load-loader has the same binary-corruption pitfall.
+- `-esbuild/` — expected: `esbuild(build)` hook wiring an `onLoad` returning `{ contents, loader: 'file' }`, or raw bytes routed to esbuild's `file` loader. Unknowns: whether unplugin's esbuild load path is binary-safe; whether `loader: 'file'` triggers automatic hashed emission with a URL export.
+- `-rolldown/` — expected: current Rollup path (`emitFile` + `ROLLUP_FILE_URL_*`) works unchanged. Real question: does Rolldown's placeholder rewrite pass expand `ROLLUP_FILE_URL_*` at emit time yet?
+- `-farm/` — highest uncertainty. Farm has its own emit API and no Rollup placeholder. Spike answers whether there's a viable emit-and-reference path through Farm's plugin context, or whether Farm needs a distinct strategy (e.g. direct URL synthesis through Farm-specific config).
 
-- New folder `test/fixtures/library-build-webpack/` mirroring `test/fixtures/library-build-vite/`:
-  - `package.json` — name `@dotnet-wasm-bundler/library-build-webpack-fixture`, deps `webpack`, `webpack-cli`, `unplugin-dotnet-static-assets` (workspace link), `ts-loader` or `swc-loader` for the `.ts` entry.
-  - `webpack.config.ts` — wires `DotnetAssets` from `unplugin-dotnet-static-assets/webpack`, `mode: 'production'`, `target: 'web'`, `experiments.asyncWebAssembly: true`, `output.publicPath: 'auto'`, `output.assetModuleFilename: 'assets/[name]-[hash][ext]'` to mirror Vite's asset layout.
-  - `index.html` + `src/entry.ts` — copied verbatim from the Vite fixture. If webpack needs a `<script src>` reference the Vite fixture doesn't have, `html-webpack-plugin` handles it; keep it minimal.
-  - `tsconfig.json` — same shape as the Vite fixture.
-- Add pnpm workspace entry.
+**Done when:** every spike is either PASS (with strategy noted in one line under an "M3.2 spike outcomes" subsection added retroactively) or DEFERRED (with reason). Bun is not spiked here — it has no unplugin adapter and is a separate track.
 
-### M3.4 — Extend the test matrix with a `BUNDLER` dimension
+### M3.3 — Verify manifest/VFS core is bundler-agnostic
 
-- `test/integration/test-matrix.ts`: `Bundler = 'vite' | 'webpack'`. Add `webpack` to `VALID_BUNDLERS`. `readBundler()` reads `process.env.BUNDLER`, defaults to `vite`.
-- `currentBundler` is already threaded into the fixture path convention: `FIXTURE_DIR = resolve(__dirname, '../../fixtures/library-build-${currentBundler}')` (see `test/integration/tests/publish.test.ts`) — no code change needed inside the specs, they follow the naming.
-- `describeWhen({ bundlers: ['webpack'] })` gates for bundler-specific quirks (e.g. asset filename regex tweaks). Confirm existing regex assertions like `/^Library[.-][^/]+\.wasm$/` still match webpack's default hash filenames; adjust the regex to accept both or set `assetModuleFilename` in webpack config to align.
+Sanity check with `grep`: `discoverManifests`, `parseRuntimeManifest`, `parseEndpointsManifest`, `buildVfs`, `buildEmptyVfs`, `buildEndpointLookup`, `AssetResolver` must contain zero references to `vite`, `rollup`, `webpack`, `rspack`, `esbuild`, `rolldown`, `farm`, or `ROLLUP_`. If any leaked, extract them into `unplugin/index.ts`. Expected to be a no-op given the current split.
 
-### M3.5 — Bundler-neutral build helper
+### M3.4 — Plugin split (one refactor, informed by all spike outcomes)
 
-- `test/integration/bundler-build-helper.ts` currently exposes `IsolatedViteBuild`. Introduce `IsolatedBundlerBuild` interface: `{ dist: string; assets: string; entryChunk: string; warnings: string[] }` returned by a `runBuild(bundler: Bundler, fixtureDir: string)` factory. Two implementations: existing Vite-programmatic-API driver, new webpack-Node-API driver (`webpack(config, (err, stats) => …)`).
-- Warnings surface via `stats.warnings` for webpack, `logger.warn` capture for Vite (already wired).
+`packages/unplugin-dotnet-static-assets/src/unplugin/index.ts` becomes bundler-conditional. The unplugin factory returns a plugin object shaped per `meta.framework`:
 
-### M3.6 — Root script parameterization
+- Rollup-family (`rollup`, `vite`, `rolldown`): existing `load` path (emit + `ROLLUP_FILE_URL_*`).
+- webpack-family (`webpack`, `rspack`): no `load` for binary extensions; the framework hook injects an `asset/resource` module rule.
+- `esbuild`: spike-determined path.
+- `farm`: spike-determined path.
 
-Add BUNDLER-parameterized scripts to root `package.json`:
+Framework-specific re-exports at `src/{rollup,vite,webpack,esbuild}.ts` already exist; add `rspack.ts`, `rolldown.ts`, `farm.ts` matching the same shape, guarded on whichever bundlers passed M3.2.
 
-```jsonc
-{
-  "build:fixture:vite":     "pnpm --filter @dotnet-wasm-bundler/library-build-vite-fixture build",
-  "build:fixture:webpack":  "pnpm --filter @dotnet-wasm-bundler/library-build-webpack-fixture build",
+**Done when:** one focused edit lands the split; existing Vite tests still pass; the bundler-conditional branch is ~30–50 LOC and confined to `unplugin/index.ts`.
 
-  "test:integration:vite:fingerprint":      "cross-env BUNDLER=vite    DOTNET_FIXTURE_SHAPE=fingerprint    pnpm --filter @dotnet-wasm-bundler/integration-tests test",
-  "test:integration:vite:nofingerprint":    "cross-env BUNDLER=vite    DOTNET_FIXTURE_SHAPE=nofingerprint  pnpm --filter @dotnet-wasm-bundler/integration-tests test",
-  "test:integration:webpack:fingerprint":   "cross-env BUNDLER=webpack DOTNET_FIXTURE_SHAPE=fingerprint    pnpm --filter @dotnet-wasm-bundler/integration-tests test",
-  "test:integration:webpack:nofingerprint": "cross-env BUNDLER=webpack DOTNET_FIXTURE_SHAPE=nofingerprint  pnpm --filter @dotnet-wasm-bundler/integration-tests test",
+### M3.5 — Fixture batch
 
-  "test:fingerprint-enabled":  "pnpm clean:library && pnpm build:plugin && pnpm build:library:fingerprint  && pnpm build:fixture:vite && pnpm build:fixture:webpack && pnpm test:unit && pnpm test:integration:vite:fingerprint  && pnpm test:integration:webpack:fingerprint  && pnpm test:e2e:vite && pnpm test:e2e:webpack",
-  "test:fingerprint-disabled": "pnpm clean:library && pnpm build:plugin && pnpm build:library:nofingerprint && pnpm build:fixture:vite && pnpm build:fixture:webpack && pnpm test:unit && pnpm test:integration:vite:nofingerprint && pnpm test:integration:webpack:nofingerprint && pnpm test:e2e:vite && pnpm test:e2e:webpack"
-}
-```
+One fixture per bundler that passed M3.2, following the existing `test/fixtures/library-build-${bundler}/` convention. Each fixture:
 
-Matrix cardinality: `{fingerprint, nofingerprint, none} × {vite, webpack} = 6` fixture-shape × bundler combinations. `none` runs once (bundler-independent), so total integration invocations per full test run is 5.
+- `package.json` — name `@dotnet-wasm-bundler/library-build-${bundler}-fixture`, deps for the bundler + `unplugin-dotnet-static-assets` (workspace link) + minimal loader deps (`ts-loader`/`swc-loader`/etc. as needed).
+- `${bundler}.config.ts` (or `.mjs`) — wires `DotnetAssets` from the matching entry point, `mode: 'production'` equivalent, `target: 'web'`, hashed asset filename template aligned with Vite's `assets/[name]-[hash][ext]` shape where the bundler supports it.
+- `index.html` + `src/entry.ts` — copied verbatim from the Vite fixture.
+- `tsconfig.json` — same shape as the Vite fixture.
+- pnpm workspace entry.
 
-### M3.7 — Playwright per-bundler
+All fixtures ship in one PR — they're structurally identical.
 
-- `test/integration/playwright.config.ts` reads `BUNDLER` env, points `webServer` at the correct fixture (`library-build-${BUNDLER}/dist`).
-- Interop assertions (`test/integration/tests/runtime.spec.ts`) are bundler-blind — they only touch `window.__lib` — so nothing changes there.
-- One new spec `webpack-boot.spec.ts` (or reuse `runtime.spec.ts` under different BUNDLER env) asserts the webpack-emitted bundle boots identically. Same Playwright pattern: `page.goto('/')`, `waitForFunction(() => __libReady)`, evaluate each `[TSExport]` call.
-- Root scripts: `test:e2e:vite`, `test:e2e:webpack`, `test:e2e` chains both.
+### M3.6 — Test matrix + bundler-neutral build helper
+
+- `test/integration/test-matrix.ts`: `Bundler` union covers every direct target that passed M3.2. `readBundler()` reads `process.env.BUNDLER`, defaults to `vite`. `FIXTURE_DIR` already uses the `library-build-${currentBundler}` convention (`test/integration/tests/publish.test.ts`) — no spec change needed.
+- `test/integration/bundler-build-helper.ts`: `IsolatedBundlerBuild` interface `{ dist: string; assets: string; entryChunk: string; warnings: string[] }` returned by a `runBuild(bundler, fixtureDir)` factory. One implementation per bundler (existing Vite driver + N new drivers, each ~10–30 LOC calling the bundler's Node API). Warnings surface via each bundler's native diagnostics.
+- `describeWhen({ bundlers: [...] })` gates for bundler-specific quirks. Confirm existing `/^Library[.-][^/]+\.wasm$/` assertion matches every bundler's default hash filename; adjust the regex or align each bundler's asset-filename template.
+
+### M3.7 — Root scripts + Playwright per-bundler
+
+- Root `package.json`: `build:fixture:${bundler}` and `test:integration:${bundler}:{fingerprint,nofingerprint}` per bundler. `test:fingerprint-enabled` / `-disabled` chain all of them.
+- `test/integration/playwright.config.ts` reads `BUNDLER` env, points `webServer` at the matching fixture's `dist/`.
+- Interop spec (`test/integration/tests/runtime.spec.ts`) stays bundler-blind — one shared spec covers every bundler.
+- `test:e2e:${bundler}` + `test:e2e` chain.
+
+**Matrix cardinality:** `{fingerprint, nofingerprint} × N_bundlers + 1 (`none`)` integration invocations per full test run.
 
 ### M3.8 — Docs
 
-- Bump `packages/unplugin-dotnet-static-assets/README.md` webpack section from "Supported" to "Tested" once green.
-- One paragraph in this file noting the M3.1 decision (which of A/B/C won and why) and the matrix cardinality change.
+- Bump `packages/unplugin-dotnet-static-assets/README.md`: each shipped bundler moves to "Tested"; deferred bundlers listed as "Not yet supported" with the M3.2 reason.
+- One paragraph in this file recording spike outcomes and the final bundler roster.
 
 ### M3 acceptance summary
 
-- `pnpm test` (which chains both fingerprint states + `test:no-build`) runs the full 5-cell matrix and exits 0.
-- The plugin core (`src/core/*` + `src/unplugin/index.ts`) contains exactly one bundler-conditional branch — the M3.1 asset-emission split — living inside `unplugin/index.ts` at ~20–30 LOC.
-- `test/fixtures/library-build-webpack/dist/` contains a bootable bundle whose `Library.<fp>.wasm` matches the source bytes.
-- Playwright interop spec passes against both bundlers unchanged.
+- `pnpm test` runs the full `{fingerprint, nofingerprint} × N_bundlers` matrix + the single `none` cell and exits 0.
+- Plugin core contains exactly one bundler-conditional region — the M3.4 split — confined to `unplugin/index.ts`.
+- Each shipped bundler's fixture produces a bootable bundle whose `Library.<fp>.wasm` matches source bytes.
+- Playwright interop passes against every shipped bundler.
 
-**Non-goals for M3** (deliberate): webpack-dev-server (that's M4), HMR, source-map fidelity, Rspack (M8 even though it shares 90% of webpack's config surface).
+**Non-goals for M3** (deliberate): dev servers (M4), HMR, source-map fidelity, Bun, any bundler whose M3.2 spike was deferred.
 
 ---
 
 ## ⏸ Checkpoint — decide before M4
 
-After M3 the plugin has a proven cross-bundler build-time abstraction. Pick the next bite from the remaining backlog (unchanged from the pre-M3 checkpoint, renumbered):
+After M3 the plugin has a proven build-time abstraction across every unplugin-supported bundler that survived the M3.2 spike. Pick the next bite from the remaining backlog (unchanged from the pre-M3 checkpoint):
 
 - **M4 — Dev server (Vite first)** — see the pre-M3 checkpoint entry.
 - **M5 — Change detection / watch** — see the pre-M3 checkpoint entry.
 - **M6 — IDE-parity emission** — see the pre-M3 checkpoint entry.
 - **M7 — Preload `<link>` injection** — see the pre-M3 checkpoint entry.
-- **M8 — Rollup / esbuild / Rspack adapters** — round out unplugin coverage.
-- **M9 — IDE-parity language-service test** — companion to M6.
+- **M8 — IDE-parity language-service test** — companion to M6.
 
 Re-read `plan.md` and this file together before committing to the next one.
 
@@ -170,14 +169,14 @@ Re-read `plan.md` and this file together before committing to the next one.
 
 ## What we are deliberately *not* doing in M1–M3
 
-- Webpack, Rollup, esbuild, Rspack — Vite only.
-- Dev server, MIME headers, HMR.
-- IDE-parity emission (`node_modules/.dotnet-vfs/`).
-- Preload `<link>` tags.
+- Dev server, MIME headers, HMR (M4).
+- IDE-parity emission (`node_modules/.dotnet-vfs/`) (M6).
+- Preload `<link>` tags (M7).
 - Boot-manifest rewriting.
 - Compression siblings.
 - npm-package synthesis from emitted `package.json` (see Non-Goals in spec).
-- Playwright browser boot tests.
+- Bun support (no unplugin adapter as of 2.3.11).
+- Any bundler whose M3.2 spike was deferred.
 
 Documented as "out of scope for now" in every PR description, with a link back to this file.
 
