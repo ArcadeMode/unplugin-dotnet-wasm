@@ -156,6 +156,30 @@ One fixture per bundler that passed M3.2, following the existing `test/fixtures/
 
 All fixtures ship in one PR — they're structurally identical.
 
+### M3.5b — Node.js target fixture batch
+
+One Node.js-target sibling fixture per bundler that shipped in M3.5, at `test/fixtures/library-build-${bundler}-node/`. Same repo convention as the browser fixtures; parallel shape, different build target.
+
+**Per-fixture structure:**
+
+- `package.json` — name `@dotnet-wasm-bundler/library-build-${bundler}-node-fixture`; same bundler deps as the browser sibling; `"build"` runs the bundler, `"test"` runs `node dist/entry.js`, `"clean"` clears `dist/`.
+- `${bundler}.config.*` — identical to the browser fixture except: `target: 'node'` (webpack/rspack/rsbuild), `platform: 'node'` (esbuild), rolldown/rollup with `platform: 'node'` equivalent. No `target: 'web'`, no `index.html`, no `publicPath` override.
+- `src/entry.ts` — no `window` dependency; calls the same `[TSExport]` surface (`Echo`, `Counter`, `AsyncOps`, `Throws`) and logs results to stdout. Exits `process.exitCode = 0` on success, non-zero on failure. A passing `node dist/entry.js` run is the acceptance test.
+
+**Key differences from browser fixtures (M3.5):**
+
+| Aspect | Browser (M3.5) | Node.js (M3.5b) |
+|---|---|---|
+| bundler target | `target: 'web'` / `platform: 'browser'` | `target: 'node'` / `platform: 'node'` |
+| Node built-in handling | plugin injects `resolve.fallback` / `external` | bundler handles natively — plugin skips externalization logic |
+| esbuild entry layout | entry at dist root (fetch URL workaround) | entry anywhere; `fetch()` resolves against Node base URL correctly |
+| verify/preview | `npx serve dist` + browser | `node dist/entry.js` — no browser or Playwright needed |
+| CI value | proves browser bundling | no-browser smoke path, SSR/hybrid scenario |
+
+**Matrix impact:** adds a `PLATFORM` axis to M3.6 — `{browser, node}` — so the full matrix becomes `{fingerprint, nofingerprint} × N_bundlers × {browser, node}`. The `node` cells skip Playwright and assert `node dist/entry.js` exits 0 with expected stdout.
+
+**Non-goals for M3.5b:** no dev server, no HMR, no browser-specific asset URL concerns, no `index.html`.
+
 ### M3.6 — Test matrix + bundler-neutral build helper
 
 - `test/integration/test-matrix.ts`: `Bundler` union covers every direct target that passed M3.2. `readBundler()` reads `process.env.BUNDLER`, defaults to `vite`. `FIXTURE_DIR` already uses the `library-build-${currentBundler}` convention (`test/integration/tests/publish.test.ts`) — no spec change needed.
