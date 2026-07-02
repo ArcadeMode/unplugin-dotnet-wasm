@@ -1,0 +1,21 @@
+{
+  "name": "@dotnet-wasm-bundler/library-build-rspack-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "rspack build",
+    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^2.1.0",
+    "@rspack/core": "^2.1.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-static-assets": "workspace:*"
+  }
+}

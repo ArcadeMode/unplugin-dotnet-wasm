@@ -1,0 +1,42 @@
+import DotnetAssets from 'unplugin-dotnet-static-assets/rspack';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+export default {
+  mode: 'production',
+  target: 'web',
+  entry: { main: resolve(__dirname, 'src/entry.ts') },
+  output: {
+    path: resolve(__dirname, 'dist'),
+    filename: 'assets/[name]-[contenthash].js',
+    assetModuleFilename: 'assets/[name]-[contenthash][ext]',
+    publicPath: '',
+    clean: true,
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        loader: 'builtin:swc-loader',
+        options: {
+          jsc: { parser: { syntax: 'typescript' } },
+          env: { targets: 'defaults' },
+        },
+        type: 'javascript/auto',
+      },
+    ],
+  },
+  optimization: { minimize: false },
+  plugins: [
+    DotnetAssets({
+      projectRoot: resolve(__dirname, '../Library'),
+      projectName: 'Library',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      logLevel: 'info',
+    }),
+  ],
+};

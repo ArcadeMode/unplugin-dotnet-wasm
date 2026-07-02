@@ -1,6 +1,6 @@
 import { createUnplugin } from 'unplugin';
 import { readFile } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { basename, dirname, extname, join, relative } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
 import { discoverManifests } from '../core/discover.js';
 import { parseRuntimeManifest } from '../core/manifest-runtime.js';
@@ -12,6 +12,26 @@ import { AssetResolver } from '../core/asset-resolver.js';
 
 const BINARY_EXTENSIONS = new Set(['.wasm', '.dat', '.pdb']);
 
+// Node.js built-ins referenced inside ENVIRONMENT_IS_NODE guards in dotnet.native.js.
+// They are never executed in browser builds, but bundlers that don't auto-externalize
+// Node built-ins will fail trying to resolve them at build time.
+const DOTNET_NODE_BUILTINS = ['module', 'process', 'fs', 'path', 'url', 'worker_threads'] as const;
+
+type WebpackLikeOptions = {
+  resolve?: { fallback?: Record<string, unknown> };
+  module?: { rules?: unknown[] };
+};
+
+function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
+  opts.resolve ??= {};
+  opts.resolve.fallback ??= {};
+  for (const mod of DOTNET_NODE_BUILTINS) {
+    if (!(mod in opts.resolve.fallback)) {
+      opts.resolve.fallback[mod] = false;
+    }
+  }
+}
+
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta) => {
   const framework = meta.framework;
   const isRollupFamily =
@@ -22,13 +42,17 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
 
   let assetResolver: AssetResolver | null = null;
 
-  // Set of absolute physical paths for binary assets this plugin has resolved.
-  // Populated lazily in resolveId; used by the webpack-family module rule's
-  // include predicate (which is evaluated per module, after resolveId runs).
-  const resolvedBinaryPaths = new Set<string>();
+  // Absolute path to the project's wwwroot directory — set in buildStart and
+  // used by the webpack-family module rule's include predicate to claim only
+  // binary files under our own content root.  All binary assets from dotnet.js
+  // (imported via relative paths like './Library.wasm') share this root, so
+  // an extension-plus-root check is correct even when resolveId isn't called
+  // for those transitive imports.
+  let contentWwwrootDir: string | null = null;
 
   async function buildStart() {
     const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
+    contentWwwrootDir = join(dirname(endpointsManifestPath), 'wwwroot');
     const logLevel = options.logLevel ?? 'warn';
     const logger = createConsoleLogger(logLevel);
     const [endpointsRaw, runtimeRaw] = await Promise.all([
@@ -44,22 +68,38 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
 
   function resolveId(source: string): string | null {
     if (!assetResolver) return null;
-    const resolved = assetResolver.resolve(source);
-    if (resolved !== null) {
-      const ext = extname(resolved);
-      if (BINARY_EXTENSIONS.has(ext)) resolvedBinaryPaths.add(resolved);
-    }
-    return resolved;
+    return assetResolver.resolve(source);
   }
 
   // Webpack/rspack module rule: treats files we own as static assets.
-  // Scoped by `include` predicate (checks resolvedBinaryPaths) so it only
-  // claims the exact files our resolveId returned — user .wasm/.dat/.pdb
-  // imports keep their default bundler handling (e.g. experiments.asyncWebAssembly).
+  // Scoped by the `include` predicate so it only claims binary files under
+  // our project's wwwroot directory.  This covers both files our resolveId
+  // returned AND files imported transitively from dotnet.js via relative
+  // paths (e.g. './Library.wasm') which bypass our resolveId hook entirely.
+  // User .wasm/.dat/.pdb files outside the project content root keep their
+  // default bundler handling (e.g. experiments.asyncWebAssembly on rsbuild).
   const webpackBinaryRule = {
     test: /\.(wasm|dat|pdb)$/,
-    include: (resourcePath: string) => resolvedBinaryPaths.has(resourcePath),
+    include: (resourcePath: string) => {
+      if (!contentWwwrootDir) return false;
+      const rel = relative(contentWwwrootDir, resourcePath);
+      return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
+    },
     type: 'asset/resource',
+  };
+
+  // Webpack/rspack JS rule: disable URL-dependency tracking (new URL('./x', import.meta.url))
+  // for dotnet's _framework JS files. webpack 5 treats those new URL() calls as asset
+  // dependencies and tries to resolve the path as a file, but dotnet uses them as
+  // Node.js URL objects, not as bundler import paths.
+  const webpackJsParserRule = {
+    test: /\.js$/,
+    include: (resourcePath: string) => {
+      if (!contentWwwrootDir) return false;
+      const rel = relative(contentWwwrootDir, resourcePath);
+      return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
+    },
+    parser: { url: false },
   };
 
   const base = {
@@ -99,19 +139,22 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       webpack(compiler: { options: { module?: { rules?: unknown[] } } }) {
         compiler.options.module ??= { rules: [] };
         compiler.options.module.rules ??= [];
-        compiler.options.module.rules.push(webpackBinaryRule);
+        compiler.options.module.rules.push(webpackBinaryRule, webpackJsParserRule);
+        externalizeNodeBuiltins(compiler.options as WebpackLikeOptions);
       },
       rspack(compiler: { options: { module?: { rules?: unknown[] } } }) {
         compiler.options.module ??= { rules: [] };
         compiler.options.module.rules ??= [];
-        compiler.options.module.rules.push(webpackBinaryRule);
+        compiler.options.module.rules.push(webpackBinaryRule, webpackJsParserRule);
+        externalizeNodeBuiltins(compiler.options as WebpackLikeOptions);
       },
       rsbuild: {
         setup(api: { modifyRspackConfig: (fn: (config: { module?: { rules?: unknown[] } }) => void) => void }) {
           api.modifyRspackConfig(config => {
             config.module ??= { rules: [] };
             config.module.rules ??= [];
-            config.module.rules.unshift(webpackBinaryRule);
+            config.module.rules.unshift(webpackBinaryRule, webpackJsParserRule);
+            externalizeNodeBuiltins(config as WebpackLikeOptions);
           });
         },
       },
@@ -127,11 +170,16 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // { setup(build) {} } in unplugin 3.x (not bare functions).
   if (isEsbuildFamily) {
     const setup = (build: {
+      initialOptions: { external?: string[] };
       onResolve: (
         opts: { filter: RegExp },
         cb: (args: { path: string }) => { path: string } | null,
       ) => void;
     }) => {
+      const ext = (build.initialOptions.external ??= []);
+      for (const mod of DOTNET_NODE_BUILTINS) {
+        if (!ext.includes(mod)) ext.push(mod);
+      }
       build.onResolve({ filter: /.*/ }, args => {
         if (!assetResolver) return null;
         const resolved = assetResolver.resolve(args.path);

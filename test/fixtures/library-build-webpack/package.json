@@ -1,0 +1,22 @@
+{
+  "name": "@dotnet-wasm-bundler/library-build-webpack-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "webpack --config webpack.config.mjs",
+    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.0",
+    "ts-loader": "^9.0.0",
+    "typescript": "^5.5.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^5.0.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-static-assets": "workspace:*"
+  }
+}

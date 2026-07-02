@@ -1,0 +1,20 @@
+{
+  "name": "@dotnet-wasm-bundler/library-build-farm-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "farm build",
+    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@farmfe/core": "^1.7.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-static-assets": "workspace:*"
+  }
+}

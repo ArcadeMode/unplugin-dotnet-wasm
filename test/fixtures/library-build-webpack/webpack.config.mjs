@@ -1,0 +1,41 @@
+import DotnetAssets from 'unplugin-dotnet-static-assets/webpack';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+export default {
+  mode: 'production',
+  target: 'web',
+  entry: resolve(__dirname, 'src/entry.ts'),
+  output: {
+    path: resolve(__dirname, 'dist'),
+    filename: 'assets/[name]-[contenthash].js',
+    assetModuleFilename: 'assets/[name]-[contenthash][ext]',
+    publicPath: '',
+    clean: true,
+  },
+  resolve: {
+    extensions: ['.ts', '.js'],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        loader: 'ts-loader',
+        options: { transpileOnly: true },
+        exclude: /node_modules/,
+      },
+    ],
+  },
+  optimization: { minimize: false },
+  plugins: [
+    DotnetAssets({
+      projectRoot: resolve(__dirname, '../Library'),
+      projectName: 'Library',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      logLevel: 'info',
+    }),
+  ],
+};
