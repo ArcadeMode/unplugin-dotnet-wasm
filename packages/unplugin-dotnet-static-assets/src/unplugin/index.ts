@@ -80,29 +80,18 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
   }
 
-  // Normalises magic comments in dotnet framework JS files so every bundler
-  // suppresses its "unresolvable dynamic import" warning:
-  //  • webpack/rspack: /* webpackIgnore: true */  (the /*! form trips the parser)
-  //  • vite/rollup:    /* @vite-ignore */
-  //
-  // Strategy: replace the opening of EVERY dynamic import() call — stripping any
-  // existing /* ... */ comment blocks (including the wrong /*! form or partial
-  // coverage) — and inject the canonical pair. Idempotent: already-correct
-  // comments are matched and re-emitted unchanged.
-  // A second pass handles /*! webpackIgnore: true */ on import.meta.url usages
-  // (outside import() calls), normalising the '!' that webpack's parser rejects.
   function fixMagicComments(code: string): string | null {
     const IMPORT_MAGIC = '/* webpackIgnore: true */ /* @vite-ignore */';
     let result = code;
-
+    // ensure every dynamic import() call has the 'shut-up bundler' magic comments
     result = result.replace(
       /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
       `import(${IMPORT_MAGIC} `
     );
-
+    // ensure every new URL() call has the 'shut-up bundler' magic comments
     result = result.replace(
-      /\/\*!\s*webpackIgnore:\s*true\s*\*\//g,
-      '/* webpackIgnore: true */'
+      /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
+      'new URL(/* @vite-ignore */ '
     );
 
     return result !== code ? result : null;
