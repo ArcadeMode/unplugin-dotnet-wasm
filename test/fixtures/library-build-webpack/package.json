@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "build": "webpack --config webpack.config.mjs",
-    "postbuild": "node -e \"require('fs').copyFileSync('index.html','dist/index.html')\"",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
   "devDependencies": {
+    "html-webpack-plugin": "^5.0.0",
     "rimraf": "^6.0.0",
     "ts-loader": "^9.0.0",
     "typescript": "^5.5.0",

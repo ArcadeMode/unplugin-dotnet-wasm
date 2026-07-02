@@ -1,3 +1,4 @@
+import { rspack } from '@rspack/core';
 import DotnetAssets from 'unplugin-dotnet-static-assets/rspack';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,6 +32,7 @@ export default {
   },
   optimization: { minimize: false },
   plugins: [
+    new rspack.HtmlRspackPlugin({ template: './src/index.html' }),
     DotnetAssets({
       projectRoot: resolve(__dirname, '../Library'),
       projectName: 'Library',
