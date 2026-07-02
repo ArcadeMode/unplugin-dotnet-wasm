@@ -4,4 +4,5 @@ packages:
   - 'test/fixtures/*'
   - 'test/integration'
 allowBuilds:
+  core-js: true
   esbuild: true

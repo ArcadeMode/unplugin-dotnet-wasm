@@ -31,6 +31,31 @@
       "types": "./dist/esbuild.d.ts",
       "import": "./dist/esbuild.js",
       "require": "./dist/esbuild.cjs"
+    },
+    "./rspack": {
+      "types": "./dist/rspack.d.ts",
+      "import": "./dist/rspack.js",
+      "require": "./dist/rspack.cjs"
+    },
+    "./rsbuild": {
+      "types": "./dist/rsbuild.d.ts",
+      "import": "./dist/rsbuild.js",
+      "require": "./dist/rsbuild.cjs"
+    },
+    "./rolldown": {
+      "types": "./dist/rolldown.d.ts",
+      "import": "./dist/rolldown.js",
+      "require": "./dist/rolldown.cjs"
+    },
+    "./farm": {
+      "types": "./dist/farm.d.ts",
+      "import": "./dist/farm.js",
+      "require": "./dist/farm.cjs"
+    },
+    "./bun": {
+      "types": "./dist/bun.d.ts",
+      "import": "./dist/bun.js",
+      "require": "./dist/bun.cjs"
     }
   },
   "files": [
@@ -57,16 +82,32 @@
     "zod": "^3.23.0"
   },
   "peerDependencies": {
-    "unplugin": "^2.0.0",
-    "vite": ">=5.0.0"
+    "unplugin": "^3.3.0",
+    "vite": ">=5.0.0",
+    "rolldown": ">=1.0.0",
+    "@rspack/core": ">=1.0.0",
+    "@rsbuild/core": ">=1.0.0",
+    "@farmfe/core": ">=1.0.0"
   },
   "peerDependenciesMeta": {
     "vite": {
       "optional": true
+    },
+    "rolldown": {
+      "optional": true
+    },
+    "@rspack/core": {
+      "optional": true
+    },
+    "@rsbuild/core": {
+      "optional": true
+    },
+    "@farmfe/core": {
+      "optional": true
     }
   },
   "dependencies": {
-    "unplugin": "^2.0.0",
+    "unplugin": "^3.3.0",
     "zod": "^3.23.0"
   }
 }
