@@ -71,6 +71,43 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return assetResolver.resolve(source);
   }
 
+  // Returns true when `id` is a JS file inside our project's wwwroot directory.
+  // Used to scope the magic-comment transform to dotnet framework files only.
+  function isFrameworkJs(id: string): boolean {
+    if (!contentWwwrootDir) return false;
+    if (!id.endsWith('.js')) return false;
+    const rel = relative(contentWwwrootDir, id);
+    return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
+  }
+
+  // Normalises magic comments in dotnet framework JS files so every bundler
+  // suppresses its "unresolvable dynamic import" warning:
+  //  • webpack/rspack: /* webpackIgnore: true */  (the /*! form trips the parser)
+  //  • vite/rollup:    /* @vite-ignore */
+  //
+  // Strategy: replace the opening of EVERY dynamic import() call — stripping any
+  // existing /* ... */ comment blocks (including the wrong /*! form or partial
+  // coverage) — and inject the canonical pair. Idempotent: already-correct
+  // comments are matched and re-emitted unchanged.
+  // A second pass handles /*! webpackIgnore: true */ on import.meta.url usages
+  // (outside import() calls), normalising the '!' that webpack's parser rejects.
+  function fixMagicComments(code: string): string | null {
+    const IMPORT_MAGIC = '/* webpackIgnore: true */ /* @vite-ignore */';
+    let result = code;
+
+    result = result.replace(
+      /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
+      `import(${IMPORT_MAGIC} `
+    );
+
+    result = result.replace(
+      /\/\*!\s*webpackIgnore:\s*true\s*\*\//g,
+      '/* webpackIgnore: true */'
+    );
+
+    return result !== code ? result : null;
+  }
+
   // Webpack/rspack module rule: treats files we own as static assets.
   // Scoped by the `include` predicate so it only claims binary files under
   // our project's wwwroot directory.  This covers both files our resolveId
@@ -107,6 +144,11 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     enforce: 'pre' as const,
     buildStart,
     resolveId,
+    transformInclude: (id: string) => isFrameworkJs(id),
+    transform: (code: string, id: string) => {
+      if (!isFrameworkJs(id)) return null;
+      return fixMagicComments(code);
+    },
   };
 
   // ── Rollup family (rollup / vite / rolldown) ────────────────────────────
@@ -175,10 +217,16 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         opts: { filter: RegExp },
         cb: (args: { path: string }) => { path: string } | null,
       ) => void;
+      onLoad: (
+        opts: { filter: RegExp },
+        cb: (args: { path: string }) => Promise<{ contents: string; loader: 'js' } | null> | null,
+      ) => void;
     }) => {
-      const ext = (build.initialOptions.external ??= []);
+      // Register Node built-ins as external so esbuild doesn't try to bundle them.
+      build.initialOptions.external ??= [];
       for (const mod of DOTNET_NODE_BUILTINS) {
-        if (!ext.includes(mod)) ext.push(mod);
+        if (!build.initialOptions.external.includes(mod))
+          build.initialOptions.external.push(mod);
       }
       // Register 'file' loader for binary extensions unless the user already set one.
       build.initialOptions.loader ??= {};
@@ -191,6 +239,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         if (!assetResolver) return null;
         const resolved = assetResolver.resolve(args.path);
         return resolved !== null ? { path: resolved } : null;
+      });
+      build.onLoad({ filter: /\.js$/ }, async args => {
+        if (!isFrameworkJs(args.path)) return null;
+        const source = await readFile(args.path, 'utf-8');
+        const fixed = fixMagicComments(source);
+        if (!fixed) return null;
+        return { contents: fixed, loader: 'js' as const };
       });
     };
     return {
