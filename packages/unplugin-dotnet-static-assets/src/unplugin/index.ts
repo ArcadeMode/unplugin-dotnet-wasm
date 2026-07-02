@@ -1,4 +1,4 @@
-import { createUnplugin } from 'unplugin';
+import { createUnplugin, UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, relative } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
@@ -32,7 +32,7 @@ function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
   }
 }
 
-export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta) => {
+export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta: UnpluginContextMeta) => {
   const framework = meta.framework;
   const isRollupFamily =
     framework === 'rollup' || framework === 'vite' || framework === 'rolldown';
@@ -82,42 +82,56 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
   }
 
-  // TODO: take a `bundler` parameter and emit only the pragmas the target
-  // bundler actually recognizes, instead of stacking every convention on
-  // every call site. Current union approach works but is noisy; Farm reads
-  // `$farm-ignore`/`$vite-ignore` (with `$`), webpack reads `webpackIgnore`,
-  // Vite reads `@vite-ignore` for dynamic import() only, etc.
-  function fixMagicComments(code: string): string | null {
-    const IGNORE_PRAGMAS = '/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */';
-    let result = code;
-    // ensure every dynamic import() call has the 'shut-up bundler' magic comments
-    result = result.replace(
-      /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-      `import(${IGNORE_PRAGMAS} `
-    );
-    // ensure every new URL() call has the 'shut-up bundler' magic comments.
-    // Farm requires `$farm-ignore` (with `$` sigil) as a leading comment on
-    // the first arg to skip its `new URL(..., import.meta.url)` → glob rewrite.
-    result = result.replace(
-      /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-      `new URL(${IGNORE_PRAGMAS} `
-    );
-    // Bun (browser target) hard-errors on any import() whose argument is a bare
-    // Node built-in string literal, even when the module is in the external list.
-    // Wrapping the literal in a comma expression — (0,"module") — is semantically
-    // identical but defeats bun's static string-literal check. Idempotent: the
-    // argument becomes a SequenceExpression on the first run, so subsequent runs
-    // won't match the bare-string pattern.
-    const builtins = DOTNET_NODE_BUILTINS.join('|');
-    result = result.replace(
-      new RegExp(`(\\bimport\\(\\s*(?:\\/\\*[\\s\\S]*?\\*\\/\\s*)*)(['"])(${builtins})\\2`, 'g'),
-      '$1(0,$2$3$2)'
-    );
-
-    return result !== code ? result : null;
+  // Returns the single magic comment that silences dynamic-import warnings for
+  // the active bundler, or '' when the bundler uses another mechanism entirely.
+  // vite:             /* @vite-ignore */      — import() only
+  // webpack family:   /* webpackIgnore: true */ — import() only (new URL handled by parser rule)
+  // farm:             /* $farm-ignore */      — import() and new URL()
+  // rollup/rolldown:  (none — no recognised pragma)
+  // esbuild/bun:      (none — Node builtins registered as external)
+  function getIgnorePragma(fw: string): string {
+    if (fw === 'vite') return '/* @vite-ignore */';
+    if (fw === 'webpack' || fw === 'rspack' || fw === 'rsbuild') return '/* webpackIgnore: true */';
+    if (fw === 'farm') return '/* $farm-ignore */';
+    return '';
   }
 
-  // Webpack/rspack module rule: treats files we own as static assets.
+  function fixMagicComments(code: string, fw: string): string | null {
+    const pragma = getIgnorePragma(fw);
+    const isWebpackFamily = fw === 'webpack' || fw === 'rspack' || fw === 'rsbuild';
+    let transformedCode = code;
+
+    if (pragma) {
+      // Suppress dynamic import() warnings with the bundler-specific magic comment.
+      transformedCode = transformedCode.replace(
+        /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
+        `import(${pragma} `
+      );
+      // Suppress new URL() asset-tracking for bundlers that don't handle it via a
+      // module rule (webpack family uses webpackJsParserRule with parser.url:false instead).
+      if (!isWebpackFamily) {
+        transformedCode = transformedCode.replace(
+          /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
+          `new URL(${pragma} `
+        );
+      }
+    }
+
+    // Bun hard-errors on any import() of Node built-in modules when building for browsers.
+    // Trick bun by wrapping the string literal in a comma expression — (0,"module") so it builds.
+    // Runtime is guarded by ENVIRONMENT_IS_NODE, so the comma expression is never executed in browsers.
+    if (fw === 'bun') {
+      const builtins = DOTNET_NODE_BUILTINS.join('|');
+      transformedCode = transformedCode.replace(
+        new RegExp(`(\\bimport\\(\\s*(?:\\/\\*[\\s\\S]*?\\*\\/\\s*)*)(['"])(${builtins})\\2`, 'g'),
+        '$1(0,$2$3$2)'
+      );
+    }
+
+    return transformedCode !== code ? transformedCode : null;
+  }
+
+  // Webpack/rspack module rule: treat dotnet wasm files as static assets.
   // Scoped by the `include` predicate so it only claims binary files under
   // our project's wwwroot directory.  This covers both files our resolveId
   // returned AND files imported transitively from dotnet.js via relative
@@ -135,9 +149,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   };
 
   // Webpack/rspack JS rule: disable URL-dependency tracking (new URL('./x', import.meta.url))
-  // for dotnet's _framework JS files. webpack 5 treats those new URL() calls as asset
-  // dependencies and tries to resolve the path as a file, but dotnet uses them as
-  // Node.js URL objects, not as bundler import paths.
+  // dotnet bootstrapping code will try to load these files so they should not be treated as bundler import paths.
   const webpackJsParserRule = {
     test: /\.js$/,
     include: (resourcePath: string) => {
@@ -156,7 +168,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     transformInclude: (id: string) => isFrameworkJs(id),
     transform: (code: string, id: string) => {
       if (!isFrameworkJs(id)) return null;
-      const fixed = fixMagicComments(code);
+      const fixed = fixMagicComments(code, framework);
       if (fixed == null) return null;
       // Return an object rather than a bare string: unplugin's Farm bridge
       // (dist/index.mjs L794) drops string returns from `transform`, so a
@@ -258,7 +270,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       build.onLoad({ filter: /\.js$/ }, async args => {
         if (!isFrameworkJs(args.path)) return null;
         const source = await readFile(args.path, 'utf-8');
-        const fixed = fixMagicComments(source);
+        const fixed = fixMagicComments(source, framework);
         if (!fixed) return null;
         return { contents: fixed, loader: 'js' as const };
       });
