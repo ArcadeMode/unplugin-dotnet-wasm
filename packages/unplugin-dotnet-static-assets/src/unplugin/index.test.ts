@@ -197,28 +197,28 @@ describe('dotnetStaticAssets — transform (magic comment normalisation)', () =>
   it('injects magic comments into a bare import() with no existing comment', () => {
     const input = `const x = import("process");`;
     const result = handler(plugin.transform)?.call({}, input, frameworkJs);
-    expect(result).toBe(`const x = import(/* webpackIgnore: true */ /* @vite-ignore */ "process");`);
+    expect(result).toBe(`const x = import(/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */ "process");`);
   });
 
   it('replaces /*! webpackIgnore: true */ with the canonical set', () => {
     const input = `const x = import(/*! webpackIgnore: true */ "process");`;
     const result = handler(plugin.transform)?.call({}, input, frameworkJs);
-    expect(result).toBe(`const x = import(/* webpackIgnore: true */ /* @vite-ignore */ "process");`);
+    expect(result).toBe(`const x = import(/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */ "process");`);
   });
 
   it('replaces partial coverage (only webpackIgnore, missing @vite-ignore)', () => {
     const input = `import(/* webpackIgnore: true */ variable);`;
     const result = handler(plugin.transform)?.call({}, input, frameworkJs);
-    expect(result).toBe(`import(/* webpackIgnore: true */ /* @vite-ignore */ variable);`);
+    expect(result).toBe(`import(/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */ variable);`);
   });
 
   it('is idempotent: already-correct comments are rewritten as-is', () => {
-    const input = `import(/* webpackIgnore: true */ /* @vite-ignore */ "process");`;
+    const input = `import(/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */ "process");`;
     const result = handler(plugin.transform)?.call({}, input, frameworkJs);
     // The input already matches the output of a previous pass, so result is null (no-op)
     // OR the same string is re-emitted. Either way the final text is identical.
     const output = result ?? input;
-    expect(output).toBe(`import(/* webpackIgnore: true */ /* @vite-ignore */ "process");`);
+    expect(output).toBe(`import(/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */ "process");`);
   });
 
   it('normalises /*! webpackIgnore: true */ on import.meta.url (outside import() calls)', () => {
@@ -236,6 +236,7 @@ describe('dotnetStaticAssets — transform (magic comment normalisation)', () =>
     const result = handler(plugin.transform)?.call({}, input, frameworkJs);
     expect(result?.match(/import\(\/\* webpackIgnore: true \*\//g)).toHaveLength(3);
     expect(result?.match(/\/\* @vite-ignore \*\//g)).toHaveLength(3);
+    expect(result?.match(/\/\* \$farm-ignore \*\//g)).toHaveLength(3);
     expect(result).not.toContain('/*!');
   });
 

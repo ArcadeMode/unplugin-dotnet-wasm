@@ -80,18 +80,25 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
   }
 
+  // TODO: take a `bundler` parameter and emit only the pragmas the target
+  // bundler actually recognizes, instead of stacking every convention on
+  // every call site. Current union approach works but is noisy; Farm reads
+  // `$farm-ignore`/`$vite-ignore` (with `$`), webpack reads `webpackIgnore`,
+  // Vite reads `@vite-ignore` for dynamic import() only, etc.
   function fixMagicComments(code: string): string | null {
-    const IMPORT_MAGIC = '/* webpackIgnore: true */ /* @vite-ignore */';
+    const IGNORE_PRAGMAS = '/* webpackIgnore: true */ /* @vite-ignore */ /* $farm-ignore */';
     let result = code;
     // ensure every dynamic import() call has the 'shut-up bundler' magic comments
     result = result.replace(
       /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-      `import(${IMPORT_MAGIC} `
+      `import(${IGNORE_PRAGMAS} `
     );
-    // ensure every new URL() call has the 'shut-up bundler' magic comments
+    // ensure every new URL() call has the 'shut-up bundler' magic comments.
+    // Farm requires `$farm-ignore` (with `$` sigil) as a leading comment on
+    // the first arg to skip its `new URL(..., import.meta.url)` → glob rewrite.
     result = result.replace(
       /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-      'new URL(/* @vite-ignore */ '
+      `new URL(${IGNORE_PRAGMAS} `
     );
     // Bun (browser target) hard-errors on any import() whose argument is a bare
     // Node built-in string literal, even when the module is in the external list.
@@ -147,7 +154,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     transformInclude: (id: string) => isFrameworkJs(id),
     transform: (code: string, id: string) => {
       if (!isFrameworkJs(id)) return null;
-      return fixMagicComments(code);
+      const fixed = fixMagicComments(code);
+      if (fixed == null) return null;
+      // Return an object rather than a bare string: unplugin's Farm bridge
+      // (dist/index.mjs L794) drops string returns from `transform`, so a
+      // plain string would leave Farm parsing the original source and its
+      // `process_module` URL→glob rewrite would panic on framework files.
+      return { code: fixed, map: null };
     },
   };
 
