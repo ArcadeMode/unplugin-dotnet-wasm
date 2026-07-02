@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "rsbuild build",
+    "preview": "rsbuild preview",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"

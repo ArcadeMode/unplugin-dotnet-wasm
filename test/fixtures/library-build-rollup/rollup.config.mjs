@@ -11,7 +11,7 @@ export default {
   output: {
     dir: resolve(__dirname, 'dist'),
     format: 'esm',
-    entryFileNames: 'assets/[name]-[hash].js',
+    entryFileNames: 'assets/entry.js',
     assetFileNames: 'assets/[name]-[hash][extname]',
   },
   plugins: [

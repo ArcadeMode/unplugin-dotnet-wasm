@@ -10,7 +10,7 @@ export default {
   entry: { main: resolve(__dirname, 'src/entry.ts') },
   output: {
     path: resolve(__dirname, 'dist'),
-    filename: 'assets/[name]-[contenthash].js',
+    filename: 'assets/entry.js',
     assetModuleFilename: 'assets/[name]-[contenthash][ext]',
     publicPath: '',
     clean: true,
