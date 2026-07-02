@@ -49,12 +49,14 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // an extension-plus-root check is correct even when resolveId isn't called
   // for those transitive imports.
   let contentWwwrootDir: string | null = null;
-
+  
+  const logLevel = options.logLevel ?? 'warn';
+  const logger = createConsoleLogger(logLevel);
+  
   async function buildStart() {
     const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
     contentWwwrootDir = join(dirname(endpointsManifestPath), 'wwwroot');
-    const logLevel = options.logLevel ?? 'warn';
-    const logger = createConsoleLogger(logLevel);
+    
     const [endpointsRaw, runtimeRaw] = await Promise.all([
       readFile(endpointsManifestPath),
       runtimeManifestPath ? readFile(runtimeManifestPath) : Promise.resolve(null),
@@ -274,5 +276,27 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // resolveId is sufficient; Farm marks binary extensions as emittable assets
   // via `compilation.assets.include` in the farm config (user responsibility,
   // not a plugin hook). Example: include: ['wasm', 'dat', 'pdb'].
-  return base;
+  //
+  // Farm defaults `output.targetEnv` to `'browser-es2017'`, which enables SWC
+  // preset-env polyfill injection and requires `core-js` to be installed.
+  // The dotnet WASM runtime needs modern JS anyway, so warn users pointing at
+  // a non-modern target — usually they want `'browser-esnext'`.
+  return {
+    ...base,
+    farm: {
+      config(userConfig: { compilation?: { output?: { targetEnv?: string }; presetEnv?: unknown } }) {
+        const targetEnv = userConfig.compilation?.output?.targetEnv;
+        const presetEnv = userConfig.compilation?.presetEnv;
+        const polyfillFree = targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;
+        if (!polyfillFree) {
+          logger.warn(
+            `The configured compilation.output.targetEnv (${targetEnv ?? 'browser-es2017'}) enables preset-env polyfill injection, ` +
+            `which requires 'core-js' to be installed. Alternatively set compilation.output.targetEnv: 'browser-esnext' | 'node-next' ` +
+            `to skip polyfills.`,
+          );
+        }
+        return {};
+      },
+    },
+  };
 });

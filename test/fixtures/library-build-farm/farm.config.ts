@@ -13,7 +13,10 @@ export default defineConfig({
       filename: 'assets/[name].[hash].[ext]',
       assetsFilename: 'assets/[resourceName].[hash].[ext]',
       publicPath: '/',
-      targetEnv: 'browser',
+      // The dotnet WASM runtime requires modern browsers; targeting
+      // `browser-esnext` disables Farm's polyfill injection (which
+      // otherwise requires `core-js` to be installed).
+      targetEnv: 'browser-esnext',
     },
     assets: {
       // Binary .NET assets (.wasm, .dat, .pdb) must be declared here so Farm
@@ -24,10 +27,6 @@ export default defineConfig({
     minify: false,
     persistentCache: false,
     progress: false,
-    // The dotnet runtime targets modern browsers only; skip Farm's default
-    // core-js polyfill injection (which fails to resolve when core-js isn't
-    // installed and shouldn't touch framework files anyway).
-    presetEnv: false,
   },
   server: { hmr: false },
   plugins: [
