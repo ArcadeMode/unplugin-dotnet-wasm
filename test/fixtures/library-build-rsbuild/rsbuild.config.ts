@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
+  html: {
+    template: './src/index.html',
+  },
   source: {
     entry: { index: resolve(__dirname, 'src/entry.ts') },
   },
