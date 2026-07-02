@@ -1,6 +1,6 @@
 import { createUnplugin, UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, extname, join, relative } from 'node:path';
+import { basename, extname } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
 import { discoverManifests } from '../core/discover.js';
 import { parseRuntimeManifest } from '../core/manifest-runtime.js';
@@ -12,9 +12,12 @@ import { AssetResolver } from '../core/asset-resolver.js';
 
 const BINARY_EXTENSIONS = new Set(['.wasm', '.dat', '.pdb']);
 
-// Node.js built-ins referenced inside ENVIRONMENT_IS_NODE guards in dotnet.native.js.
-// They are never executed in browser builds, but bundlers that don't auto-externalize
-// Node built-ins will fail trying to resolve them at build time.
+// .NET SDK output conventions
+const FRAMEWORK_BINARY_REGEX = /[\\/]_framework[\\/][^\\/]+\.(wasm|dat|pdb)$/;
+const FRAMEWORK_JS_REGEX = /[\\/]_framework[\\/]dotnet(?:\.[^\\/]+)?\.js$/;
+
+// Node.js built-ins referenced in dotnet.native.js 
+// They are uarded by ENVIRONMENT_IS_NODE checks so are never executed in browser builds but cause build errors in many bundlers.
 const DOTNET_NODE_BUILTINS = ['module', 'process', 'fs', 'path', 'url', 'worker_threads'] as const;
 
 type WebpackLikeOptions = {
@@ -42,21 +45,12 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
 
   let assetResolver: AssetResolver | null = null;
 
-  // Absolute path to the project's wwwroot directory — set in buildStart and
-  // used by the webpack-family module rule's include predicate to claim only
-  // binary files under our own content root.  All binary assets from dotnet.js
-  // (imported via relative paths like './Library.wasm') share this root, so
-  // an extension-plus-root check is correct even when resolveId isn't called
-  // for those transitive imports.
-  let contentWwwrootDir: string | null = null;
-  
   const logLevel = options.logLevel ?? 'warn';
   const logger = createConsoleLogger(logLevel);
   
   async function buildStart() {
     const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
-    contentWwwrootDir = join(dirname(endpointsManifestPath), 'wwwroot');
-    
+
     const [endpointsRaw, runtimeRaw] = await Promise.all([
       readFile(endpointsManifestPath),
       runtimeManifestPath ? readFile(runtimeManifestPath) : Promise.resolve(null),
@@ -73,17 +67,12 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return assetResolver.resolve(source);
   }
 
-  // Returns true when `id` is a JS file inside our project's wwwroot directory.
-  // Used to scope the magic-comment transform to dotnet framework files only.
   function isFrameworkJs(id: string): boolean {
-    if (!contentWwwrootDir) return false;
-    if (!id.endsWith('.js')) return false;
-    const rel = relative(contentWwwrootDir, id);
-    return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
+    return FRAMEWORK_JS_REGEX.test(id);
   }
 
   // Returns the single magic comment that silences dynamic-import warnings for
-  // the active bundler, or '' when the bundler uses another mechanism entirely.
+  // the active bundler, or '' when not supported/necessary.
   // vite:             /* @vite-ignore */      — import() only
   // webpack family:   /* webpackIgnore: true */ — import() only (new URL handled by parser rule)
   // farm:             /* $farm-ignore */      — import() and new URL()
@@ -119,7 +108,6 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
 
     // Bun hard-errors on any import() of Node built-in modules when building for browsers.
     // Trick bun by wrapping the string literal in a comma expression — (0,"module") so it builds.
-    // Runtime is guarded by ENVIRONMENT_IS_NODE, so the comma expression is never executed in browsers.
     if (fw === 'bun') {
       const builtins = DOTNET_NODE_BUILTINS.join('|');
       transformedCode = transformedCode.replace(
@@ -131,35 +119,6 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return transformedCode !== code ? transformedCode : null;
   }
 
-  // Webpack/rspack module rule: treat dotnet wasm files as static assets.
-  // Scoped by the `include` predicate so it only claims binary files under
-  // our project's wwwroot directory.  This covers both files our resolveId
-  // returned AND files imported transitively from dotnet.js via relative
-  // paths (e.g. './Library.wasm') which bypass our resolveId hook entirely.
-  // User .wasm/.dat/.pdb files outside the project content root keep their
-  // default bundler handling (e.g. experiments.asyncWebAssembly on rsbuild).
-  const webpackBinaryRule = {
-    test: /\.(wasm|dat|pdb)$/,
-    include: (resourcePath: string) => {
-      if (!contentWwwrootDir) return false;
-      const rel = relative(contentWwwrootDir, resourcePath);
-      return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
-    },
-    type: 'asset/resource',
-  };
-
-  // Webpack/rspack JS rule: disable URL-dependency tracking (new URL('./x', import.meta.url))
-  // dotnet bootstrapping code will try to load these files so they should not be treated as bundler import paths.
-  const webpackJsParserRule = {
-    test: /\.js$/,
-    include: (resourcePath: string) => {
-      if (!contentWwwrootDir) return false;
-      const rel = relative(contentWwwrootDir, resourcePath);
-      return rel !== '' && !rel.startsWith('..') && !rel.startsWith('/');
-    },
-    parser: { url: false },
-  };
-
   const base = {
     name: 'unplugin-dotnet-static-assets',
     enforce: 'pre' as const,
@@ -170,10 +129,6 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       if (!isFrameworkJs(id)) return null;
       const fixed = fixMagicComments(code, framework);
       if (fixed == null) return null;
-      // Return an object rather than a bare string: unplugin's Farm bridge
-      // (dist/index.mjs L794) drops string returns from `transform`, so a
-      // plain string would leave Farm parsing the original source and its
-      // `process_module` URL→glob rewrite would panic on framework files.
       return { code: fixed, map: null };
     },
   };
@@ -203,6 +158,20 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // so we unshift (not push) via the rsbuild hook to take priority for our
   // files while leaving user-owned .wasm imports on experiments.asyncWebAssembly.
   if (isWebpackFamily) {
+    // Force dotnet's binary assets to emit as static files. Scoped to dotnet SDK
+    // files so user .wasm files keep their default bundler handling.
+    const webpackBinaryRule = {
+      test: FRAMEWORK_BINARY_REGEX,
+      type: 'asset/resource',
+    };
+
+    // Disable URL-dependency tracking for dotnet _framework JS files. They are loaded
+    // at runtime by the bootstrapping code and shouldnt be bundled.
+    const webpackJsParserRule = {
+      test: FRAMEWORK_JS_REGEX,
+      parser: { url: false },
+    };
+
     return {
       ...base,
       webpack(compiler: { options: { module?: { rules?: unknown[] } } }) {
