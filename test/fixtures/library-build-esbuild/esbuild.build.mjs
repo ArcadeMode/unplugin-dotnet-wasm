@@ -18,11 +18,6 @@ await esbuild.build({
   platform: 'browser',
   entryNames: 'entry',
   assetNames: 'assets/[name]-[hash]',
-  loader: {
-    '.wasm': 'file',
-    '.dat': 'file',
-    '.pdb': 'file',
-  },
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../Library'),

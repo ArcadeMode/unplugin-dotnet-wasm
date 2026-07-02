@@ -170,7 +170,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // { setup(build) {} } in unplugin 3.x (not bare functions).
   if (isEsbuildFamily) {
     const setup = (build: {
-      initialOptions: { external?: string[] };
+      initialOptions: { external?: string[]; loader?: Record<string, string> };
       onResolve: (
         opts: { filter: RegExp },
         cb: (args: { path: string }) => { path: string } | null,
@@ -179,6 +179,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       const ext = (build.initialOptions.external ??= []);
       for (const mod of DOTNET_NODE_BUILTINS) {
         if (!ext.includes(mod)) ext.push(mod);
+      }
+      // Register 'file' loader for binary extensions unless the user already set one.
+      build.initialOptions.loader ??= {};
+      for (const binExt of BINARY_EXTENSIONS) {
+        if (!build.initialOptions.loader[binExt]) {
+          build.initialOptions.loader[binExt] = 'file';
+        }
       }
       build.onResolve({ filter: /.*/ }, args => {
         if (!assetResolver) return null;
