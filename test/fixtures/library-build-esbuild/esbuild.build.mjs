@@ -12,11 +12,11 @@ await esbuild.build({
   outdir,
   bundle: true,
   format: 'esm',
-  // 'neutral' lets dotnet.js's Node.js-guarded import statements pass through
-  // as external without error; the browser-specific code paths execute at
-  // runtime because the .NET loader guards all Node.js calls with typeof checks.
-  platform: 'neutral',
-  entryNames: 'assets/entry',
+  // 'browser' platform lets esbuild generate new URL(..., import.meta.url) for file-loader
+  // assets, so the hashed wasm/dat paths resolve correctly relative to entry.js rather than
+  // the document root. Node built-ins (module, process, etc.) are handled by the plugin.
+  platform: 'browser',
+  entryNames: 'entry',
   assetNames: 'assets/[name]-[hash]',
   loader: {
     '.wasm': 'file',
@@ -40,8 +40,8 @@ writeFileSync(
 <html lang="en">
   <head><meta charset="UTF-8" /><title>Library — esbuild</title></head>
   <body>
-    <p>Open DevTools console — <code>window.__lib</code> and <code>window.__libReady</code> are set on boot.</p>
-    <script type="module" src="./assets/entry.js"></script>
+    <p>Open DevTools console to see WASM boot.</p>
+    <script type="module" src="./entry.js"></script>
   </body>
 </html>`,
 );
