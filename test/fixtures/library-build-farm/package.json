@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "build": "farm build",
+    "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
   "devDependencies": {
+    "@farmfe/cli": "^1.0.5",
     "@farmfe/core": "^1.7.0",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"

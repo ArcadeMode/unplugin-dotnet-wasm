@@ -7,7 +7,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   compilation: {
-    input: { index: resolve(__dirname, 'src/entry.ts') },
+    input: { index: resolve(__dirname, 'index.html') },
     output: {
       path: resolve(__dirname, 'dist'),
       filename: 'assets/[name].[hash].[ext]',
@@ -24,6 +24,10 @@ export default defineConfig({
     minify: false,
     persistentCache: false,
     progress: false,
+    // The dotnet runtime targets modern browsers only; skip Farm's default
+    // core-js polyfill injection (which fails to resolve when core-js isn't
+    // installed and shouldn't touch framework files anyway).
+    presetEnv: false,
   },
   server: { hmr: false },
   plugins: [
