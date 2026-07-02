@@ -93,6 +93,17 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
       'new URL(/* @vite-ignore */ '
     );
+    // Bun (browser target) hard-errors on any import() whose argument is a bare
+    // Node built-in string literal, even when the module is in the external list.
+    // Wrapping the literal in a comma expression — (0,"module") — is semantically
+    // identical but defeats bun's static string-literal check. Idempotent: the
+    // argument becomes a SequenceExpression on the first run, so subsequent runs
+    // won't match the bare-string pattern.
+    const builtins = DOTNET_NODE_BUILTINS.join('|');
+    result = result.replace(
+      new RegExp(`(\\bimport\\(\\s*(?:\\/\\*[\\s\\S]*?\\*\\/\\s*)*)(['"])(${builtins})\\2`, 'g'),
+      '$1(0,$2$3$2)'
+    );
 
     return result !== code ? result : null;
   }

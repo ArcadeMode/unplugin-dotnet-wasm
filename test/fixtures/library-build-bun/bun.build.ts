@@ -2,18 +2,20 @@
 import DotnetAssets from 'unplugin-dotnet-static-assets/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { copyFileSync, mkdirSync } from 'node:fs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const outdir = resolve(__dirname, 'dist');
 
 const result = await Bun.build({
   entrypoints: [resolve(__dirname, 'src/entry.ts')],
-  outdir: resolve(__dirname, 'dist'),
+  outdir,
   target: 'browser',
   format: 'esm',
   minify: false,
   naming: {
-    entry: 'assets/[name]-[hash].[ext]',
-    asset: 'assets/[name]-[hash].[ext]',
+    entry: '[name].[ext]',
+    asset: '[name]-[hash].[ext]',
   },
   loader: {
     '.wasm': 'file',
@@ -35,3 +37,6 @@ if (!result.success) {
   console.error('Build failed:', result.logs);
   process.exit(1);
 }
+
+mkdirSync(outdir, { recursive: true });
+copyFileSync(resolve(__dirname, 'src/index.html'), resolve(outdir, 'index.html'));
