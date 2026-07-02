@@ -2,10 +2,22 @@ import * as esbuild from 'esbuild';
 import DotnetAssets from 'unplugin-dotnet-static-assets/esbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const outdir = resolve(__dirname, 'dist');
+
+const emitHtml = {
+  name: 'emit-html',
+  setup(build) {
+    build.onEnd(() => {
+      writeFileSync(
+        resolve(build.initialOptions.outdir, 'index.html'),
+        readFileSync(new URL('./src/index.html', import.meta.url), 'utf-8'),
+      );
+    });
+  },
+};
 
 await esbuild.build({
   entryPoints: [resolve(__dirname, 'src/entry.ts')],
@@ -26,17 +38,6 @@ await esbuild.build({
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
+    emitHtml,
   ],
 });
-
-writeFileSync(
-  resolve(outdir, 'index.html'),
-  `<!DOCTYPE html>
-<html lang="en">
-  <head><meta charset="UTF-8" /><title>Library — esbuild</title></head>
-  <body>
-    <p>Open DevTools console to see WASM boot.</p>
-    <script type="module" src="./entry.js"></script>
-  </body>
-</html>`,
-);

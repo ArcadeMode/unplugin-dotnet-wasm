@@ -1,8 +1,20 @@
 import DotnetAssets from 'unplugin-dotnet-static-assets/rolldown';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+const emitHtml = {
+  name: 'emit-html',
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'index.html',
+      source: readFileSync(new URL('./src/index.html', import.meta.url), 'utf-8'),
+    });
+  },
+};
 
 export default {
   input: resolve(__dirname, 'src/entry.ts'),
@@ -20,5 +32,6 @@ export default {
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
+    emitHtml,
   ],
 };
