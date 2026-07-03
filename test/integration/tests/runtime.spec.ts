@@ -15,57 +15,63 @@ declare global {
   var __libReady: boolean;
 }
 
-test.describe('WASM interop runtime behavior', () => {
+const throwErr = (msg: string): never => { throw new Error(msg); };
+const currentBundler = process.env.BUNDLER ?? throwErr("BUNDLER environment variable is missing");
+const currentShape = process.env.DOTNET_FIXTURE_SHAPE ?? throwErr("DOTNET_FIXTURE_SHAPE environment variable is missing");
+
+test.describe(`[${currentBundler}][${currentShape}] WASM interop runtime behavior`, () => {
   test.describe.configure({ mode: 'serial' });
 
-  let pg!: Page;
+  let page!: Page;
 
   test.beforeAll(async ({ browser }) => {
-    pg = await browser.newPage();
-    await pg.goto('/');
-    await pg.waitForFunction(() => globalThis.__libReady === true, { timeout: 30_000 });
+    test.skip(currentShape === 'none', 'skipped for "none" shape'); // no client to run.
+    
+    page = await browser.newPage();
+    await page.goto('/');
+    await page.waitForFunction(() => globalThis.__libReady === true, { timeout: 30_000 });
   });
 
-  test.afterAll(() => pg?.close());
+  test.afterAll(() => page?.close());
 
   test('Echo.Greet returns greeting string', async () => {
-    const result = await pg.evaluate(() => globalThis.__lib.greet('world'));
+    const result = await page.evaluate(() => globalThis.__lib.greet('world'));
     expect(result).toBe('Hello, world');
   });
 
   test('Echo.Add returns correct sum', async () => {
-    const result = await pg.evaluate(() => globalThis.__lib.add(2, 3));
+    const result = await page.evaluate(() => globalThis.__lib.add(2, 3));
     expect(result).toBe(5);
   });
 
   test('Echo.BoolNot inverts boolean', async () => {
-    const t = await pg.evaluate(() => globalThis.__lib.boolNot(true));
-    const f = await pg.evaluate(() => globalThis.__lib.boolNot(false));
+    const t = await page.evaluate(() => globalThis.__lib.boolNot(true));
+    const f = await page.evaluate(() => globalThis.__lib.boolNot(false));
     expect(t).toBe(false);
     expect(f).toBe(true);
   });
 
   test('Echo.Pi approximates Math.PI', async () => {
-    const result = await pg.evaluate(() => globalThis.__lib.pi());
+    const result = await page.evaluate(() => globalThis.__lib.pi());
     expect(result).toBeCloseTo(Math.PI, 4);
   });
 
   test('Counter accumulates state across calls', async () => {
-    const v1 = await pg.evaluate(() => globalThis.__lib.incrementCounter());
-    const v2 = await pg.evaluate(() => globalThis.__lib.incrementCounter());
+    const v1 = await page.evaluate(() => globalThis.__lib.incrementCounter());
+    const v2 = await page.evaluate(() => globalThis.__lib.incrementCounter());
     expect(typeof v1).toBe('number');
     expect(v2).toBe(v1 + 1);
   });
 
   test('AsyncOps.DelayThenEcho round-trips a string', async () => {
-    const result = await pg.evaluate(() =>
+    const result = await page.evaluate(() =>
       globalThis.__lib.delayThenEcho('hello', 10)
     );
     expect(result).toBe('hello');
   });
 
   test('Throws.Boom propagates a .NET exception to JS', async () => {
-    const caught = await pg.evaluate(async () => {
+    const caught = await page.evaluate(async () => {
       try {
         globalThis.__lib.boom();
         return null;
