@@ -8,6 +8,7 @@ import { IsolatedRspackBuild } from './isolated-rspack-build.js';
 import { IsolatedRsbuildBuild } from './isolated-rsbuild-build.js';
 import { IsolatedEsbuildBuild } from './isolated-esbuild-build.js';
 import { IsolatedFarmBuild } from './isolated-farm-build.js';
+import { IsolatedBunBuild } from './isolated-bun-build.js';
 
 export function createIsolatedBuild(bundler: Bundler, fixtureDir: string, label: string): IsolatedBundlerBuild {
   switch (bundler) {
@@ -19,6 +20,6 @@ export function createIsolatedBuild(bundler: Bundler, fixtureDir: string, label:
     case 'rsbuild':  return new IsolatedRsbuildBuild(fixtureDir, label);
     case 'esbuild':  return new IsolatedEsbuildBuild(fixtureDir, label);
     case 'farm':     return new IsolatedFarmBuild(fixtureDir, label);
-    case 'bun':      throw new Error('bun cannot be driven from Node (requires the Bun runtime); gate the test with NODE_API_BUNDLERS.');
+    case 'bun':      return new IsolatedBunBuild(fixtureDir, label);
   }
 }

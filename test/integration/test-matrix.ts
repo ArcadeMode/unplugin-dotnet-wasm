@@ -25,11 +25,10 @@ const VALID_BUNDLERS: readonly Bundler[]    = [
   'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
 ];
 
-// Bundlers we can drive from vitest via a Node API. `bun` requires the Bun
-// runtime for `Bun.build`, so integration tests that construct an
-// `IsolatedBundlerBuild` gate themselves on this list.
+// Bundlers we can drive from vitest via a Node API. `bun` is driven via a
+// subprocess call to `bun run`, so it requires the Bun runtime to be installed.
 export const NODE_API_BUNDLERS: readonly Bundler[] = [
-  'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm',
+  'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
 ];
 
 function readShape(): FixtureShape {
