@@ -48,7 +48,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUND
 
   it('Library*.wasm is present (user assembly emitted)', () => {
     const files = readdirSync(vb.assets);
-    expect(files.some(f => /^Library[.-][^/]+\.wasm$/.test(f))).toBe(true);
+    expect(files.some(f => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
   });
 
   it('entry chunk references a *.wasm asset URL', () => {

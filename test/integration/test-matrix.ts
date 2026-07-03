@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe, it, SuiteFactory } from 'vitest';
 import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -112,7 +112,10 @@ type DescribeFn = (name: string, fn: () => void) => void;
 type ItFn       = (name: string, fn: () => void | Promise<void>, timeout?: number) => void;
 
 export function describeWhen(c: Constraint): DescribeFn {
-  if (matches(c)) return describe as unknown as DescribeFn;
+  if (matches(c)) {
+    const prefix = `[${currentBundler}][${currentShape}]`;
+    return ((name: string, fn: SuiteFactory<object>) => describe(`${prefix} ${name}`, fn)) as unknown as DescribeFn;
+  }
   const reason = skipReason(c);
   return (name, fn) => describe.skip(`${name} [skipped: ${reason}]`, fn);
 }

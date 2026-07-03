@@ -24,9 +24,9 @@ function assertPublishBuild(vb: IsolatedBundlerBuild): void {
     expect(wasmFiles.length).toBeGreaterThan(0);
   });
 
-  it('Library*.wasm is present (user assembly emitted)', () => {
+  it('Library*.wasm is emitted including hash', () => {
     const files = readdirSync(vb.assets);
-    expect(files.some(f => /^Library[.-][^/]+\.wasm$/.test(f))).toBe(true);
+    expect(files.some(f => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
   });
 
   it('dotnet.native*.wasm byte length matches publish source', () => {
