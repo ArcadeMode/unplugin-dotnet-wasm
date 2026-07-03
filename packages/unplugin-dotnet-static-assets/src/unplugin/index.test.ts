@@ -145,14 +145,14 @@ describe('dotnetStaticAssets — load', () => {
     typeshimTs       = callResolveId(plugin, 'typeshim')!;
   });
 
-  it('returns null for a .ts file (falls through to Vite transformer)', async () => {
+  it('returns undefined for a .ts file (falls through to Vite transformer)', async () => {
     const result = await callLoad(plugin, typeshimTs);
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
-  it('returns null for a .js file', async () => {
+  it('returns undefined for a .js file', async () => {
     const result = await callLoad(plugin, join(BIN_WWWROOT, '_framework', 'dotnet.js'));
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
   it('emits a .wasm file as an asset and returns an import.meta.ROLLUP_FILE_URL reference', async () => {

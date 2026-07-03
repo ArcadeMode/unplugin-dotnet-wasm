@@ -1,6 +1,6 @@
 import { createUnplugin, UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
 import { discoverManifests } from '../core/discover.js';
 import { parseRuntimeManifest } from '../core/manifest-runtime.js';
@@ -10,7 +10,7 @@ import { buildVfs, buildEmptyVfs } from '../core/vfs.js';
 import { createConsoleLogger } from '../core/logger.js';
 import { AssetResolver } from '../core/asset-resolver.js';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter.js';
-import { BINARY_EXTENSIONS, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants.js';
+import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants.js';
 
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta: UnpluginContextMeta) => {
   const framework = meta.framework;
@@ -23,10 +23,6 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   const rewriter = new BundlerCompatRewriter(framework as BundlerFramework);
   
   let assetResolver: AssetResolver | null = null;
-
-  function isFrameworkJs(id: string): boolean {
-    return FRAMEWORK_JS_REGEX.test(id);
-  }
 
   const base = {
     name: 'unplugin-dotnet-static-assets',
@@ -47,14 +43,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       if (!assetResolver) return null;
       return assetResolver.resolve(source);
     },
-    transformInclude(id: string): boolean {
-      return isFrameworkJs(id);
-    },
-    transform(code: string, id: string): { code: string; map: null } | null {
-      if (!isFrameworkJs(id)) return null;
-      const fixed = rewriter.rewrite(code);
-      if (fixed == null) return null;
-      return { code: fixed, map: null };
+    transform: {
+      filter: { id: FRAMEWORK_JS_REGEX },
+      handler(code: string): { code: string; map: null } | null {
+        const fixed = rewriter.rewrite(code);
+        if (fixed == null) return null;
+        return { code: fixed, map: null };
+      },
     },
   };
 
@@ -64,24 +59,20 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   if (isRollupFamily) {
     return {
       ...base,
-      async load(id: string): Promise<string | null> {
-        const ext = extname(id);
-        if (!BINARY_EXTENSIONS.has(ext)) return null;
-        const source = await readFile(id);
-        const refId = this.emitFile({ type: 'asset', name: basename(id), source });
-        return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
+      load: {
+        filter: { id: BINARY_EXTENSIONS_REGEX },
+        async handler(id: string): Promise<string> {
+          const source = await readFile(id);
+          const refId = this.emitFile({ type: 'asset', name: basename(id), source });
+          return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
+        },
       },
     };
   }
 
   // ── Webpack family (webpack / rspack / rsbuild) ─────────────────────────
-  // Omit `load` — unplugin's webpack load-loader is not `raw: true`, so
-  // binary bytes would be UTF-8 round-tripped and corrupted. Instead, inject
-  // an `asset/resource` module rule via the compiler hook; it fires because
-  // our resolveId returns the real absolute path for each owned file.
-  // rsbuild has a built-in .wasm rule that runs ahead of appended user rules,
-  // so we unshift (not push) via the rsbuild hook to take priority for our
-  // files while leaving user-owned .wasm imports on experiments.asyncWebAssembly.
+  // unplugin `load` is unsuitable for this family, it would mistakenly transform the wasm/dat file content.
+  // `asset/resource` module rule via the compiler hook
   if (isWebpackFamily) {
     // Force dotnet's binary assets to emit as static files. Scoped to dotnet SDK
     // files so user .wasm files keep their default bundler handling.
@@ -177,7 +168,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         return resolved !== null ? { path: resolved } : null;
       });
       build.onLoad({ filter: /\.js$/ }, async args => {
-        if (!isFrameworkJs(args.path)) return null;
+        if (!FRAMEWORK_JS_REGEX.test(args.path)) return null;
         const source = await readFile(args.path, 'utf-8');
         const fixed = rewriter.rewrite(source);
         if (!fixed) return null;

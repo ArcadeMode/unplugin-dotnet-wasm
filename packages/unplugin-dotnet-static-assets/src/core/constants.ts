@@ -1,4 +1,5 @@
 export const BINARY_EXTENSIONS = new Set(['.wasm', '.dat', '.pdb']);
+export const BINARY_EXTENSIONS_REGEX = /\.(wasm|dat|pdb)$/;
 
 // .NET SDK output conventions: all dotnet framework files live under a
 // `_framework/` directory. These patterns help scope bundler rules.
