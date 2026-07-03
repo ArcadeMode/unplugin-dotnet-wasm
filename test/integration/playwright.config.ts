@@ -6,12 +6,14 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = process.env.BUNDLER ?? 'vite';
 const DIST_DIR = process.env.DIST_DIR
   ?? resolve(__dirname, `../fixtures/library-build-${BUNDLER}/dist`);
+const configName = `${BUNDLER}-${process.env.DOTNET_FIXTURE_SHAPE ?? 'fingerprint'}`;
 
 export default defineConfig({
   testDir: '.',
   testMatch: ['*.spec.ts'],
   timeout: 60_000,
   globalSetup: './global-setup.ts',
+  reporter: [['json', { outputFile: resolve(__dirname, `test-results/${configName}.json`) }]],
   use: {
     baseURL: 'http://localhost:5174',
     headless: true,

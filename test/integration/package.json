@@ -9,7 +9,7 @@
     "test:e2e": "playwright test",
     "e2e:install": "playwright install chromium --with-deps",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf coverage"
+    "clean": "rimraf coverage test-results"
   },
   "devDependencies": {
     "@farmfe/core": "^1.7.0",
