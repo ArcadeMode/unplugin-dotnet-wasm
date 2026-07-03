@@ -9,125 +9,50 @@ import { buildEndpointLookup } from '../core/endpoint-lookup.js';
 import { buildVfs, buildEmptyVfs } from '../core/vfs.js';
 import { createConsoleLogger } from '../core/logger.js';
 import { AssetResolver } from '../core/asset-resolver.js';
-
-const BINARY_EXTENSIONS = new Set(['.wasm', '.dat', '.pdb']);
-
-// .NET SDK output conventions
-const FRAMEWORK_BINARY_REGEX = /[\\/]_framework[\\/][^\\/]+\.(wasm|dat|pdb)$/;
-const FRAMEWORK_JS_REGEX = /[\\/]_framework[\\/]dotnet(?:\.[^\\/]+)?\.js$/;
-
-// Node.js built-ins referenced in dotnet.native.js 
-// They are uarded by ENVIRONMENT_IS_NODE checks so are never executed in browser builds but cause build errors in many bundlers.
-const DOTNET_NODE_BUILTINS = ['module', 'process', 'fs', 'path', 'url', 'worker_threads'] as const;
-
-type WebpackLikeOptions = {
-  resolve?: { fallback?: Record<string, unknown> };
-  module?: { rules?: unknown[] };
-};
-
-function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
-  opts.resolve ??= {};
-  opts.resolve.fallback ??= {};
-  for (const mod of DOTNET_NODE_BUILTINS) {
-    if (!(mod in opts.resolve.fallback)) {
-      opts.resolve.fallback[mod] = false;
-    }
-  }
-}
+import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter.js';
+import { BINARY_EXTENSIONS, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants.js';
 
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta: UnpluginContextMeta) => {
   const framework = meta.framework;
-  const isRollupFamily =
-    framework === 'rollup' || framework === 'vite' || framework === 'rolldown';
-  const isWebpackFamily =
-    framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
+  const isRollupFamily = framework === 'rollup' || framework === 'vite' || framework === 'rolldown';
+  const isWebpackFamily = framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
   const isEsbuildFamily = framework === 'esbuild' || framework === 'bun';
-
-  let assetResolver: AssetResolver | null = null;
-
+  
   const logLevel = options.logLevel ?? 'warn';
   const logger = createConsoleLogger(logLevel);
+  const rewriter = new BundlerCompatRewriter(framework as BundlerFramework);
   
-  async function buildStart() {
-    const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
-
-    const [endpointsRaw, runtimeRaw] = await Promise.all([
-      readFile(endpointsManifestPath),
-      runtimeManifestPath ? readFile(runtimeManifestPath) : Promise.resolve(null),
-    ]);
-    const endpointLookup = buildEndpointLookup(parseEndpointsManifest(endpointsRaw));
-    const vfs = runtimeRaw
-      ? buildVfs(parseRuntimeManifest(runtimeRaw), { logger })
-      : buildEmptyVfs(endpointsManifestPath, { logger });
-    assetResolver = new AssetResolver(vfs, endpointLookup);
-  }
-
-  function resolveId(source: string): string | null {
-    if (!assetResolver) return null;
-    return assetResolver.resolve(source);
-  }
+  let assetResolver: AssetResolver | null = null;
 
   function isFrameworkJs(id: string): boolean {
     return FRAMEWORK_JS_REGEX.test(id);
   }
 
-  // Returns the single magic comment that silences dynamic-import warnings for
-  // the active bundler, or '' when not supported/necessary.
-  // vite:             /* @vite-ignore */      — import() only
-  // webpack family:   /* webpackIgnore: true */ — import() only (new URL handled by parser rule)
-  // farm:             /* $farm-ignore */      — import() and new URL()
-  // rollup/rolldown:  (none — no recognised pragma)
-  // esbuild/bun:      (none — Node builtins registered as external)
-  function getIgnorePragma(fw: string): string {
-    if (fw === 'vite') return '/* @vite-ignore */';
-    if (fw === 'webpack' || fw === 'rspack' || fw === 'rsbuild') return '/* webpackIgnore: true */';
-    if (fw === 'farm') return '/* $farm-ignore */';
-    return '';
-  }
-
-  function fixMagicComments(code: string, fw: string): string | null {
-    const pragma = getIgnorePragma(fw);
-    const isWebpackFamily = fw === 'webpack' || fw === 'rspack' || fw === 'rsbuild';
-    let transformedCode = code;
-
-    if (pragma) {
-      // Suppress dynamic import() warnings with the bundler-specific magic comment.
-      transformedCode = transformedCode.replace(
-        /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-        `import(${pragma} `
-      );
-      // Suppress new URL() asset-tracking for bundlers that don't handle it via a
-      // module rule (webpack family uses webpackJsParserRule with parser.url:false instead).
-      if (!isWebpackFamily) {
-        transformedCode = transformedCode.replace(
-          /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-          `new URL(${pragma} `
-        );
-      }
-    }
-
-    // Bun hard-errors on any import() of Node built-in modules when building for browsers.
-    // Trick bun by wrapping the string literal in a comma expression — (0,"module") so it builds.
-    if (fw === 'bun') {
-      const builtins = DOTNET_NODE_BUILTINS.join('|');
-      transformedCode = transformedCode.replace(
-        new RegExp(`(\\bimport\\(\\s*(?:\\/\\*[\\s\\S]*?\\*\\/\\s*)*)(['"])(${builtins})\\2`, 'g'),
-        '$1(0,$2$3$2)'
-      );
-    }
-
-    return transformedCode !== code ? transformedCode : null;
-  }
-
   const base = {
     name: 'unplugin-dotnet-static-assets',
     enforce: 'pre' as const,
-    buildStart,
-    resolveId,
-    transformInclude: (id: string) => isFrameworkJs(id),
-    transform: (code: string, id: string) => {
+    async buildStart(): Promise<void> {
+      const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
+      const [endpointsRaw, runtimeRaw] = await Promise.all([
+        readFile(endpointsManifestPath),
+        runtimeManifestPath ? readFile(runtimeManifestPath) : Promise.resolve(null),
+      ]);
+      const endpointLookup = buildEndpointLookup(parseEndpointsManifest(endpointsRaw));
+      const vfs = runtimeRaw
+        ? buildVfs(parseRuntimeManifest(runtimeRaw), { logger })
+        : buildEmptyVfs(endpointsManifestPath, { logger });
+      assetResolver = new AssetResolver(vfs, endpointLookup);
+    },
+    resolveId(source: string): string | null {
+      if (!assetResolver) return null;
+      return assetResolver.resolve(source);
+    },
+    transformInclude(id: string): boolean {
+      return isFrameworkJs(id);
+    },
+    transform(code: string, id: string): { code: string; map: null } | null {
       if (!isFrameworkJs(id)) return null;
-      const fixed = fixMagicComments(code, framework);
+      const fixed = rewriter.rewrite(code);
       if (fixed == null) return null;
       return { code: fixed, map: null };
     },
@@ -139,7 +64,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   if (isRollupFamily) {
     return {
       ...base,
-      async load(id: string) {
+      async load(id: string): Promise<string | null> {
         const ext = extname(id);
         if (!BINARY_EXTENSIONS.has(ext)) return null;
         const source = await readFile(id);
@@ -171,6 +96,21 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       test: FRAMEWORK_JS_REGEX,
       parser: { url: false },
     };
+
+    type WebpackLikeOptions = {
+      resolve?: { fallback?: Record<string, unknown> };
+      module?: { rules?: unknown[] };
+    };
+
+    function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
+      opts.resolve ??= {};
+      opts.resolve.fallback ??= {};
+      for (const mod of DOTNET_NODE_BUILTINS) {
+        if (!(mod in opts.resolve.fallback)) {
+          opts.resolve.fallback[mod] = false;
+        }
+      }
+    }
 
     return {
       ...base,
@@ -239,15 +179,15 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       build.onLoad({ filter: /\.js$/ }, async args => {
         if (!isFrameworkJs(args.path)) return null;
         const source = await readFile(args.path, 'utf-8');
-        const fixed = fixMagicComments(source, framework);
+        const fixed = rewriter.rewrite(source);
         if (!fixed) return null;
         return { contents: fixed, loader: 'js' as const };
       });
     };
     return {
-      name: 'unplugin-dotnet-static-assets',
-      enforce: 'pre' as const,
-      buildStart,
+      name: base.name,
+      enforce: base.enforce,
+      buildStart: base.buildStart,
       esbuild: { setup },
       bun: { setup },
     };
