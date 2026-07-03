@@ -1,23 +1,23 @@
 import { it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
-import { IsolatedViteBuild } from '../bundler-build-helper.js';
-import { describeWhen, currentBundler } from '../test-matrix.js';
+import { createIsolatedBuild } from '../bundlers/index.js';
+import { describeWhen, currentBundler, NODE_API_BUNDLERS } from '../test-matrix.js';
 
 // Prerequisite: the plugin dist must be built before running this test.
 
 const FIXTURE_DIR = resolve(__dirname, `../../fixtures/library-build-${currentBundler}`);
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Build non-publish (Debug config + scattered output)', () => {
-  const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm1-default');
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Build non-publish (Debug config + scattered output)', () => {
+  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm1-default');
 
   beforeAll(() => vb.build({
     projectRoot: LIBRARY_DIR,
     projectName: 'Library',
     configuration: 'Debug',
     targetFramework: 'net10.0',
-  }), 30_000);
+  }), 60_000);
 
   afterAll(() => vb.cleanup());
 
@@ -28,12 +28,12 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Build non-publish (D
 
   it('dist/assets/ contains dotnet.native*.wasm', () => {
     const files = readdirSync(vb.assets);
-    expect(files.some(f => /^dotnet\.native[.-][^/]+\.wasm$/.test(f))).toBe(true);
+    expect(files.some(f => /^dotnet(\.native)?[.-][^/]+\.wasm$/.test(f))).toBe(true);
   });
 
   it('dotnet.native*.wasm byte length matches source', () => {
     const files = readdirSync(vb.assets);
-    const distFile = files.find(f => /^dotnet\.native[.-][^/]+\.wasm$/.test(f))!;
+    const distFile = files.find(f => /^dotnet(\.native)?[.-][^/]+\.wasm$/.test(f))!;
     const frameworkDir = join(LIBRARY_DIR, 'bin', 'Debug', 'net10.0', 'wwwroot', '_framework');
     const srcName = readdirSync(frameworkDir).find(f => /^dotnet\.native(\.[a-z0-9]+)?\.wasm$/.test(f))!;
     expect(srcName).toBeDefined();
@@ -52,9 +52,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Build non-publish (D
   });
 
   it('entry chunk references a *.wasm asset URL', () => {
-    const jsFiles = readdirSync(vb.assets).filter(f => /^index-.*\.js$/.test(f));
-    expect(jsFiles.length).toBeGreaterThan(0);
-    const content = readFileSync(join(vb.assets, jsFiles[0]!), 'utf8');
+    const content = readFileSync(vb.entryChunk, 'utf8');
     expect(content).toMatch(/\.wasm/);
   });
 });

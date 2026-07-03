@@ -2,8 +2,8 @@ import { it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { IsolatedViteBuild } from '../bundler-build-helper.js';
-import { describeWhen, currentBundler } from '../test-matrix.js';
+import { createIsolatedBuild, type IsolatedBundlerBuild } from '../bundlers/index.js';
+import { describeWhen, currentBundler, NODE_API_BUNDLERS } from '../test-matrix.js';
 
 // Prerequisite for fingerprint/nofingerprint shapes: npm build:library:fingerprint (or :nofingerprint)
 // The `none` shape covers the negative path: no publish output exists so dotnet clean should be ran before.
@@ -13,7 +13,7 @@ const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 const PUBLISH_DIR = join(LIBRARY_DIR, 'bin', 'Release', 'net10.0', 'publish');
 
 // Shared assertions re-used by both publish-build describe blocks.
-function assertPublishBuild(vb: IsolatedViteBuild): void {
+function assertPublishBuild(vb: IsolatedBundlerBuild): void {
   it('builds without "Could not resolve" warnings', () => {
     const bad = vb.warnings.filter(w => w.includes('Could not resolve'));
     expect(bad).toHaveLength(0);
@@ -31,7 +31,7 @@ function assertPublishBuild(vb: IsolatedViteBuild): void {
 
   it('dotnet.native*.wasm byte length matches publish source', () => {
     const distFiles = readdirSync(vb.assets);
-    const distFile = distFiles.find(f => /^dotnet\.native[.-][^/]+\.wasm$/.test(f));
+    const distFile = distFiles.find(f => /^dotnet(\.native)?[.-][^/]+\.wasm$/.test(f));
     expect(distFile).toBeDefined();
     const frameworkDir = join(PUBLISH_DIR, 'wwwroot', '_framework');
     // Match canonical OR fingerprinted — fresh fingerprint publish has only the fingerprinted variant.
@@ -42,15 +42,13 @@ function assertPublishBuild(vb: IsolatedViteBuild): void {
   });
 
   it('entry chunk references a *.wasm asset URL', () => {
-    const jsFiles = readdirSync(vb.assets).filter(f => /^index-.*\.js$/.test(f));
-    expect(jsFiles.length).toBeGreaterThan(0);
-    const content = readFileSync(join(vb.assets, jsFiles[0]!), 'utf8');
+    const content = readFileSync(vb.entryChunk, 'utf8');
     expect(content).toMatch(/\.wasm/);
   });
 }
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Vite publish build (isPublish: true)', () => {
-  const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-ispublish');
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Publish build (isPublish: true)', () => {
+  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-ispublish');
 
   beforeAll(() => vb.build({
     projectRoot: LIBRARY_DIR,
@@ -58,20 +56,20 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Vite publish build (
     configuration: 'Release',
     targetFramework: 'net10.0',
     isPublish: true,
-  }), 30_000);
+  }), 60_000);
 
   afterAll(() => vb.cleanup());
 
   assertPublishBuild(vb);
 });
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Vite publish build (explicit dotnetOutputDir)', () => {
-  const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-dotnet-output-dir');
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Publish build (explicit dotnetOutputDir)', () => {
+  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-dotnet-output-dir');
 
   beforeAll(() => vb.build({
     projectName: 'Library',
     dotnetOutputDir: PUBLISH_DIR,
-  }), 30_000);
+  }), 60_000);
 
   afterAll(() => vb.cleanup());
 
@@ -79,9 +77,9 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Vite publish build (
 });
 
 
-describeWhen({ shapes: ['none'] })('DiscoveryError when publish output is absent', () => {
+describeWhen({ shapes: ['none'], bundlers: NODE_API_BUNDLERS })('DiscoveryError when publish output is absent', () => {
   it('isPublish: true → fails naming the searched publish dir', async () => {
-    const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-3-discovery');
+    const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-3-discovery');
     try {
       const expectedDir = join(PUBLISH_DIR);
       await expect(vb.build({
@@ -107,7 +105,7 @@ describeWhen({ shapes: ['none'] })('DiscoveryError when publish output is absent
   }, 30_000);
 
   it('dotnetOutputDir: <missing> → fails naming the given dir', async () => {
-    const vb = new IsolatedViteBuild(FIXTURE_DIR, 'm2-3-explicit');
+    const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-3-explicit');
     const missingDir = join(tmpdir(), `dotnet-wasm-bundler-missing-${Date.now()}`);
     try {
       await expect(vb.build({

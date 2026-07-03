@@ -1,16 +1,14 @@
-import { build } from 'vite';
-import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = process.env.BUNDLER ?? 'vite';
+const VALID_BUNDLERS = new Set([
+  'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
+]);
 
 export default async function globalSetup(): Promise<void> {
-  if (BUNDLER !== 'vite') {
-    throw new Error(`global-setup: BUNDLER='${BUNDLER}' is not implemented yet.`);
+  if (!VALID_BUNDLERS.has(BUNDLER)) {
+    throw new Error(`global-setup: BUNDLER='${BUNDLER}' is not one of ${[...VALID_BUNDLERS].join(', ')}.`);
   }
-  await build({
-    root: resolve(__dirname, `../fixtures/library-build-${BUNDLER}`),
-    logLevel: 'error',
-  });
+  const fixtureName = `@dotnet-wasm-bundler/library-build-${BUNDLER}-fixture`;
+  execFileSync('pnpm', ['--filter', fixtureName, 'build'], { stdio: 'inherit', shell: true });
 }

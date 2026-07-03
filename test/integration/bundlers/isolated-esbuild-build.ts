@@ -1,0 +1,29 @@
+import { join } from 'node:path';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
+
+export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
+  constructor(fixtureDir: string, label: string) { super('esbuild', fixtureDir, label); }
+  get entryChunk(): string { return join(this.assets, 'entry.js'); }
+
+  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+    this.warnings.length = 0;
+    const [esbuild, { default: DotnetAssets }] = await Promise.all([
+      import('esbuild'),
+      import('unplugin-dotnet-static-assets/esbuild'),
+    ]);
+
+    const result = await esbuild.build({
+      entryPoints: [this.entryPoint()],
+      outdir: this.outDir,
+      bundle: true,
+      format: 'esm',
+      platform: 'browser',
+      entryNames: 'assets/entry',
+      assetNames: 'assets/[name]-[hash]',
+      logLevel: 'silent',
+      plugins: [DotnetAssets(pluginOptions)],
+    });
+    for (const w of result.warnings) this.warnings.push(w.text);
+  }
+}

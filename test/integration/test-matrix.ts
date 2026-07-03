@@ -4,7 +4,16 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 export type FixtureShape = 'fingerprint' | 'nofingerprint' | 'none';
-export type Bundler      = 'vite';   // grows to | 'webpack' | 'rspack' | …
+export type Bundler =
+  | 'vite'
+  | 'rollup'
+  | 'rolldown'
+  | 'webpack'
+  | 'rspack'
+  | 'rsbuild'
+  | 'esbuild'
+  | 'farm'
+  | 'bun';
 
 export interface Constraint {
   shapes?:   readonly FixtureShape[];
@@ -12,7 +21,16 @@ export interface Constraint {
 }
 
 const VALID_SHAPES: readonly FixtureShape[] = ['fingerprint', 'nofingerprint', 'none'];
-const VALID_BUNDLERS: readonly Bundler[]    = ['vite'];
+const VALID_BUNDLERS: readonly Bundler[]    = [
+  'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
+];
+
+// Bundlers we can drive from vitest via a Node API. `bun` requires the Bun
+// runtime for `Bun.build`, so integration tests that construct an
+// `IsolatedBundlerBuild` gate themselves on this list.
+export const NODE_API_BUNDLERS: readonly Bundler[] = [
+  'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm',
+];
 
 function readShape(): FixtureShape {
   const raw = process.env.DOTNET_FIXTURE_SHAPE ?? 'fingerprint';

@@ -251,15 +251,42 @@ importers:
         specifier: workspace:*
         version: link:../../packages/unplugin-dotnet-static-assets
     devDependencies:
+      '@farmfe/core':
+        specifier: ^1.7.0
+        version: 1.7.11(@types/node@26.0.0)
       '@playwright/test':
         specifier: ^1.50.0
         version: 1.61.1
+      '@rollup/plugin-node-resolve':
+        specifier: ^16.0.0
+        version: 16.0.3(rollup@4.62.2)
+      '@rsbuild/core':
+        specifier: ^2.1.0
+        version: 2.1.2(core-js@3.49.0)
+      '@rspack/core':
+        specifier: ^2.1.0
+        version: 2.1.2(@swc/helpers@0.5.23)
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
       rimraf:
         specifier: ^6.0.0
         version: 6.1.3
+      rolldown:
+        specifier: ^1.1.0
+        version: 1.1.4
+      rollup:
+        specifier: ^4.0.0
+        version: 4.62.2
+      rollup-plugin-esbuild:
+        specifier: ^6.0.0
+        version: 6.2.1(esbuild@0.28.1)(rollup@4.62.2)
       sirv-cli:
         specifier: ^3.0.0
         version: 3.0.1
+      ts-loader:
+        specifier: ^9.0.0
+        version: 9.6.2(typescript@5.9.3)(webpack@5.108.3(esbuild@0.28.1)(lightningcss@1.32.0))
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -269,6 +296,9 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@26.0.0)(lightningcss@1.32.0)(terser@5.48.0)
+      webpack:
+        specifier: ^5.0.0
+        version: 5.108.3(esbuild@0.28.1)(lightningcss@1.32.0)
 
 packages:
 
@@ -6295,6 +6325,17 @@ snapshots:
       postcss: 8.5.16
     optional: true
 
+  minimizer-webpack-plugin@5.6.1(esbuild@0.28.1)(lightningcss@1.32.0)(webpack@5.108.3(esbuild@0.28.1)(lightningcss@1.32.0)):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      jest-worker: 27.5.1
+      schema-utils: 4.3.3
+      terser: 5.48.0
+      webpack: 5.108.3(esbuild@0.28.1)(lightningcss@1.32.0)
+    optionalDependencies:
+      esbuild: 0.28.1
+      lightningcss: 1.32.0
+
   minimizer-webpack-plugin@5.6.1(webpack@5.108.3):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
@@ -6638,6 +6679,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  rollup-plugin-esbuild@6.2.1(esbuild@0.28.1)(rollup@4.62.2):
+    dependencies:
+      debug: 4.4.3
+      es-module-lexer: 1.7.0
+      esbuild: 0.28.1
+      get-tsconfig: 4.14.0
+      rollup: 4.62.2
+      unplugin-utils: 0.2.5
+    transitivePeerDependencies:
+      - supports-color
+
   rollup@4.62.2:
     dependencies:
       '@types/estree': 1.0.9
@@ -6885,6 +6937,14 @@ snapshots:
       typescript: 5.9.3
 
   ts-interface-checker@0.1.13: {}
+
+  ts-loader@9.6.2(typescript@5.9.3)(webpack@5.108.3(esbuild@0.28.1)(lightningcss@1.32.0)):
+    dependencies:
+      chalk: 4.1.2
+      picomatch: 4.0.4
+      source-map: 0.7.6
+      typescript: 5.9.3
+      webpack: 5.108.3(esbuild@0.28.1)(lightningcss@1.32.0)
 
   ts-loader@9.6.2(typescript@5.9.3)(webpack@5.108.3):
     dependencies:
@@ -7147,6 +7207,44 @@ snapshots:
       - postcss
       - uglify-js
     optional: true
+
+  webpack@5.108.3(esbuild@0.28.1)(lightningcss@1.32.0):
+    dependencies:
+      '@types/estree': 1.0.9
+      '@types/json-schema': 7.0.15
+      '@webassemblyjs/ast': 1.14.1
+      '@webassemblyjs/wasm-edit': 1.14.1
+      '@webassemblyjs/wasm-parser': 1.14.1
+      acorn: 8.17.0
+      acorn-import-phases: 1.0.4(acorn@8.17.0)
+      browserslist: 4.28.4
+      chrome-trace-event: 1.0.4
+      enhanced-resolve: 5.24.1
+      es-module-lexer: 2.2.0
+      eslint-scope: 5.1.1
+      events: 3.3.0
+      graceful-fs: 4.2.11
+      loader-runner: 4.3.2
+      mime-db: 1.54.0
+      minimizer-webpack-plugin: 5.6.1(esbuild@0.28.1)(lightningcss@1.32.0)(webpack@5.108.3(esbuild@0.28.1)(lightningcss@1.32.0))
+      neo-async: 2.6.2
+      schema-utils: 4.3.3
+      tapable: 2.3.3
+      watchpack: 2.5.2
+      webpack-sources: 3.5.0
+    transitivePeerDependencies:
+      - '@minify-html/node'
+      - '@swc/core'
+      - '@swc/css'
+      - '@swc/html'
+      - clean-css
+      - cssnano
+      - csso
+      - esbuild
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - uglify-js
 
   webpack@5.108.3(webpack-cli@7.1.0):
     dependencies:
