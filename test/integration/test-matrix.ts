@@ -46,10 +46,6 @@ function readPlatform(): Platform {
   if (!VALID_PLATFORMS.includes(raw as Platform)) {
     throw new Error(`PLATFORM='${raw}' is not one of: ${VALID_PLATFORMS.join(', ')}.`);
   }
-  // Validate: node platform only supports esbuild for now
-  if (raw === 'node' && process.env.BUNDLER && process.env.BUNDLER !== 'esbuild') {
-    throw new Error(`PLATFORM=node only supports BUNDLER=esbuild, got ${process.env.BUNDLER}`);
-  }
   return raw as Platform;
 }
 

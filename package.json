@@ -19,7 +19,7 @@
     "test:fingerprint-enabled": "node scripts/run-tests.mjs fingerprint-enabled",
     "test:fingerprint-disabled": "node scripts/run-tests.mjs fingerprint-disabled",
     "test:no-build": "node scripts/run-tests.mjs no-build",
-    "test": "pnpm test:no-build && pnpm test:fingerprint-enabled && pnpm test:fingerprint-disabled",
+    "test": "node scripts/run-tests.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean"

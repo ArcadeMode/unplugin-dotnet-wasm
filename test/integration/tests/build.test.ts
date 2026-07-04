@@ -2,11 +2,11 @@ import { it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { createIsolatedBuild } from '../bundlers/index.js';
-import { describeWhen, currentBundler, NODE_API_BUNDLERS } from '../test-matrix.js';
+import { describeWhen, currentBundler, NODE_API_BUNDLERS, getFixtureDir } from '../test-matrix.js';
 
 // Prerequisite: the plugin dist must be built before running this test.
 
-const FIXTURE_DIR = resolve(__dirname, `../../fixtures/browser/library-app-${currentBundler}`);
+const FIXTURE_DIR = getFixtureDir();
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 
 describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Build non-publish (Debug config + scattered output)', () => {

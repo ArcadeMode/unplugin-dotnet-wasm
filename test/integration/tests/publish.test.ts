@@ -3,12 +3,12 @@ import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createIsolatedBuild, type IsolatedBundlerBuild } from '../bundlers/index.js';
-import { describeWhen, currentBundler, NODE_API_BUNDLERS } from '../test-matrix.js';
+import { describeWhen, currentBundler, NODE_API_BUNDLERS, getFixtureDir } from '../test-matrix.js';
 
 // Prerequisite for fingerprint/nofingerprint shapes: npm build:library:fingerprint (or :nofingerprint)
 // The `none` shape covers the negative path: no publish output exists so dotnet clean should be ran before.
 
-const FIXTURE_DIR = resolve(__dirname, `../../fixtures/browser/library-app-${currentBundler}`);
+const FIXTURE_DIR = getFixtureDir();
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 const PUBLISH_DIR = join(LIBRARY_DIR, 'bin', 'Release', 'net10.0', 'publish');
 

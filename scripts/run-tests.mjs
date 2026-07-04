@@ -2,7 +2,7 @@
 import { execSync } from 'child_process';
 
 const args = process.argv.slice(2);
-const mode = args[0] || 'no-build'; // 'fingerprint-enabled', 'fingerprint-disabled', 'no-build'
+const filter = args[0] || ''; // '' for all, or filter by name
 
 const commands = {
   'fingerprint-enabled': [
@@ -30,14 +30,24 @@ const commands = {
   ],
 };
 
-const cmds = commands[mode];
-if (!cmds) {
-  console.error(`Unknown mode: ${mode}`);
-  console.error(`Available modes: ${Object.keys(commands).join(', ')}`);
+let cmds;
+if (filter === '') {
+  // Run all test suites in sequence
+  cmds = [
+    ...commands['no-build'],
+    ...commands['fingerprint-enabled'],
+    ...commands['fingerprint-disabled'],
+  ];
+} else if (commands[filter]) {
+  cmds = commands[filter];
+} else {
+  console.error(`Unknown filter: ${filter}`);
+  console.error(`Available filters: ${Object.keys(commands).join(', ')}, or '' for all`);
   process.exit(1);
 }
 
-console.log(`\n🚀 Running tests in mode: ${mode}\n`);
+const displayName = filter || 'all test suites';
+console.log(`\n🚀 Running tests: ${displayName}\n`);
 
 try {
   for (const cmd of cmds) {
