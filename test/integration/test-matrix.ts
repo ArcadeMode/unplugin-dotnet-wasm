@@ -73,16 +73,16 @@ export function getFixtureDir(platform?: Platform, bundler?: Bundler): string {
 }
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const PUBLISH_FRAMEWORK_DIR = resolve(
+const TARGET_LIBRARY_OUTPUT_DIR = resolve(
   __dirname,
-  '../fixtures/Library/bin/Release/net10.0/publish/wwwroot/_framework',
+  '../fixtures/Library/bin/Debug/net10.0/wwwroot/_framework',
 );
 
 const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
 
 function listLibraryWasm(): string[] {
-  if (!existsSync(PUBLISH_FRAMEWORK_DIR)) return [];
-  return readdirSync(PUBLISH_FRAMEWORK_DIR).filter(f => /^Library.*\.wasm$/.test(f));
+  if (!existsSync(TARGET_LIBRARY_OUTPUT_DIR)) return [];
+  return readdirSync(TARGET_LIBRARY_OUTPUT_DIR).filter(f => /^Library.*\.wasm$/.test(f));
 }
 
 function assertFixtureMatches(shape: FixtureShape): void {
@@ -93,22 +93,22 @@ function assertFixtureMatches(shape: FixtureShape): void {
   switch (shape) {
     case 'fingerprint':
       if (fingerprinted.length === 0) {
-        throw new Error(`DOTNET_FIXTURE_SHAPE=fingerprint but no fingerprinted Library.<hash>.wasm found in ${PUBLISH_FRAMEWORK_DIR}.`);
+        throw new Error(`DOTNET_FIXTURE_SHAPE=fingerprint but no fingerprinted Library.<hash>.wasm found in ${TARGET_LIBRARY_OUTPUT_DIR}.`);
       }
       return;
 
     case 'nofingerprint':
       if (!hasCanonical) {
-        throw new Error(`DOTNET_FIXTURE_SHAPE=nofingerprint but canonical Library.wasm not found in ${PUBLISH_FRAMEWORK_DIR}.`);
+        throw new Error(`DOTNET_FIXTURE_SHAPE=nofingerprint but canonical Library.wasm not found in ${TARGET_LIBRARY_OUTPUT_DIR}.`);
       }
       if (fingerprinted.length > 0) {
-        throw new Error(`DOTNET_FIXTURE_SHAPE=nofingerprint but found fingerprinted files in ${PUBLISH_FRAMEWORK_DIR}.`);
+        throw new Error(`DOTNET_FIXTURE_SHAPE=nofingerprint but found fingerprinted files in ${TARGET_LIBRARY_OUTPUT_DIR}.`);
       }
       return;
 
     case 'none':
       if (wasms.length > 0) {
-        throw new Error(`DOTNET_FIXTURE_SHAPE=none but found ${wasms.length} Library wasm file(s) in ${PUBLISH_FRAMEWORK_DIR}.`);
+        throw new Error(`DOTNET_FIXTURE_SHAPE=none but found ${wasms.length} Library wasm file(s) in ${TARGET_LIBRARY_OUTPUT_DIR}.`);
       }
       return;
   }
