@@ -24,6 +24,7 @@
     "build:fixture:browser:farm":     "pnpm --filter @dotnet-wasm-bundler/library-app-browser-farm-fixture     build",
     "build:fixture:browser:bun":      "pnpm --filter @dotnet-wasm-bundler/library-app-browser-bun-fixture      build",
     "build:fixture:all": "pnpm build:fixture:browser:vite && pnpm build:fixture:browser:rollup && pnpm build:fixture:browser:rolldown && pnpm build:fixture:browser:webpack && pnpm build:fixture:browser:rspack && pnpm build:fixture:browser:rsbuild && pnpm build:fixture:browser:esbuild && pnpm build:fixture:browser:farm && pnpm build:fixture:browser:bun",
+    "build:fixture:node:esbuild": "pnpm --filter @dotnet-wasm-bundler/library-app-node-esbuild-fixture build",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
     "test:unit": "pnpm build:sample && pnpm --filter unplugin-dotnet-static-assets test",
     "test:matrix": "node test/integration/run-test-matrix.mjs",

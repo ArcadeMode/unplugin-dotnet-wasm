@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 export type FixtureShape = 'fingerprint' | 'nofingerprint' | 'none';
+export type Platform = 'browser' | 'node';
 export type Bundler =
   | 'vite'
   | 'rollup'
@@ -21,6 +22,7 @@ export interface Constraint {
 }
 
 const VALID_SHAPES: readonly FixtureShape[] = ['fingerprint', 'nofingerprint', 'none'];
+const VALID_PLATFORMS: readonly Platform[] = ['browser', 'node'];
 const VALID_BUNDLERS: readonly Bundler[]    = [
   'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
 ];
@@ -39,6 +41,18 @@ function readShape(): FixtureShape {
   return raw as FixtureShape;
 }
 
+function readPlatform(): Platform {
+  const raw = process.env.PLATFORM ?? 'browser';
+  if (!VALID_PLATFORMS.includes(raw as Platform)) {
+    throw new Error(`PLATFORM='${raw}' is not one of: ${VALID_PLATFORMS.join(', ')}.`);
+  }
+  // Validate: node platform only supports esbuild for now
+  if (raw === 'node' && process.env.BUNDLER && process.env.BUNDLER !== 'esbuild') {
+    throw new Error(`PLATFORM=node only supports BUNDLER=esbuild, got ${process.env.BUNDLER}`);
+  }
+  return raw as Platform;
+}
+
 function readBundler(): Bundler {
   const raw = process.env.BUNDLER ?? 'vite';
   if (!VALID_BUNDLERS.includes(raw as Bundler)) {
@@ -48,7 +62,15 @@ function readBundler(): Bundler {
 }
 
 export const currentShape:   FixtureShape = readShape();
+export const currentPlatform: Platform     = readPlatform();
 export const currentBundler: Bundler      = readBundler();
+
+export function getFixtureDir(platform?: Platform, bundler?: Bundler): string {
+  const p = platform ?? currentPlatform;
+  const b = bundler ?? currentBundler;
+  const __dirname = fileURLToPath(new URL('.', import.meta.url));
+  return resolve(__dirname, `../fixtures/${p}/library-app-${b}`);
+}
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PUBLISH_FRAMEWORK_DIR = resolve(
@@ -104,7 +126,7 @@ function skipReason(c: Constraint): string {
   const parts: string[] = [];
   if (c.shapes)   parts.push(`shape ∈ {${c.shapes.join(',')}}`);
   if (c.bundlers) parts.push(`bundler ∈ {${c.bundlers.join(',')}}`);
-  return `requires ${parts.join(' & ')}; current shape=${currentShape}, bundler=${currentBundler}`;
+  return `requires ${parts.join(' & ')}; current platform=${currentPlatform}, shape=${currentShape}, bundler=${currentBundler}`;
 }
 
 type DescribeFn = (name: string, fn: () => void) => void;
@@ -112,7 +134,7 @@ type ItFn       = (name: string, fn: () => void | Promise<void>, timeout?: numbe
 
 export function describeWhen(c: Constraint): DescribeFn {
   if (matches(c)) {
-    const prefix = `[${currentBundler}][${currentShape}]`;
+    const prefix = `[${currentPlatform}][${currentBundler}][${currentShape}]`;
     return ((name: string, fn: SuiteFactory<object>) => describe(`${prefix} ${name}`, fn)) as unknown as DescribeFn;
   }
   const reason = skipReason(c);

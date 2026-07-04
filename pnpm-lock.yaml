@@ -245,6 +245,22 @@ importers:
         specifier: ^7.0.0
         version: 7.1.0(js-yaml@4.2.0)(webpack@5.108.3)
 
+  test/fixtures/node/library-app-esbuild:
+    dependencies:
+      unplugin-dotnet-static-assets:
+        specifier: workspace:*
+        version: link:../../../../packages/unplugin-dotnet-static-assets
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
+      rimraf:
+        specifier: ^6.0.0
+        version: 6.1.3
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   test/integration:
     dependencies:
       unplugin-dotnet-static-assets:

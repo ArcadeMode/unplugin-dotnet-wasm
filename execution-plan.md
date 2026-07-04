@@ -172,6 +172,15 @@ Expand to additional bundlers only if a real use case surfaces.
 - `src/entry.ts` — no `window` dependency; calls the same `[TSExport]` surface (`Echo`, `Counter`, `AsyncOps`, `Throws`) and logs results to stdout. Exits `process.exitCode = 0` on success.
 - `tsconfig.json` — same as browser sibling.
 
+**Asset resolution in Node:** the .NET runtime's `fetch_like` polyfill already handles `file://` URLs via `fs.promises.readFile` (see `dotnet/runtime` `src/mono/browser/runtime/loader/polyfills.ts`). The failure mode in Node is upstream: our plugin bakes bundler-relative paths (`./assets/foo.wasm`) into `asset.resolvedUrl`, and Node's `fetch()` rejects them because there's no base URI. Fix in `entry.ts` via the runtime's official extension point:
+
+```ts
+dotnet.withResourceLoader((type, name, defaultUri, integrity, behavior) =>
+    new URL(defaultUri, import.meta.url).href);
+```
+
+`withResourceLoader` takes a `LoadBootResourceCallback` per `dotnet.d.ts`: `(type: WebAssemblyBootResourceType, name: string, defaultUri: string, integrity: string, behavior: AssetBehaviors) => string | Promise<Response> | Promise<BootModule> | null | undefined`. Returning a `file:` URL routes the load through `fetch_like`'s fs branch — no shim, no plugin changes, keeps the bundle browser/Node-agnostic.
+
 **Matrix impact:** adds a `PLATFORM` axis to M3.6 — `{browser, node}` — but the node cells are sparse (only esbuild). Full matrix: `{fingerprint, nofingerprint} × {9 browser bundlers} + {fingerprint, nofingerprint} × {1 node bundler} + 1 none`. The `node` cell skips Playwright and asserts `node dist/entry.js` exits 0 with expected stdout.
 
 **Non-goals for M3.5b:** no dev server, no HMR, no full matrix duplication, no Node support for all bundlers (defer per-request).
