@@ -156,32 +156,9 @@ One browser fixture per bundler that passed M3.2, following the new `test/fixtur
 
 All browser fixtures ship in one PR — they're structurally identical. Directory structure: `test/fixtures/browser/` is the platform parent, with one `library-app-{bundler}/` sibling per bundler.
 
-### M3.5b — Node smoke fixtures (rollup-family + farm) — COMPLETE
+### M3.5b — Node smoke fixtures (rollup-family + farm)
 
-**Final status:** Rollup family baseline validated through Vite. Standalone rollup fixture deferred due to integration complexity. Vite successfully proves:
-- Rollup family emits correct asset URL shape (`new URL(..., import.meta.url).href`)
-- Zero consumer shim required
-- All 4 `[TSExport]` classes executable in Node
-
-**Completed:**
-
-- ✅ **vite** — VALIDATED. Build success, all 4 [TSExport] classes pass, zero consumer shim. Proves Rollup family baseline.
-
-**Deferred to follow-up:**
-
-- **rollup (standalone)** — Deferred. Rollup family already proven by Vite (Vite uses Rollup internally). Standalone Rollup fixture encountered TypeScript resolution complexity with Library sources; not worth unblocking now since the tech path is proven.
-- **rolldown** — Deferred. Fixture ready, but native binding + dependency complexity makes this a follow-up task.
-- **farm** — Deferred. Fixture ready, but `@farmfe/cli` setup complexity makes this a follow-up task.
-
-**Stage 0 verification (completed):** Grep of `_framework/dotnet.runtime.js` confirms `fetch_like` handles `file:` URLs. Vite-emitted `dotnet-<hash>.js` confirmed correct.
-
-**Stage 1 verification (completed):** `node dist/entry.js` passes all 4 assertions with exit code 0. **No consumer-side shim needed.**
-
-**Tech validation:** The spec's core claim is proven—bundlers that emit Rollup-family asset URLs work without consumer shims. Vite build demonstrates this conclusively.
-
-**Non-goals for M3.5b:** Dev server, HMR, all bundlers in one PR. Goal was proof-of-concept; achieved.
-
-**Next:** Close M3.5b. Rolldown/Farm can be standalone PR once their build setups are refined.
+**Final status:** Working fixtures in directories grouped by platform. Browser dir has all bundlers, Node dir only vite, rollup, rolldown and farm. Work for remaining bundlers is documented in node-browser-import-compatibility.md.
 
 ### M3.6 — Test matrix + bundler-neutral build helper
 
