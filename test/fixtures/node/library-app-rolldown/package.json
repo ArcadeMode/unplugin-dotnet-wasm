@@ -4,15 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node rolldown.build.mjs",
+    "build": "rolldown -c rolldown.config.mjs",
     "test": "node dist/entry.js",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
   "devDependencies": {
     "rimraf": "^6.0.0",
-    "typescript": "^5.5.0",
-    "@rolldown/node": "latest"
+    "rolldown": "^1.1.0",
+    "typescript": "^5.5.0"
   },
   "dependencies": {
     "unplugin-dotnet-static-assets": "workspace:*"
