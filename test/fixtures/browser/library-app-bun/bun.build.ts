@@ -24,7 +24,7 @@ const result = await Bun.build({
   },
   plugins: [
     DotnetAssets({
-      projectRoot: resolve(__dirname, '../Library'),
+      projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',

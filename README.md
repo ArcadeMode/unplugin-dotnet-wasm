@@ -22,7 +22,7 @@ pnpm preview:sample
 
 ## Requirements
 
-- Node.js >= 20, pnpm >= 9
 - .NET 10 SDK
+- Node.js >= 20, pnpm >= 9
+- Bun >= 1.3 (optional, required only for testing the `bun` bundler integration)
 - [TypeShim](https://github.com/ArcadeMode/TypeShim) (NuGet, pulled automatically)
-- Bun >= 1.3 (optional, required only for testing the `bun` bundler integration — run `pnpm test:integration:bun:fingerprint` to use it)

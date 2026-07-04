@@ -1,5 +1,5 @@
 {
-  "name": "@dotnet-wasm-bundler/library-build-rollup-fixture",
+  "name": "@dotnet-wasm-bundler/library-app-browser-rollup-fixture",
   "private": true,
   "version": "0.0.0",
   "type": "module",

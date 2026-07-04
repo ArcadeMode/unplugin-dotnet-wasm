@@ -6,7 +6,7 @@ import { describeWhen, currentBundler, NODE_API_BUNDLERS } from '../test-matrix.
 
 // Prerequisite: the plugin dist must be built before running this test.
 
-const FIXTURE_DIR = resolve(__dirname, `../../fixtures/library-build-${currentBundler}`);
+const FIXTURE_DIR = resolve(__dirname, `../../fixtures/browser/library-app-${currentBundler}`);
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 
 describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Build non-publish (Debug config + scattered output)', () => {

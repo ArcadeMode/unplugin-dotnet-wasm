@@ -1,18 +1,17 @@
 {
-  "name": "@dotnet-wasm-bundler/library-build-rspack-fixture",
+  "name": "@dotnet-wasm-bundler/library-app-browser-esbuild-fixture",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "rspack build",
+    "build": "node esbuild.build.mjs",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
   "devDependencies": {
-    "@rspack/cli": "^2.1.0",
-    "@rspack/core": "^2.1.0",
+    "esbuild": "^0.28.0",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"
   },

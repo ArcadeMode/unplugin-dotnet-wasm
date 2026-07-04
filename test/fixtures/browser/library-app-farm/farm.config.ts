@@ -31,7 +31,7 @@ export default defineConfig({
   server: { hmr: false },
   plugins: [
     DotnetAssets({
-      projectRoot: resolve(__dirname, '../Library'),
+      projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',

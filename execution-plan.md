@@ -144,51 +144,47 @@ Framework-specific re-exports at `src/{rollup,vite,webpack,esbuild}.ts` already 
 
 **Done when:** one focused edit lands both the dep bump and the split; existing Vite tests still pass; the bundler-conditional branch is ~40–60 LOC and confined to `unplugin/` (may be split across family files, still counted as one region).
 
-### M3.5 — Fixture batch
+### M3.5 — Browser fixture batch
 
-One fixture per bundler that passed M3.2, following the existing `test/fixtures/library-build-${bundler}/` convention. Each fixture:
+One browser fixture per bundler that passed M3.2, following the new `test/fixtures/browser/library-app-${bundler}/` convention. Each fixture:
 
-- `package.json` — name `@dotnet-wasm-bundler/library-build-${bundler}-fixture`, deps for the bundler + `unplugin-dotnet-static-assets` (workspace link) + minimal loader deps (`ts-loader`/`swc-loader`/etc. as needed).
+- `package.json` — name `@dotnet-wasm-bundler/library-app-browser-${bundler}-fixture`, deps for the bundler + `unplugin-dotnet-static-assets` (workspace link) + minimal loader deps (`ts-loader`/`swc-loader`/etc. as needed).
 - `${bundler}.config.ts` (or `.mjs`) — wires `DotnetAssets` from the matching entry point, `mode: 'production'` equivalent, `target: 'web'`, hashed asset filename template aligned with Vite's `assets/[name]-[hash][ext]` shape where the bundler supports it.
 - `index.html` + `src/entry.ts` — copied verbatim from the Vite fixture.
 - `tsconfig.json` — same shape as the Vite fixture.
 - pnpm workspace entry.
 
-All fixtures ship in one PR — they're structurally identical.
+All browser fixtures ship in one PR — they're structurally identical. Directory structure: `test/fixtures/browser/` is the platform parent, with one `library-app-{bundler}/` sibling per bundler.
 
-### M3.5b — Node.js target fixture batch
+### M3.5b — Node smoke fixture (esbuild only)
 
-One Node.js-target sibling fixture per bundler that shipped in M3.5, at `test/fixtures/library-build-${bundler}-node/`. Same repo convention as the browser fixtures; parallel shape, different build target.
+**Rationale:** Bundling for Node is niche — esbuild/webpack/rollup have idiomatic Node targets with real ecosystem usage, while vite/rsbuild/farm/rolldown have Node support that's browser-first or SSR-only. Rather than duplicate all 9 fixtures on a node axis, ship one smoke test (esbuild) to prove:
+- The plugin doesn't hardcode browser assumptions (e.g. `window` references).
+- The .NET WASM runtime can boot outside a browser.
+- Assets resolve correctly in a Node.js execution context.
 
-**Per-fixture structure:**
+Expand to additional bundlers only if a real use case surfaces.
 
-- `package.json` — name `@dotnet-wasm-bundler/library-build-${bundler}-node-fixture`; same bundler deps as the browser sibling; `"build"` runs the bundler, `"test"` runs `node dist/entry.js`, `"clean"` clears `dist/`.
-- `${bundler}.config.*` — identical to the browser fixture except: `target: 'node'` (webpack/rspack/rsbuild), `platform: 'node'` (esbuild), rolldown/rollup with `platform: 'node'` equivalent. No `target: 'web'`, no `index.html`, no `publicPath` override.
-- `src/entry.ts` — no `window` dependency; calls the same `[TSExport]` surface (`Echo`, `Counter`, `AsyncOps`, `Throws`) and logs results to stdout. Exits `process.exitCode = 0` on success, non-zero on failure. A passing `node dist/entry.js` run is the acceptance test.
+**One fixture:** `test/fixtures/node/library-app-esbuild/`
 
-**Key differences from browser fixtures (M3.5):**
+- `package.json` — name `@dotnet-wasm-bundler/library-app-node-esbuild-fixture`; same bundler deps as the browser sibling; `"build"` runs the bundler, `"test"` runs `node dist/entry.js` and exits 0 on success, non-zero on failure.
+- `esbuild.build.mjs` — identical to browser config except `platform: 'node'`. No `index.html`, no `publicPath` override.
+- `src/entry.ts` — no `window` dependency; calls the same `[TSExport]` surface (`Echo`, `Counter`, `AsyncOps`, `Throws`) and logs results to stdout. Exits `process.exitCode = 0` on success.
+- `tsconfig.json` — same as browser sibling.
 
-| Aspect | Browser (M3.5) | Node.js (M3.5b) |
-|---|---|---|
-| bundler target | `target: 'web'` / `platform: 'browser'` | `target: 'node'` / `platform: 'node'` |
-| Node built-in handling | plugin injects `resolve.fallback` / `external` | bundler handles natively — plugin skips externalization logic |
-| esbuild entry layout | entry at dist root (fetch URL workaround) | entry anywhere; `fetch()` resolves against Node base URL correctly |
-| verify/preview | `npx serve dist` + browser | `node dist/entry.js` — no browser or Playwright needed |
-| CI value | proves browser bundling | no-browser smoke path, SSR/hybrid scenario |
+**Matrix impact:** adds a `PLATFORM` axis to M3.6 — `{browser, node}` — but the node cells are sparse (only esbuild). Full matrix: `{fingerprint, nofingerprint} × {9 browser bundlers} + {fingerprint, nofingerprint} × {1 node bundler} + 1 none`. The `node` cell skips Playwright and asserts `node dist/entry.js` exits 0 with expected stdout.
 
-**Matrix impact:** adds a `PLATFORM` axis to M3.6 — `{browser, node}` — so the full matrix becomes `{fingerprint, nofingerprint} × N_bundlers × {browser, node}`. The `node` cells skip Playwright and assert `node dist/entry.js` exits 0 with expected stdout.
-
-**Non-goals for M3.5b:** no dev server, no HMR, no browser-specific asset URL concerns, no `index.html`.
+**Non-goals for M3.5b:** no dev server, no HMR, no full matrix duplication, no Node support for all bundlers (defer per-request).
 
 ### M3.6 — Test matrix + bundler-neutral build helper
 
-- `test/integration/test-matrix.ts`: `Bundler` union covers every direct target that passed M3.2. `readBundler()` reads `process.env.BUNDLER`, defaults to `vite`. `FIXTURE_DIR` already uses the `library-build-${currentBundler}` convention (`test/integration/tests/publish.test.ts`) — no spec change needed.
+- `test/integration/test-matrix.ts`: `Bundler` union covers every direct target that passed M3.2. `readBundler()` reads `process.env.BUNDLER`, defaults to `vite`. Add `Platform` type (`'browser' | 'node'`) and `readPlatform()` reading `PLATFORM` env (defaults to `'browser'`). `FIXTURE_DIR` pattern: `test/fixtures/${platform}/library-app-${currentBundler}`.
 - `test/integration/bundler-build-helper.ts`: `IsolatedBundlerBuild` interface `{ dist: string; assets: string; entryChunk: string; warnings: string[] }` returned by a `runBuild(bundler, fixtureDir)` factory. One implementation per bundler (existing Vite driver + N new drivers, each ~10–30 LOC calling the bundler's Node API). Warnings surface via each bundler's native diagnostics.
 - `describeWhen({ bundlers: [...] })` gates for bundler-specific quirks. Confirm existing `/^Library[.-][^/]+\.wasm$/` assertion matches every bundler's default hash filename; adjust the regex or align each bundler's asset-filename template.
 
-### M3.7 — Root scripts + Playwright per-bundler
+### M3.7 — Root scripts + Playwright per-platform-bundler
 
-- Root `package.json`: `build:fixture:${bundler}` and `test:integration:${bundler}:{fingerprint,nofingerprint}` per bundler. `test:fingerprint-enabled` / `-disabled` chain all of them.
+- Root `package.json`: `build:fixture:browser:{bundler}` and `build:fixture:node:esbuild` (smoke only). `test:integration:browser` / `test:integration:node` chain the matrix for each platform. `test:fingerprint-enabled` / `-disabled` remain as the top-level chains covering all platforms.
 - `test/integration/playwright.config.ts` reads `BUNDLER` env, points `webServer` at the matching fixture's `dist/`.
 - Interop spec (`test/integration/tests/runtime.spec.ts`) stays bundler-blind — one shared spec covers every bundler.
 - `test:e2e:${bundler}` + `test:e2e` chain.

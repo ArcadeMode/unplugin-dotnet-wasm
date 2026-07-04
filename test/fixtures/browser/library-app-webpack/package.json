@@ -1,19 +1,22 @@
 {
-  "name": "@dotnet-wasm-bundler/library-build-esbuild-fixture",
+  "name": "@dotnet-wasm-bundler/library-app-browser-webpack-fixture",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node esbuild.build.mjs",
+    "build": "webpack --config webpack.config.mjs",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0",
+    "html-webpack-plugin": "^5.0.0",
     "rimraf": "^6.0.0",
-    "typescript": "^5.5.0"
+    "ts-loader": "^9.0.0",
+    "typescript": "^5.5.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^7.0.0"
   },
   "dependencies": {
     "unplugin-dotnet-static-assets": "workspace:*"

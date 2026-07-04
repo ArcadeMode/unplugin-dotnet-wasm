@@ -1,5 +1,5 @@
-import { rspack } from '@rspack/core';
-import DotnetAssets from 'unplugin-dotnet-static-assets/rspack';
+import DotnetAssets from 'unplugin-dotnet-static-assets/webpack';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,7 +8,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 export default {
   mode: 'production',
   target: 'web',
-  entry: { main: resolve(__dirname, 'src/entry.ts') },
+  entry: resolve(__dirname, 'src/entry.ts'),
   output: {
     path: resolve(__dirname, 'dist'),
     filename: 'assets/entry.js',
@@ -16,25 +16,24 @@ export default {
     publicPath: '',
     clean: true,
   },
+  resolve: {
+    extensions: ['.ts', '.js'],
+  },
   module: {
     rules: [
       {
         test: /\.ts$/,
+        loader: 'ts-loader',
+        options: { transpileOnly: true },
         exclude: /node_modules/,
-        loader: 'builtin:swc-loader',
-        options: {
-          jsc: { parser: { syntax: 'typescript' } },
-          env: { targets: 'defaults' },
-        },
-        type: 'javascript/auto',
       },
     ],
   },
   optimization: { minimize: false },
   plugins: [
-    new rspack.HtmlRspackPlugin({ template: './src/index.html' }),
+    new HtmlWebpackPlugin({ template: './src/index.html' }),
     DotnetAssets({
-      projectRoot: resolve(__dirname, '../Library'),
+      projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',

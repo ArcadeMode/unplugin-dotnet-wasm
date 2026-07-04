@@ -9,6 +9,6 @@ export default async function globalSetup(): Promise<void> {
   if (!VALID_BUNDLERS.has(BUNDLER)) {
     throw new Error(`global-setup: BUNDLER='${BUNDLER}' is not one of ${[...VALID_BUNDLERS].join(', ')}.`);
   }
-  const fixtureName = `@dotnet-wasm-bundler/library-build-${BUNDLER}-fixture`;
+  const fixtureName = `@dotnet-wasm-bundler/library-app-browser-${BUNDLER}-fixture`;
   execFileSync('pnpm', ['--filter', fixtureName, 'build'], { stdio: 'inherit', shell: true });
 }

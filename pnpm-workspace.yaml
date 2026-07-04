@@ -1,7 +1,7 @@
 packages:
   - 'packages/*'
   - 'packages/samples/*'
-  - 'test/fixtures/*'
+  - 'test/fixtures/*/library-app-*'
   - 'test/integration'
 allowBuilds:
   core-js: true

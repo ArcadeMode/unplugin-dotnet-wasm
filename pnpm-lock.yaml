@@ -80,11 +80,11 @@ importers:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@26.0.0)(lightningcss@1.32.0)(terser@5.48.0)
 
-  test/fixtures/library-build-bun:
+  test/fixtures/browser/library-app-bun:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       bun-types:
         specifier: latest
@@ -96,11 +96,11 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-esbuild:
+  test/fixtures/browser/library-app-esbuild:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       esbuild:
         specifier: ^0.28.0
@@ -112,11 +112,11 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-farm:
+  test/fixtures/browser/library-app-farm:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       '@farmfe/cli':
         specifier: ^1.0.5
@@ -131,11 +131,11 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-rolldown:
+  test/fixtures/browser/library-app-rolldown:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       rimraf:
         specifier: ^6.0.0
@@ -147,11 +147,11 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-rollup:
+  test/fixtures/browser/library-app-rollup:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       '@rollup/plugin-node-resolve':
         specifier: ^16.0.0
@@ -164,16 +164,16 @@ importers:
         version: 4.62.2
       rollup-plugin-esbuild:
         specifier: ^6.0.0
-        version: 6.2.1(esbuild@0.27.7)(rollup@4.62.2)
+        version: 6.2.1(esbuild@0.28.1)(rollup@4.62.2)
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-rsbuild:
+  test/fixtures/browser/library-app-rsbuild:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       '@rsbuild/core':
         specifier: ^2.1.0
@@ -185,11 +185,11 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-rspack:
+  test/fixtures/browser/library-app-rspack:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       '@rspack/cli':
         specifier: ^2.1.0
@@ -204,11 +204,11 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  test/fixtures/library-build-vite:
+  test/fixtures/browser/library-app-vite:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       rimraf:
         specifier: ^6.0.0
@@ -220,11 +220,11 @@ importers:
         specifier: ^8.0.0
         version: 8.1.2(@types/node@26.0.0)(esbuild@0.28.1)(terser@5.48.0)
 
-  test/fixtures/library-build-webpack:
+  test/fixtures/browser/library-app-webpack:
     dependencies:
       unplugin-dotnet-static-assets:
         specifier: workspace:*
-        version: link:../../../packages/unplugin-dotnet-static-assets
+        version: link:../../../../packages/unplugin-dotnet-static-assets
     devDependencies:
       html-webpack-plugin:
         specifier: ^5.0.0
@@ -6667,17 +6667,6 @@ snapshots:
       '@rolldown/binding-wasm32-wasi': 1.1.4
       '@rolldown/binding-win32-arm64-msvc': 1.1.4
       '@rolldown/binding-win32-x64-msvc': 1.1.4
-
-  rollup-plugin-esbuild@6.2.1(esbuild@0.27.7)(rollup@4.62.2):
-    dependencies:
-      debug: 4.4.3
-      es-module-lexer: 1.7.0
-      esbuild: 0.27.7
-      get-tsconfig: 4.14.0
-      rollup: 4.62.2
-      unplugin-utils: 0.2.5
-    transitivePeerDependencies:
-      - supports-color
 
   rollup-plugin-esbuild@6.2.1(esbuild@0.28.1)(rollup@4.62.2):
     dependencies:

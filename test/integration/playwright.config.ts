@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = process.env.BUNDLER ?? 'vite';
 const DIST_DIR = process.env.DIST_DIR
-  ?? resolve(__dirname, `../fixtures/library-build-${BUNDLER}/dist`);
+  ?? resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}/dist`);
 const configName = `${BUNDLER}-${process.env.DOTNET_FIXTURE_SHAPE ?? 'fingerprint'}`;
 
 export default defineConfig({
