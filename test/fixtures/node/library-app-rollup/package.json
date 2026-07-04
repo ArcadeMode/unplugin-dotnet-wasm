@@ -1,0 +1,22 @@
+{
+  "name": "@dotnet-wasm-bundler/library-app-node-rollup-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node rollup.build.mjs",
+    "test": "node dist/entry.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "rimraf": "^6.0.0",
+    "rollup": "^4.28.0",
+    "rollup-plugin-esbuild": "^6.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-static-assets": "workspace:*"
+  }
+}

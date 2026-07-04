@@ -1,0 +1,20 @@
+{
+  "name": "@dotnet-wasm-bundler/library-app-node-rolldown-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node rolldown.build.mjs",
+    "test": "node dist/entry.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0",
+    "@rolldown/node": "latest"
+  },
+  "dependencies": {
+    "unplugin-dotnet-static-assets": "workspace:*"
+  }
+}

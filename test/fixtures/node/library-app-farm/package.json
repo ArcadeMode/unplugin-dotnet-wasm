@@ -1,0 +1,21 @@
+{
+  "name": "@dotnet-wasm-bundler/library-app-node-farm-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "farm build",
+    "test": "node dist/entry.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0",
+    "@farmfe/cli": "latest",
+    "@farmfe/core": "latest"
+  },
+  "dependencies": {
+    "unplugin-dotnet-static-assets": "workspace:*"
+  }
+}
