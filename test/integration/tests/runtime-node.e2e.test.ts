@@ -1,74 +1,49 @@
-import { describe, test, expect, beforeAll } from 'vitest';
-
-interface DotnetLib {
-  greet(name: string): string;
-  add(a: number, b: number): number;
-  boolNot(value: boolean): boolean;
-  pi(): number;
-  incrementCounter(): number;
-  delayThenEcho(value: string, delayMs: number): Promise<string>;
-  boom(): void;
-}
-
+import { describe, test, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readBundler, readShape, readPlatform } from '../test-matrix-parameters';
 
 const currentBundler = readBundler();
 const currentShape = readShape();
 const currentPlatform = readPlatform();
 
+const __dirname = resolve(fileURLToPath(import.meta.url), '..');
+
 // Skip entire suite if not node platform or if shape is 'none'
 const skipSuite = currentPlatform !== 'node' || currentShape === 'none';
 
 describe(`[${currentBundler}][${currentShape}][${currentPlatform}] Node WASM runtime interop`, { skip: skipSuite }, () => {
-  let lib: DotnetLib;
-
-  beforeAll(async () => {
-    // Use relative path - Vite/Node can resolve this without file:// protocol
-    const entryPath = `../../fixtures/node/library-app-${currentBundler}/dist/entry.js`;
+  test('runs .NET WASM interop scenarios end-to-end', () => {
+    const fixtureDir = resolve(__dirname, `../../fixtures/node/library-app-${currentBundler}`);
     
-    try {
-      const entryModule = await import(entryPath);
-      lib = await entryModule.initializeLib();
-    } catch (error) {
-      throw new Error(`Failed to initialize lib from ${entryPath}: ${(error as Error).message}`);
+    const result = spawnSync('node', ['dist/entry.js'], {
+      cwd: fixtureDir,
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+
+    // On error, include stdout and stderr in the error message for diagnostics
+    if (result.status !== 0 || !result.stdout.includes('[SUCCESS]') || result.stdout.includes('[FAILURE]')) {
+      const diagnostics = [
+        `Exit code: ${result.status}`,
+        `\nStdout:\n${result.stdout}`,
+        result.stderr ? `\nStderr:\n${result.stderr}` : '',
+        result.error ? `\nSpawn error: ${result.error.message}` : '',
+      ].join('');
+      throw new Error(`Fixture ${currentBundler} failed:\n${diagnostics}`);
     }
-  });
 
-  test('Echo.Greet returns greeting string', () => {
-    const result = lib.greet('world');
-    expect(result).toBe('Hello, world');
-  });
-
-  test('Echo.Add returns correct sum', () => {
-    const result = lib.add(2, 3);
-    expect(result).toBe(5);
-  });
-
-  test('Echo.BoolNot inverts boolean', () => {
-    const t = lib.boolNot(true);
-    const f = lib.boolNot(false);
-    expect(t).toBe(false);
-    expect(f).toBe(true);
-  });
-
-  test('Echo.Pi approximates Math.PI', () => {
-    const result = lib.pi();
-    expect(result).toBeCloseTo(Math.PI, 4);
-  });
-
-  test('Counter accumulates state across calls', () => {
-    const v1 = lib.incrementCounter();
-    const v2 = lib.incrementCounter();
-    expect(typeof v1).toBe('number');
-    expect(v2).toBe(v1 + 1);
-  });
-
-  test('AsyncOps.DelayThenEcho round-trips a string', async () => {
-    const result = await lib.delayThenEcho('hello', 10);
-    expect(result).toBe('hello');
-  });
-
-  test('Throws.Boom propagates a .NET exception to JS', () => {
-    expect(() => lib.boom()).toThrow();
+    // Verify success marker is present
+    expect(result.stdout).toContain('[SUCCESS]');
+    
+    // Verify all test assertions were executed
+    expect(result.stdout).toContain('[Echo.Greet]');
+    expect(result.stdout).toContain('[Echo.Add]');
+    expect(result.stdout).toContain('[Echo.BoolNot]');
+    expect(result.stdout).toContain('[Echo.Pi]');
+    expect(result.stdout).toContain('[Counter]');
+    expect(result.stdout).toContain('[AsyncOps.DelayThenEcho]');
+    expect(result.stdout).toContain('[Throws.Boom]');
   });
 });

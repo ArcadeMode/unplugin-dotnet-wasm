@@ -11,6 +11,7 @@ export default {
     },
     output: {
       path: './dist',
+      entryFilename: 'entry.js',
       targetEnv: 'node-next',
     },
     assets: {

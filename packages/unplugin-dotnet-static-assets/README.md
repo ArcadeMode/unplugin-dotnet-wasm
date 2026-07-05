@@ -130,13 +130,19 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 
 ## Bundler support
 
-| Bundler | Import path | Status |
+| Bundler | Browser | Node |
 |---|---|---|
-| Vite | `unplugin-dotnet-static-assets/vite` | Tested |
-| Rollup | `unplugin-dotnet-static-assets/rollup` | Supported |
-| Webpack | `unplugin-dotnet-static-assets/webpack` | Supported |
-| esbuild | `unplugin-dotnet-static-assets/esbuild` | Supported |
-| Rspack | — | Planned |
+| Vite | ✓ Supported | ✓ Supported |
+| Rollup | ✓ Supported | ✓ Supported |
+| Rolldown | ✓ Supported | ✗ Not supported¹ |
+| Webpack | ✓ Supported | — |
+| Rspack | ✓ Supported | — |
+| Rsbuild | ✓ Supported | — |
+| esbuild | ✓ Supported | — |
+| Farm | ✓ Supported | ✓ Supported |
+| Bun | ✓ Supported | — |
+
+¹ Rolldown on Node not supported due to scope-hoisting bug breaking cross-module live bindings in .NET's dotnet.js runtime module.
 
 ## How it works
 
