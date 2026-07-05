@@ -15,11 +15,18 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
   }
 
   get entryChunk(): string {
-    // Vite hashes the entry chunk; discover it once dist is written.
     const files = readdirSync(this.assets);
-    const entry = files.find(f => /^index-.*\.js$/.test(f));
-    if (!entry) throw new Error(`Vite entry chunk not found under ${this.assets}`);
-    return join(this.assets, entry);
+    if (this.platform === 'node') {
+      // Node: entry.js is output directly without hashing
+      const entry = files.find(f => f === 'entry.js');
+      if (!entry) throw new Error(`Vite Node entry chunk not found under ${this.assets}`);
+      return join(this.assets, entry);
+    } else {
+      // Browser: Vite hashes the entry chunk; discover it once dist is written.
+      const entry = files.find(f => /^index-.*\.js$/.test(f));
+      if (!entry) throw new Error(`Vite browser entry chunk not found under ${this.assets}`);
+      return join(this.assets, entry);
+    }
   }
 
   async build(pluginOptions: DotnetAssetsOptions, extra: InlineConfig = {}): Promise<void> {
@@ -27,6 +34,13 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
     const logger = createLogger('warn');
     const orig = logger.warn.bind(logger);
     logger.warn = (msg, opts) => { this.warnings.push(msg); orig(msg, opts); };
+
+    const rollupOptions = this.platform === 'node'
+      ? { 
+          input: resolve(this.fixtureDir, 'src/entry.ts'), 
+          output: { format: 'es' as const, entryFileNames: 'assets/entry.js' } 
+        }
+      : { input: resolve(this.fixtureDir, 'index.html') };
 
     await viteBuild({
       root: this.fixtureDir,
@@ -38,7 +52,7 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
       ...extra,
       build: {
         outDir: this.outDir,
-        rollupOptions: { input: resolve(this.fixtureDir, 'index.html') },
+        rollupOptions,
         ...extra.build,
       },
     });

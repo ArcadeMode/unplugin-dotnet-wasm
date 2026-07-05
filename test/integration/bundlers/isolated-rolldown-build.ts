@@ -14,12 +14,14 @@ export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
       import('unplugin-dotnet-static-assets/rolldown'),
     ]);
 
+    // Mark Node builtins as external so rolldown doesn't warn on unresolved bare imports.
+    // dotnet.js contains `import('module')`, `import('process')` etc. as fallback paths
+    // that never execute in browser; marking them external prevents bundler warnings.
+    const external = (id: string) => id.startsWith('node:') || DOTNET_NODE_BUILTINS.has(id);
+
     const bundle = await rolldown({
       input: this.entryPoint(),
-      // dotnet.js contains `import('module')`, `import('process')` etc. as
-      // fallback paths that never execute in the browser. Mark them external
-      // so rolldown doesn't warn/error on the unresolved bare Node builtins.
-      external: (id) => id.startsWith('node:') || DOTNET_NODE_BUILTINS.has(id),
+      external,
       onwarn: (w) => this.warnings.push(w.message ?? String(w)),
       plugins: [DotnetAssets(pluginOptions)],
     });

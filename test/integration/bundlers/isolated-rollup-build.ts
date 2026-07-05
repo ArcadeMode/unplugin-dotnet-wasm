@@ -16,14 +16,18 @@ export class IsolatedRollupBuild extends IsolatedBundlerBuild {
       import('unplugin-dotnet-static-assets/rollup'),
     ]);
 
+    // Platform-specific plugins: browser uses nodeResolve with browser: true,
+    // node does not use nodeResolve (relies on Node builtin module resolution)
+    const plugins = [
+      DotnetAssets(pluginOptions),
+      ...(this.platform === 'browser' ? [nodeResolve({ browser: true })] : []),
+      esbuildPlugin({ target: 'es2022' }),
+    ];
+
     const bundle = await rollup({
       input: this.entryPoint(),
       onwarn: (w) => this.warnings.push(w.message ?? String(w)),
-      plugins: [
-        DotnetAssets(pluginOptions),
-        nodeResolve({ browser: true }),
-        esbuildPlugin({ target: 'es2022' }),
-      ],
+      plugins,
     });
     await bundle.write({
       dir: this.outDir,

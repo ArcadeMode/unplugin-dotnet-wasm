@@ -7,9 +7,9 @@ import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 export class IsolatedFarmBuild extends IsolatedBundlerBuild {
   constructor(fixtureDir: string, platform: Platform, label: string) { super('farm', fixtureDir, platform, label); }
   get entryChunk(): string {
-    // Farm emits `assets/index_<hash>.<hash>.js`; find it.
+    // Both platforms use hashed output; find index chunk.
     const files = readdirSync(this.assets);
-    const entry = files.find(f => /^index[_-].+\.js$/.test(f));
+    const entry = files.find(f => /^index[._-].+\.js$/.test(f));
     if (!entry) throw new Error(`Farm entry chunk not found under ${this.assets}`);
     return join(this.assets, entry);
   }
@@ -21,6 +21,9 @@ export class IsolatedFarmBuild extends IsolatedBundlerBuild {
       import('unplugin-dotnet-static-assets/farm'),
     ]);
 
+    // Platform-specific targetEnv; both use hashed filenames
+    const targetEnv = this.platform === 'node' ? ('node-next' as const) : ('browser-esnext' as const);
+
     await build({
       root: this.fixtureDir,
       compilation: {
@@ -30,7 +33,7 @@ export class IsolatedFarmBuild extends IsolatedBundlerBuild {
           filename: 'assets/[name].[hash].[ext]',
           assetsFilename: 'assets/[name].[hash].[ext]',
           publicPath: '/',
-          targetEnv: 'browser-esnext',
+          targetEnv,
         },
         assets: { include: ['wasm', 'dat', 'pdb'] },
         minify: false,
