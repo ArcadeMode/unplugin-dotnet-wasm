@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createIsolatedBuild, type IsolatedBundlerBuild } from '../bundlers/index.js';
-import { describeWhen, currentBundler, currentPlatform, NODE_API_BUNDLERS, getFixtureDir } from '../test-matrix.js';
+import { describeWhen, currentBundler, currentPlatform, getFixtureDir } from '../test-matrix.js';
 
 // Prerequisite for fingerprint/nofingerprint shapes: npm build:library:fingerprint (or :nofingerprint)
 // The `none` shape covers the negative path: no publish output exists so dotnet clean should be ran before.
@@ -47,7 +47,7 @@ function assertPublishBuild(vb: IsolatedBundlerBuild): void {
   });
 }
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Publish build (isPublish: true)', () => {
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Publish build (isPublish: true)', () => {
   const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-ispublish');
 
   beforeAll(() => vb.build({
@@ -63,7 +63,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUND
   assertPublishBuild(vb);
 });
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Publish build (explicit dotnetOutputDir)', () => {
+describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Publish build (explicit dotnetOutputDir)', () => {
   const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-dotnet-output-dir');
 
   beforeAll(() => vb.build({
@@ -77,7 +77,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUND
 });
 
 
-describeWhen({ shapes: ['none'], bundlers: NODE_API_BUNDLERS })('DiscoveryError when publish output is absent', () => {
+describeWhen({ shapes: ['none'] })('DiscoveryError when publish output is absent', () => {
   it('isPublish: true → fails naming the searched publish dir', async () => {
     const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-3-discovery');
     try {

@@ -11,12 +11,6 @@ export interface Constraint {
   bundlers?: readonly Bundler[];
 }
 
-// Bundlers we can drive from vitest via a Node API. `bun` is driven via a
-// subprocess call to `bun run`, so it requires the Bun runtime to be installed.
-export const NODE_API_BUNDLERS: readonly Bundler[] = [
-  'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
-];
-
 export const currentShape:   FixtureShape = readShape();
 export const currentPlatform: Platform     = readPlatform();
 export const currentBundler: Bundler      = readBundler();
