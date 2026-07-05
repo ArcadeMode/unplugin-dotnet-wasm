@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import { readPlatform } from './test-matrix-parameters.ts';
 
-const platform = process.env.PLATFORM ?? 'browser';
+const platform = readPlatform();
 const args = process.argv.slice(2);
 
 let cmd, cmdArgs;

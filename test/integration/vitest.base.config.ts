@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
+import { readBundler, readShape } from './test-matrix-parameters';
 
-const bundler = process.env.BUNDLER ?? 'vite';
-const fixtureShape = process.env.DOTNET_FIXTURE_SHAPE ?? 'fingerprint';
+const bundler = readBundler();
+const fixtureShape = readShape();
 const configName = `${bundler}-${fixtureShape}`;
 
 export function createVitestConfig(include: string[] | undefined) {

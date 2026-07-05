@@ -15,10 +15,11 @@ declare global {
   var __libReady: boolean;
 }
 
-const throwErr = (msg: string): never => { throw new Error(msg); };
-const currentBundler = process.env.BUNDLER ?? throwErr("BUNDLER environment variable is missing");
-const currentShape = process.env.DOTNET_FIXTURE_SHAPE ?? throwErr("DOTNET_FIXTURE_SHAPE environment variable is missing");
-const currentPlatform = process.env.PLATFORM ?? throwErr("PLATFORM environment variable is missing");
+import { readBundler, readShape, readPlatform } from '../test-matrix-parameters';
+
+const currentBundler = readBundler();
+const currentShape = readShape();
+const currentPlatform = readPlatform();
 test.describe(`[${currentBundler}][${currentShape}][${currentPlatform}] WASM interop runtime behavior`, () => {
   test.describe.configure({ mode: 'serial' });
 
