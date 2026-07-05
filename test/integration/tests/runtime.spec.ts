@@ -18,15 +18,16 @@ declare global {
 const throwErr = (msg: string): never => { throw new Error(msg); };
 const currentBundler = process.env.BUNDLER ?? throwErr("BUNDLER environment variable is missing");
 const currentShape = process.env.DOTNET_FIXTURE_SHAPE ?? throwErr("DOTNET_FIXTURE_SHAPE environment variable is missing");
-
-test.describe(`[${currentBundler}][${currentShape}] WASM interop runtime behavior`, () => {
+const currentPlatform = process.env.PLATFORM ?? throwErr("PLATFORM environment variable is missing");
+test.describe(`[${currentBundler}][${currentShape}][${currentPlatform}] WASM interop runtime behavior`, () => {
   test.describe.configure({ mode: 'serial' });
 
   let page!: Page;
 
   test.beforeAll(async ({ browser }) => {
     test.skip(currentShape === 'none', 'skipped for "none" shape'); // no client to run.
-    
+    test.skip(currentPlatform !== 'browser', 'skipped for non-browser platform'); // no browser to run.
+
     page = await browser.newPage();
     await page.goto('/');
     await page.waitForFunction(() => globalThis.__libReady === true, { timeout: 30_000 });

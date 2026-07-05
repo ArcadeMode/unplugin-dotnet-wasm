@@ -19,6 +19,7 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: resolve(__dirname, 'src/entry.ts'),
+      preserveEntrySignatures: 'strict',
       output: {
         format: 'es',
         entryFileNames: 'entry.js',

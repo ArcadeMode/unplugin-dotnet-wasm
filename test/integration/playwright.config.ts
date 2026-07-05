@@ -9,7 +9,7 @@ const DIST_DIR = process.env.DIST_DIR
 const configName = `${BUNDLER}-${process.env.DOTNET_FIXTURE_SHAPE ?? 'fingerprint'}`;
 
 export default defineConfig({
-  testDir: '.',
+  testDir: 'tests',
   testMatch: ['*.spec.ts'],
   timeout: 60_000,
   globalSetup: './global-setup.ts',

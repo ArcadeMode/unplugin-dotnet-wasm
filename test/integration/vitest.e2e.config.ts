@@ -9,8 +9,7 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    include: ['**/*.test.ts'],
-    exclude: ['**/*.e2e.test.ts'],
+    include: ['**/*.e2e.test.ts'],
     testTimeout: 60_000,
     reporters: ['default', 'json'],
     outputFile: {
