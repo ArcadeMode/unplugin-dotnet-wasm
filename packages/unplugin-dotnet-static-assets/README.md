@@ -134,15 +134,15 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 |---|---|---|
 | Vite | ✓ Supported | ✓ Supported |
 | Rollup | ✓ Supported | ✓ Supported |
-| Rolldown | ✓ Supported | ✗ Not supported¹ |
+| Rolldown | ✓ Supported | ✓ Supported |
 | Webpack | ✓ Supported | — |
 | Rspack | ✓ Supported | — |
 | Rsbuild | ✓ Supported | — |
 | esbuild | ✓ Supported | — |
-| Farm | ✓ Supported | ✓ Supported |
+| Farm | ✓ Supported | ✗ Not supported¹ |
 | Bun | ✓ Supported | — |
 
-¹ Rolldown on Node not supported due to scope-hoisting bug breaking cross-module live bindings in .NET's dotnet.js runtime module.
+¹ Farm on Node is not supported. Farm's `node-next` and `node` output modes split code into orphaned chunks without a linker; the module system runtime is emitted but chunks are never imported or executed. This architectural limitation affects virtual-module-heavy bundling scenarios like dotnet static-web-assets. Farm's HTML orchestration works correctly for browser targets.
 
 ## How it works
 
