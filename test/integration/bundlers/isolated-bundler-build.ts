@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { rmSync } from 'node:fs';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { Platform } from '../test-matrix.js';
 
 // dotnet.js has bare `import('module')` / `import('process')` fallback paths
 // that only fire under Node. Some rollup-family drivers need these marked as
@@ -12,8 +13,10 @@ export abstract class IsolatedBundlerBuild {
   readonly warnings: string[] = [];
   readonly outDir: string;
   protected readonly baseDir: string;
+  protected readonly platform: Platform;
 
-  protected constructor(bundlerName: string, protected readonly fixtureDir: string, label: string) {
+  protected constructor(bundlerName: string, protected readonly fixtureDir: string, platform: Platform, label: string) {
+    this.platform = platform;
     const id = `${label}-${randomBytes(4).toString('hex')}`;
     this.baseDir = join(fixtureDir, '.tmp-test', `${bundlerName}-build`, id);
     this.outDir  = join(this.baseDir, 'dist');

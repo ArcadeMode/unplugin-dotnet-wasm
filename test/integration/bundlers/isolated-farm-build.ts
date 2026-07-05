@@ -1,10 +1,11 @@
 import { join } from 'node:path';
 import { readdirSync } from 'node:fs';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
 export class IsolatedFarmBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, label: string) { super('farm', fixtureDir, label); }
+  constructor(fixtureDir: string, platform: Platform, label: string) { super('farm', fixtureDir, platform, label); }
   get entryChunk(): string {
     // Farm emits `assets/index_<hash>.<hash>.js`; find it.
     const files = readdirSync(this.assets);

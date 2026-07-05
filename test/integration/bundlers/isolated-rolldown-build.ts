@@ -1,9 +1,10 @@
 import { join } from 'node:path';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild, DOTNET_NODE_BUILTINS } from './isolated-bundler-build.js';
 
 export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, label: string) { super('rolldown', fixtureDir, label); }
+  constructor(fixtureDir: string, platform: Platform, label: string) { super('rolldown', fixtureDir, platform, label); }
   get entryChunk(): string { return join(this.assets, 'entry.js'); }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {

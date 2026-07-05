@@ -3,13 +3,14 @@ import { join, resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import DotnetAssetsVite from 'unplugin-dotnet-static-assets/vite';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
 export class IsolatedViteBuild extends IsolatedBundlerBuild {
   private readonly cacheDir: string;
 
-  constructor(fixtureDir: string, label: string) {
-    super('vite', fixtureDir, label);
+  constructor(fixtureDir: string, platform: Platform, label: string) {
+    super('vite', fixtureDir, platform, label);
     this.cacheDir = join(this.baseDir, '.vite');
   }
 

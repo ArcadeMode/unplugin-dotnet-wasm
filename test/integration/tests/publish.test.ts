@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createIsolatedBuild, type IsolatedBundlerBuild } from '../bundlers/index.js';
-import { describeWhen, currentBundler, NODE_API_BUNDLERS, getFixtureDir } from '../test-matrix.js';
+import { describeWhen, currentBundler, currentPlatform, NODE_API_BUNDLERS, getFixtureDir } from '../test-matrix.js';
 
 // Prerequisite for fingerprint/nofingerprint shapes: npm build:library:fingerprint (or :nofingerprint)
 // The `none` shape covers the negative path: no publish output exists so dotnet clean should be ran before.
@@ -48,7 +48,7 @@ function assertPublishBuild(vb: IsolatedBundlerBuild): void {
 }
 
 describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Publish build (isPublish: true)', () => {
-  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-ispublish');
+  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-ispublish');
 
   beforeAll(() => vb.build({
     projectRoot: LIBRARY_DIR,
@@ -64,7 +64,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUND
 });
 
 describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUNDLERS })('Publish build (explicit dotnetOutputDir)', () => {
-  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-dotnet-output-dir');
+  const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-dotnet-output-dir');
 
   beforeAll(() => vb.build({
     projectName: 'Library',
@@ -79,7 +79,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'], bundlers: NODE_API_BUND
 
 describeWhen({ shapes: ['none'], bundlers: NODE_API_BUNDLERS })('DiscoveryError when publish output is absent', () => {
   it('isPublish: true → fails naming the searched publish dir', async () => {
-    const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-3-discovery');
+    const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-3-discovery');
     try {
       const expectedDir = join(PUBLISH_DIR);
       await expect(vb.build({
@@ -105,7 +105,7 @@ describeWhen({ shapes: ['none'], bundlers: NODE_API_BUNDLERS })('DiscoveryError 
   }, 30_000);
 
   it('dotnetOutputDir: <missing> → fails naming the given dir', async () => {
-    const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, 'm2-3-explicit');
+    const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-3-explicit');
     const missingDir = join(tmpdir(), `dotnet-wasm-bundler-missing-${Date.now()}`);
     try {
       await expect(vb.build({

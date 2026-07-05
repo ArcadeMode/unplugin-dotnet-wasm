@@ -1,10 +1,16 @@
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
 export class IsolatedBunBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, label: string) { super('bun', fixtureDir, label); }
+  constructor(fixtureDir: string, platform: Platform, label: string) {
+    if (platform !== 'browser') {
+      throw new Error(`bun does not support platform='${platform}'. Supported: browser.`);
+    }
+    super('bun', fixtureDir, platform, label);
+  }
   get entryChunk(): string { return join(this.assets, 'entry.js'); }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
