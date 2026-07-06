@@ -1,13 +1,7 @@
-# dotnet-wasm-bundler
-
-Bundle .NET WebAssembly static assets into modern JS bundlers.
-
-This monorepo contains:
-
-| Package | Description |
-|---|---|
-| [`unplugin-dotnet-wasm`](packages/unplugin-dotnet-wasm) | Vite/Rollup/Webpack/esbuild plugin — mounts .NET WebAssembly as virtual modules |
-| [`sample-vite`](packages/samples/sample-vite) | Minimal Vite app wired to a .NET WASM library |
+<h1 align=center tabindex=-1>unplugin-dotnet-wasm</h1>
+<p align=center tabindex=-1>
+  <i>Bundle .NET WebAssembly static assets into modern JS bundlers</i>
+</p>
 
 ## Quick start
 
@@ -25,4 +19,3 @@ pnpm preview:sample
 - .NET 10 SDK
 - Node.js >= 20, pnpm >= 9
 - Bun >= 1.3 (optional, required only for testing the `bun` bundler integration)
-- [TypeShim](https://github.com/ArcadeMode/TypeShim) (NuGet, pulled automatically)
