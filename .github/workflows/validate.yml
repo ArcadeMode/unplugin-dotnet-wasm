@@ -73,13 +73,8 @@ jobs:
       - name: Build plugin
         run: pnpm build:plugin
 
-      - name: Build library (fingerprint on)
-        if: matrix.fingerprint == 'true'
-        run: pnpm build:library:fingerprint
-
-      - name: Build library (fingerprint off)
-        if: matrix.fingerprint == 'false'
-        run: pnpm build:library:nofingerprint
+      - name: Build library
+        run: pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
 
       - name: Build fixtures
         run: pnpm build:fixtures:${{ matrix.platform }}
