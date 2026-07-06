@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { resolveBin } from './resolve-bin.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
