@@ -42,12 +42,12 @@ Bundler support:
 
 Env vars set per run: `BUNDLER`, `DOTNET_FIXTURE_SHAPE` (`fingerprint` | `nofingerprint` | `none`), `PLATFORM` (`node` | `browser`).
 
-## E2E dispatcher — `test/integration`
+## E2E dispatch — `test/integration`
 
-`pnpm test:e2e` → [test/integration/run-e2e.mjs](test/integration/run-e2e.mjs) routes by `PLATFORM`:
+The matrix runner dispatches directly based on `config.platform`:
 
-- `PLATFORM=node`    → `vitest run --config vitest.e2e.config.ts` (runs `*.e2e.test.ts`)
-- `PLATFORM=browser` → `playwright test` (runs `runtime.spec.ts`)
+- `platform=node`    → `vitest run --config vitest.e2e.config.ts` (runs `*.e2e.test.ts`)
+- `platform=browser` → `playwright test` (runs `runtime.spec.ts`)
 
 Integration vitest config excludes `*.e2e.test.ts` so tests don't double-run.
 
@@ -56,8 +56,8 @@ Integration vitest config excludes `*.e2e.test.ts` so tests don't double-run.
 ```powershell
 cd test/fixtures/node/library-app-vite; npm run build
 cd ../../../integration
-$env:BUNDLER='vite'; $env:DOTNET_FIXTURE_SHAPE='nofingerprint'; $env:PLATFORM='node'
-npm run test:e2e
+$env:BUNDLER='vite'; $env:DOTNET_FIXTURE_SHAPE='nofingerprint'
+npm run test:e2e:node
 ```
 
 ## Repo-wide utilities

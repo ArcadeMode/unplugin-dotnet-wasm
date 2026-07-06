@@ -6,7 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node run-e2e.mjs",
+    "test:e2e:node": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:browser": "playwright test",
     "e2e:install": "playwright install chromium --with-deps",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf coverage test-results"

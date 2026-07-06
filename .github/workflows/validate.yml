@@ -9,6 +9,7 @@ defaults:
 
 jobs:
   unit:
+    name: Run unit tests
     strategy:
       fail-fast: false
       matrix:
@@ -21,7 +22,7 @@ jobs:
         with:
           node-version: '24'
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
@@ -44,6 +45,8 @@ jobs:
           path: packages/unplugin-dotnet-wasm/test-results/
 
   matrix:
+    name: Run integration tests
+    needs: unit
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +61,7 @@ jobs:
         with:
           node-version: '24'
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
@@ -73,13 +76,8 @@ jobs:
       - name: Build plugin
         run: pnpm build:plugin
 
-      - name: Build library (fingerprint on)
-        if: matrix.fingerprint == 'true'
-        run: pnpm build:library:fingerprint
-
-      - name: Build library (fingerprint off)
-        if: matrix.fingerprint == 'false'
-        run: pnpm build:library:nofingerprint
+      - name: Build library
+        run: pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
 
       - name: Build fixtures
         run: pnpm build:fixtures:${{ matrix.platform }}
@@ -94,7 +92,7 @@ jobs:
           fi
 
       - name: Run test matrix
-        run: pnpm test:matrix -- --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }}
+        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }}
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -102,7 +100,8 @@ jobs:
           name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}
           path: test/integration/test-results/
 
-  publish:
+  results:
+    name: Publish test results
     needs: [unit, matrix]
     if: always()
     runs-on: ubuntu-latest
