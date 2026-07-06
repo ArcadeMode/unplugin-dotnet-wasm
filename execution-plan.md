@@ -166,14 +166,24 @@ All browser fixtures ship in one PR — they're structurally identical. Director
 - `test/integration/bundler-build-helper.ts`: `IsolatedBundlerBuild` interface `{ dist: string; assets: string; entryChunk: string; warnings: string[] }` returned by a `runBuild(bundler, fixtureDir)` factory. One implementation per bundler (existing Vite driver + N new drivers, each ~10–30 LOC calling the bundler's Node API). Warnings surface via each bundler's native diagnostics.
 - `describeWhen({ bundlers: [...] })` gates for bundler-specific quirks. Confirm existing `/^Library[.-][^/]+\.wasm$/` assertion matches every bundler's default hash filename; adjust the regex or align each bundler's asset-filename template.
 
-### M3.7 — Root scripts + Playwright per-platform-bundler
+### M3.7 — Matrix runner + Playwright per-platform-bundler (shipped)
 
-- Root `package.json`: `build:fixture:browser:{bundler}` and `build:fixture:node:esbuild` (smoke only). `test:integration:browser` / `test:integration:node` chain the matrix for each platform. `test:fingerprint-enabled` / `-disabled` remain as the top-level chains covering all platforms.
-- `test/integration/playwright.config.ts` reads `BUNDLER` env, points `webServer` at the matching fixture's `dist/`.
-- Interop spec (`test/integration/tests/runtime.spec.ts`) stays bundler-blind — one shared spec covers every bundler.
-- `test:e2e:${bundler}` + `test:e2e` chain.
+The plan originally called for a fan of per-bundler `build:fixture:*` / `test:integration:*` / `test:e2e:*` root scripts. That was collapsed into a single flag-driven matrix runner plus one glob-driven fixture builder. Final shape:
 
-**Matrix cardinality:** `{fingerprint, nofingerprint} × N_bundlers + 1 (`none`)` integration invocations per full test run.
+- **Fixture builds** — `pnpm build:fixtures` runs `scripts/build-fixtures.js`, which shells out to `pnpm --filter "@dotnet-wasm-bundler/library-app-*-<bundler>-fixture" build`. Default arg `*` builds every fixture across both platforms; pass a bundler name to narrow (e.g. `node scripts/build-fixtures.js vite`). Single-fixture rebuild for iteration remains `cd test/fixtures/<platform>/library-app-<bundler>; npm run build` — the matrix runner does **not** rebuild fixtures.
+- **Matrix runner** — `pnpm test:matrix` → `test/integration/run-test-matrix.mjs`. Required `--fingerprint=<true|false|none>`; optional `--bundler=<name>`, `--platform=<node|browser>`, `--integration`, `--e2e`. Sets `BUNDLER`, `PLATFORM`, `DOTNET_FIXTURE_SHAPE` per cell and runs `pnpm test` (integration) or `pnpm test:e2e` (dispatcher) inside `test/integration/`. `BUNDLERS_SUPPORT` in the runner gates which bundlers are attempted per platform (browser: all 9; node: whatever passed M3.5b).
+- **Top-level chains** — `scripts/run-tests.mjs` composes the full test suite as three named chains invoked from root scripts:
+  - `test:fingerprint-enabled` → clean → build plugin → build library (fingerprint) → build fixtures → unit → `test:matrix --integration --fingerprint=true` → `test:matrix --e2e --fingerprint=true`.
+  - `test:fingerprint-disabled` → same, with `WasmFingerprintAssets=false`.
+  - `test:no-build` → clean → build plugin → `test:matrix --integration --fingerprint=none` (negative-path shape).
+  - `pnpm test` (no arg) runs all three chains in sequence.
+- **E2E dispatcher** — `test/integration/run-e2e.mjs` reads `PLATFORM` and routes `pnpm test:e2e` to either `vitest run --config vitest.e2e.config.ts` (node, runs `*.e2e.test.ts`) or `playwright test` (browser, runs `runtime.spec.ts`). The integration vitest config excludes `*.e2e.test.ts` so tests don't double-run.
+- **Playwright** — `test/integration/playwright.config.ts` reads `BUNDLER` + `DOTNET_FIXTURE_SHAPE` via the shared `test-matrix-parameters` module, points `webServer` at `../fixtures/browser/library-app-${BUNDLER}/dist`, and writes per-cell JSON reports to `test-results/${BUNDLER}-${SHAPE}.json`.
+- **Interop spec** stays bundler-blind — one `runtime.spec.ts` covers every browser bundler; one `runtime-node.e2e.test.ts` covers every node bundler.
+
+**Matrix cardinality (per full `pnpm test` run):** `{fingerprint, nofingerprint} × supported_bundlers_per_platform × {integration, e2e}` cells, plus one `none` integration cell. Cells whose bundler isn't in the platform's `BUNDLERS_SUPPORT` list are skipped with a warning by the matrix runner rather than executed.
+
+**Rejected shape:** per-bundler root-script aliases (`build:fixture:browser:vite`, `test:e2e:webpack`, etc.). Adds `2 × N` entries to `package.json` that the flag-driven matrix runner already covers with a single command line.
 
 ### M3.8 — Docs
 
