@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLERS = ['vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun'];
 const PLATFORMS = ['node', 'browser'];
 const BUNDLERS_SUPPORT = {
-  node: ['vite', 'rollup', 'rolldown'],
+  node: ['vite', 'rollup', 'rolldown', 'esbuild'],
   browser: ['vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun'],
 };
 const FINGERPRINT_SHAPES = {
@@ -16,8 +16,6 @@ const FINGERPRINT_SHAPES = {
   false: 'nofingerprint',
   none: 'none',
 };
-
-
 
 const options = {
   integration: { type: 'boolean', default: false },

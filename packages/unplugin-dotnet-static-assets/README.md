@@ -132,17 +132,15 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 
 | Bundler | Browser | Node |
 |---|---|---|
-| Vite | ✓ Supported | ✓ Supported |
-| Rollup | ✓ Supported | ✓ Supported |
-| Rolldown | ✓ Supported | ✓ Supported |
-| Webpack | ✓ Supported | — |
-| Rspack | ✓ Supported | — |
-| Rsbuild | ✓ Supported | — |
-| esbuild | ✓ Supported | — |
-| Farm | ✓ Supported | ✗ Not supported¹ |
-| Bun | ✓ Supported | — |
-
-¹ Farm on Node is not supported. Farm's `node-next` and `node` output modes split code into orphaned chunks without a linker; the module system runtime is emitted but chunks are never imported or executed. This architectural limitation affects virtual-module-heavy bundling scenarios like dotnet static-web-assets. Farm's HTML orchestration works correctly for browser targets.
+| Vite | ✅ Supported | ✅ Supported |
+| Rollup | ✅ Supported | ✅ Supported |
+| Rolldown | ✅ Supported | ✅ Supported |
+| Webpack | ✅ Supported | — |
+| Rspack | ✅ Supported | — |
+| Rsbuild | ✅ Supported | — |
+| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] |
+| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] |
+| Bun | ✅ Supported | — |
 
 ## How it works
 
@@ -157,3 +155,12 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 - Node.js >= 20
 - .NET 10 SDK (build output must exist before bundling)
 - `unplugin` >= 2.0.0
+
+[^esbuild-node-partial-support] esbuild works on node but requires `withResourceLoader` to fix WASM asset resolution.
+```
+await dotnet
+  .withResourceLoader((type: string, name: string, defaultUri: string) => new URL(defaultUri, import.meta.url).href)
+  .create();
+```
+
+[^farm-node-no-support] Farm's `node-next` and `node` output modes split code into orphaned chunks without a linker; the module system runtime is emitted but chunks are never imported or executed. This architectural limitation affects virtual-module-heavy bundling scenarios like dotnet static-web-assets. Farm's HTML orchestration works correctly for browser targets.

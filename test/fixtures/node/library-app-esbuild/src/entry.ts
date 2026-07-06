@@ -5,8 +5,7 @@ async function runTests(): Promise<void> {
   console.log('[Node] Initializing .NET WASM runtime...');
   
   const runtimeInfo = await dotnet
-    .withResourceLoader((type: string, name: string, defaultUri: string, integrity: string, behavior: string) =>
-      new URL(defaultUri, import.meta.url).href)
+    .withResourceLoader((type: string, name: string, defaultUri: string) => new URL(defaultUri, import.meta.url).href)
     .create();
   await TypeShimInitializer.initialize(runtimeInfo);
   runtimeInfo.runMain();
@@ -17,41 +16,61 @@ async function runTests(): Promise<void> {
   const thrower = new Throws();
 
   try {
-    // Test Echo (sync)
-    const greet = echo.Greet('Node');
-    console.log('[Echo.Greet] Result:', greet);
-    if (!greet.includes('Node')) {
-      throw new Error(`Echo.Greet('Node') returned unexpected value: ${greet}`);
+    // Test Echo.Greet (sync)
+    console.log('[Echo.Greet] Testing...');
+    const greet = echo.Greet('world');
+    if (greet !== 'Hello, world') {
+      throw new Error(`Echo.Greet('world') returned '${greet}', expected 'Hello, world'`);
     }
+    console.log('[Echo.Greet] ✓ Passed');
 
+    // Test Echo.Add
+    console.log('[Echo.Add] Testing...');
     const sum = echo.Add(2, 3);
-    console.log('[Echo.Add] 2 + 3 =', sum);
     if (sum !== 5) {
       throw new Error(`Echo.Add(2, 3) returned ${sum}, expected 5`);
     }
+    console.log('[Echo.Add] ✓ Passed');
+
+    // Test Echo.BoolNot
+    console.log('[Echo.BoolNot] Testing...');
+    const notTrue = echo.BoolNot(true);
+    const notFalse = echo.BoolNot(false);
+    if (notTrue !== false || notFalse !== true) {
+      throw new Error(`Echo.BoolNot returned unexpected values: true→${notTrue}, false→${notFalse}`);
+    }
+    console.log('[Echo.BoolNot] ✓ Passed');
+
+    // Test Echo.Pi
+    console.log('[Echo.Pi] Testing...');
+    const pi = echo.Pi();
+    if (Math.abs(pi - Math.PI) > 1e-4) {
+      throw new Error(`Echo.Pi() returned ${pi}, expected ~${Math.PI}`);
+    }
+    console.log('[Echo.Pi] ✓ Passed');
 
     // Test Counter (mutable state)
-    console.log('[Counter] Initial value:', counter.Value);
+    console.log('[Counter] Testing...');
     if (counter.Value !== 10) {
       throw new Error(`Counter initialized with 10, got ${counter.Value}`);
     }
-    
     counter.Increment();
     counter.Increment();
-    console.log('[Counter] After 2 increments:', counter.Value);
     if (counter.Value !== 12) {
       throw new Error(`Counter.Value should be 12 after 2 increments, got ${counter.Value}`);
     }
+    console.log('[Counter] ✓ Passed');
 
-    // Test AsyncOps
-    const delayResult = await asyncOps.DelayThenEcho('async-test', 100);
-    console.log('[AsyncOps.DelayThenEcho] Result:', delayResult);
+    // Test AsyncOps.DelayThenEcho
+    console.log('[AsyncOps.DelayThenEcho] Testing...');
+    const delayResult = await asyncOps.DelayThenEcho('async-test', 10);
     if (delayResult !== 'async-test') {
-      throw new Error(`AsyncOps.DelayThenEcho returned unexpected value: ${delayResult}`);
+      throw new Error(`AsyncOps.DelayThenEcho returned '${delayResult}', expected 'async-test'`);
     }
+    console.log('[AsyncOps.DelayThenEcho] ✓ Passed');
 
-    // Test Throws — expect it to throw
-    console.log('[Throws] Attempting to call Boom()...');
+    // Test Throws.Boom (expects throw)
+    console.log('[Throws.Boom] Testing...');
     try {
       thrower.Boom();
       throw new Error('Throws.Boom() should have thrown an exception');
@@ -59,7 +78,7 @@ async function runTests(): Promise<void> {
       if ((ex as Error).message.includes('should have thrown')) {
         throw ex;
       }
-      console.log('[Throws] Boom() threw as expected:', (ex as Error).message.substring(0, 50));
+      console.log('[Throws.Boom] ✓ Passed (threw as expected)');
     }
 
     console.log('[SUCCESS] All tests passed in Node environment.');
