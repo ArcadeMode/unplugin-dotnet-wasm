@@ -97,7 +97,7 @@ jobs:
           name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}
           path: test/integration/test-results/
 
-  publish:
+  results:
     needs: [unit, matrix]
     if: always()
     runs-on: ubuntu-latest
