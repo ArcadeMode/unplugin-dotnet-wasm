@@ -1,21 +1,22 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
-import { readBundler, readShape } from './test-matrix-parameters';
+import { readBundler, readPlatform, readShape } from './test-matrix-parameters';
 
 const bundler = readBundler();
+const platform = readPlatform();
 const fixtureShape = readShape();
-const configName = `${bundler}-${fixtureShape}`;
 
-export function createVitestConfig(include: string[] | undefined) {
+export function createVitestConfig(include: string[] | undefined, type: 'integration' | 'e2e-node') {
+  const configName = `${type}-${bundler}-${platform}-${fixtureShape}`;
   return defineConfig({
     test: {
       globals: false,
       environment: 'node',
       include,
       testTimeout: 60_000,
-      reporters: ['default', 'json'],
+      reporters: ['default', 'junit'],
       outputFile: {
-        json: resolve(__dirname, `test-results/${configName}.json`),
+        junit: resolve(__dirname, `test-results/${configName}.junit.xml`),
       },
     },
   });

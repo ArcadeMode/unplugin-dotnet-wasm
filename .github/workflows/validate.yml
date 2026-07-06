@@ -1,0 +1,125 @@
+name: Validate
+
+on:
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - run: pnpm install
+
+      - name: Build plugin
+        run: pnpm build:plugin
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-unit-${{ matrix.os }}
+          path: packages/unplugin-dotnet-wasm/test-results/
+
+  matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        platform: [node, browser]
+        fingerprint: ['true', 'false']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: pnpm install
+
+      - name: Build plugin
+        run: pnpm build:plugin
+
+      - name: Build library (fingerprint on)
+        if: matrix.fingerprint == 'true'
+        run: pnpm build:library:fingerprint
+
+      - name: Build library (fingerprint off)
+        if: matrix.fingerprint == 'false'
+        run: pnpm build:library:nofingerprint
+
+      - name: Build fixtures
+        run: pnpm build:fixtures:${{ matrix.platform }}
+
+      - name: Install Playwright browsers
+        if: matrix.platform == 'browser'
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            pnpm --dir test/integration exec playwright install --with-deps chromium
+          else
+            pnpm --dir test/integration exec playwright install chromium
+          fi
+
+      - name: Run test matrix
+        run: pnpm test:matrix -- --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}
+          path: test/integration/test-results/
+
+  publish:
+    needs: [unit, matrix]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+          path: results
+
+      - name: Publish test results
+        id: test-results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            results/**/*.junit.xml

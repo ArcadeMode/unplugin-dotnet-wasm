@@ -13,6 +13,8 @@
     "preview:sample": "pnpm --filter @dotnet-wasm-bundler/sample-vite preview",
     "clean:sample": "dotnet clean packages/samples/SampleLibrary/SampleLibrary.csproj -c Debug && dotnet clean packages/samples/SampleLibrary/SampleLibrary.csproj -c Release",
     "build:fixtures": "node scripts/build-fixtures.js",
+    "build:fixtures:node": "pnpm --filter \"@dotnet-wasm-bundler/library-app-node-*\" build",
+    "build:fixtures:browser": "pnpm --filter \"@dotnet-wasm-bundler/library-app-browser-*\" build",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
     "test:unit": "pnpm build:sample && pnpm --filter unplugin-dotnet-wasm test",
     "test:matrix": "node test/integration/run-test-matrix.mjs",

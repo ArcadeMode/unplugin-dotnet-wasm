@@ -7,14 +7,14 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = readBundler();
 const DIST_DIR = process.env.DIST_DIR
   ?? resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}/dist`);
-const configName = `${BUNDLER}-${readShape()}`;
+const configName = `e2e-browser-${BUNDLER}-browser-${readShape()}`;
 
 export default defineConfig({
   testDir: 'tests',
   testMatch: ['*.spec.ts'],
   timeout: 60_000,
   globalSetup: './global-setup.ts',
-  reporter: [['json', { outputFile: resolve(__dirname, `test-results/${configName}.json`) }]],
+  reporter: [['junit', { outputFile: resolve(__dirname, `test-results/${configName}.junit.xml`) }]],
   use: {
     baseURL: 'http://localhost:5174',
     headless: true,
