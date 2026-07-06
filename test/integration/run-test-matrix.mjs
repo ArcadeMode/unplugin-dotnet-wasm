@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { resolveBin } from './resolve-bin.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -63,14 +64,15 @@ if (runE2e) {
 console.log(`Running ${configs.length} test configuration(s)...`);
 console.log(`Fixture Shape: ${fixtureShape}\n`);
 
+// Avoid pnpm exec + shell overhead per matrix cell by invoking the test runner directly.
+const vitestBin = resolveBin('vitest');
+const runE2eMjs = resolve(__dirname, 'run-e2e.mjs');
+
 const results = [];
 let totalFailed = 0;
-
+let i = 0;
 for (const config of configs) {
   const configName = `${config.bundler}-${config.platform}-${config.shape}`;
-  const testType = config.type === 'integration' ? 'test' : 'test:e2e';
-  
-  // Check if bundler is supported on this platform
   const supportedBundlers = BUNDLERS_SUPPORT[config.platform];
   if (!supportedBundlers.includes(config.bundler)) {
     results.push({
@@ -82,7 +84,7 @@ for (const config of configs) {
     continue;
   }
   
-  console.log(`[${configs.indexOf(config) + 1}/${configs.length}] Running ${config.type} tests for ${config.platform} (${configName})...`);
+  console.log(`[${i}/${configs.length}] Running ${config.type} tests for ${config.platform} (${configName})...`);
 
   const env = {
     ...process.env,
@@ -91,11 +93,16 @@ for (const config of configs) {
     DOTNET_FIXTURE_SHAPE: config.shape,
   };
 
-  const result = spawnSync('pnpm', [testType], {
+  const [cmd, cmdArgs] = config.type === 'integration'
+    ? [process.execPath, [vitestBin, 'run']]
+    : config.platform === 'node'
+      ? [process.execPath, [vitestBin, 'run', '--config', 'vitest.e2e.config.ts']]
+      : [process.execPath, [playwrightBin, 'test']];
+
+  const result = spawnSync(cmd, cmdArgs, {
     cwd: __dirname,
     env,
     stdio: 'inherit',
-    shell: true,
   });
 
   const exitCode = result.status ?? result.error?.code ?? 1;
@@ -113,6 +120,7 @@ for (const config of configs) {
   } else {
     console.log(`✓ PASSED: ${config.type} tests for ${configName}\n`);
   }
+  i++;
 }
 
 // Print summary
