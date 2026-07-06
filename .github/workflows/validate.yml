@@ -9,6 +9,7 @@ defaults:
 
 jobs:
   unit:
+    name: Run unit tests
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +45,8 @@ jobs:
           path: packages/unplugin-dotnet-wasm/test-results/
 
   matrix:
+    name: Run integration tests
+    needs: unit
     strategy:
       fail-fast: false
       matrix:
@@ -98,6 +101,7 @@ jobs:
           path: test/integration/test-results/
 
   results:
+    name: Publish test results
     needs: [unit, matrix]
     if: always()
     runs-on: ubuntu-latest
