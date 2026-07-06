@@ -1,8 +1,6 @@
-import { sep } from 'node:path';
-
-/** Convert OS-native separators to POSIX. No-op on Linux/macOS. */
+/** Convert backslash separators to POSIX forward slashes. */
 export function toPosixPath(p: string): string {
-  return sep === '\\' ? p.replace(/\\/g, '/') : p;
+  return p.replace(/\\/g, '/');
 }
 
 /** Strip one or more leading `/` characters. */
