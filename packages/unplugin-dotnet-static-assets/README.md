@@ -138,8 +138,8 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 | Webpack | ✅ Supported | — |
 | Rspack | ✅ Supported | — |
 | Rsbuild | ✅ Supported | — |
-| esbuild | ✅ Supported | ⚠️ Supported[^1] |
-| Farm | ✅ Supported | ❌ Not supported[^2] |
+| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] |
+| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] |
 | Bun | ✅ Supported | — |
 
 ## How it works
@@ -156,11 +156,11 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 - .NET 10 SDK (build output must exist before bundling)
 - `unplugin` >= 2.0.0
 
-[^1] esbuild works on node but requires `withResourceLoader` to fix WASM asset resolution.
+[^esbuild-node-partial-support]: esbuild works on node but requires `withResourceLoader` to fix WASM asset resolution.
 ```
 await dotnet
   .withResourceLoader((type: string, name: string, defaultUri: string) => new URL(defaultUri, import.meta.url).href)
   .create();
 ```
 
-[^2] Farm's `node-next` and `node` output modes split code into orphaned chunks without a linker; the module system runtime is emitted but chunks are never imported or executed. This architectural limitation affects virtual-module-heavy bundling scenarios like dotnet static-web-assets. Farm's HTML orchestration works correctly for browser targets.
+[^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks without a linker; the module system runtime is emitted but chunks are never imported or executed. This architectural limitation affects virtual-module-heavy bundling scenarios like dotnet static-web-assets. Farm's HTML orchestration works correctly for browser targets.
