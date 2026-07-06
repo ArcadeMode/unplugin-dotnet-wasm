@@ -80,7 +80,7 @@ export function buildConfigs({ bundlers, platforms, fixtureShape, runIntegration
 /**
  * @returns {{ config: string, type: string, status: 'passed'|'failed'|'skipped', exitCode: number|null }}
  */
-export function runConfig(config, { cwd, vitestBin, playwrightBin, index, total }) {
+export function runConfig(config, { cwd, vitestBin, index, total }) {
   const configName = `${config.bundler}-${config.platform}-${config.shape}`;
 
   if (!BUNDLERS_SUPPORT[config.platform].includes(config.bundler)) {
@@ -96,13 +96,13 @@ export function runConfig(config, { cwd, vitestBin, playwrightBin, index, total 
     DOTNET_FIXTURE_SHAPE: config.shape,
   };
 
-  const [cmd, cmdArgs] = config.type === 'integration'
-    ? [process.execPath, [vitestBin, 'run']]
+  const [cmd, cmdArgs, opts] = config.type === 'integration'
+    ? [process.execPath, [vitestBin, 'run'], {}]
     : config.platform === 'node'
-      ? [process.execPath, [vitestBin, 'run', '--config', 'vitest.e2e.config.ts']]
-      : [process.execPath, [playwrightBin, 'test']];
+      ? [process.execPath, [vitestBin, 'run', '--config', 'vitest.e2e.config.ts'], {}]
+      : ['pnpm', ['exec', 'playwright', 'test'], { shell: true }];
 
-  const proc = spawnSync(cmd, cmdArgs, { cwd, env, stdio: 'inherit' });
+  const proc = spawnSync(cmd, cmdArgs, { cwd, env, stdio: 'inherit', ...opts });
 
   const exitCode = proc.status ?? proc.error?.code ?? 1;
   const status   = proc.status === 0 ? 'passed' : 'failed';

@@ -4,8 +4,7 @@ import { resolveBin, parseMatrixArgs, buildConfigs, runConfig, printSummary } fr
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const vitestBin     = resolveBin('vitest');
-const playwrightBin = resolveBin('@playwright/test', 'playwright');
+const vitestBin = resolveBin('vitest');
 
 const args    = parseMatrixArgs();
 const configs = buildConfigs(args);
@@ -14,7 +13,7 @@ console.log(`Running ${configs.length} test configuration(s)...`);
 console.log(`Fixture Shape: ${args.fixtureShape}\n`);
 
 const results = configs.map((config, index) =>
-  runConfig(config, { cwd: __dirname, vitestBin, playwrightBin, index, total: configs.length })
+  runConfig(config, { cwd: __dirname, vitestBin, index, total: configs.length })
 );
 
 const failed = printSummary(results);
