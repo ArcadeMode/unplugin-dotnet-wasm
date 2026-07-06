@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild';
-import DotnetAssets from 'unplugin-dotnet-static-assets/esbuild';
+import DotnetAssets from 'unplugin-dotnet-wasm/esbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,3 +26,4 @@ await esbuild.build({
     }),
   ],
 });
+

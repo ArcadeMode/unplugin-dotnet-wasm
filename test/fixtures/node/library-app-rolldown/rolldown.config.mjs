@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-static-assets/rolldown';
+import DotnetAssets from 'unplugin-dotnet-wasm/rolldown';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { builtinModules } from 'node:module';
@@ -23,3 +23,4 @@ export default {
     }),
   ],
 };
+

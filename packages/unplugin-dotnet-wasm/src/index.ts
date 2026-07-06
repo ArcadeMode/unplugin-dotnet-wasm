@@ -1,7 +1,7 @@
 /**
- * unplugin-dotnet-static-assets
+ * unplugin-dotnet-wasm
  *
- * Mount .NET static-web-assets output as a virtual module namespace.
+ * Mount .NET WebAssembly output as a virtual module namespace.
  * Implementation begins in M1.2 (manifest parser).
  */
 export type { DotnetAssetsOptions } from './types.js';

@@ -1,5 +1,5 @@
 // Run under Bun:  bun bun.build.ts
-import DotnetAssets from 'unplugin-dotnet-static-assets/bun';
+import DotnetAssets from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, mkdirSync } from 'node:fs';
@@ -40,3 +40,4 @@ if (!result.success) {
 
 mkdirSync(outdir, { recursive: true });
 copyFileSync(resolve(__dirname, 'src/index.html'), resolve(outdir, 'index.html'));
+

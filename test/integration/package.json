@@ -30,6 +30,7 @@
     "webpack": "^5.0.0"
   },
   "dependencies": {
-    "unplugin-dotnet-static-assets": "workspace:*"
+    "unplugin-dotnet-wasm": "workspace:*"
   }
 }
+

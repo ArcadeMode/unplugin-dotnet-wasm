@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-static-assets/rollup';
+import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import esbuild from 'rollup-plugin-esbuild';
 import { resolve } from 'node:path';
@@ -39,3 +39,4 @@ export default {
     emitHtml,
   ],
 };
+

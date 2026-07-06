@@ -1,4 +1,4 @@
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 import { join } from 'node:path';
@@ -16,7 +16,7 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
     this.warnings.length = 0;
     const [{ createRsbuild }, { default: DotnetAssets }] = await Promise.all([
       import('@rsbuild/core'),
-      import('unplugin-dotnet-static-assets/rsbuild'),
+      import('unplugin-dotnet-wasm/rsbuild'),
     ]);
 
     const rsbuild = await createRsbuild({
@@ -36,3 +36,4 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
     await rsbuild.build();
   }
 }
+

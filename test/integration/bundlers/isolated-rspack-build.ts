@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
@@ -16,7 +16,7 @@ export class IsolatedRspackBuild extends IsolatedBundlerBuild {
     this.warnings.length = 0;
     const [{ rspack }, { default: DotnetAssets }] = await Promise.all([
       import('@rspack/core'),
-      import('unplugin-dotnet-static-assets/rspack'),
+      import('unplugin-dotnet-wasm/rspack'),
     ]);
 
     await new Promise<void>((resolveP, rejectP) => {
@@ -60,3 +60,4 @@ export class IsolatedRspackBuild extends IsolatedBundlerBuild {
     });
   }
 }
+

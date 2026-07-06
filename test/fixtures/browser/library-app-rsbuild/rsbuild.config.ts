@@ -1,5 +1,5 @@
 import { defineConfig } from '@rsbuild/core';
-import DotnetAssets from 'unplugin-dotnet-static-assets/rsbuild';
+import DotnetAssets from 'unplugin-dotnet-wasm/rsbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,3 +27,4 @@ export default defineConfig({
     }),
   ],
 });
+

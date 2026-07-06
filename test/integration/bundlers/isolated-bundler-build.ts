@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { rmSync } from 'node:fs';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 
 // dotnet.js has bare `import('module')` / `import('process')` fallback paths
@@ -40,3 +40,4 @@ export abstract class IsolatedBundlerBuild {
     return resolve(this.fixtureDir, 'src/entry.ts');
   }
 }
+

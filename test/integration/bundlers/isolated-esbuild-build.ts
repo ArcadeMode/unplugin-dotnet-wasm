@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
 export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
@@ -10,7 +10,7 @@ export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
     this.warnings.length = 0;
     const [esbuild, { default: DotnetAssets }] = await Promise.all([
       import('esbuild'),
-      import('unplugin-dotnet-static-assets/esbuild'),
+      import('unplugin-dotnet-wasm/esbuild'),
     ]);
 
     const result = await esbuild.build({
@@ -27,3 +27,4 @@ export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
     for (const w of result.warnings) this.warnings.push(w.text);
   }
 }
+

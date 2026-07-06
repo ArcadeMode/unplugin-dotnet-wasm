@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-static-assets/webpack';
+import DotnetAssets from 'unplugin-dotnet-wasm/webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,3 +41,4 @@ export default {
     }),
   ],
 };
+

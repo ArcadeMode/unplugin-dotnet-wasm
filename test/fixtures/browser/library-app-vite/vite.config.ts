@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
+import DotnetAssets from 'unplugin-dotnet-wasm/vite';
 import { resolve } from 'node:path';
 
 export default defineConfig({
@@ -19,3 +19,4 @@ export default defineConfig({
     },
   },
 });
+

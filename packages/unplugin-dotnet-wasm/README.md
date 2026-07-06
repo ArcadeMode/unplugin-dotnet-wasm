@@ -1,4 +1,4 @@
-# unplugin-dotnet-static-assets
+# unplugin-dotnet-wasm
 
 Mount .NET static-web-assets output as a virtual module namespace for Vite, Webpack, Rollup, and esbuild.
 
@@ -9,7 +9,7 @@ module graph — no manual copy step, no public-dir hacks.
 ## Install
 
 ```bash
-npm i -D unplugin-dotnet-static-assets unplugin
+npm i -D unplugin-dotnet-wasm unplugin
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ npm i -D unplugin-dotnet-static-assets unplugin
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
+import DotnetAssets from 'unplugin-dotnet-wasm/vite';
 
 export default defineConfig({
   plugins: [
@@ -41,7 +41,7 @@ export default defineConfig({
 
 ```ts
 // rollup.config.js
-import DotnetAssets from 'unplugin-dotnet-static-assets/rollup';
+import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
 
 export default {
   plugins: [
@@ -62,7 +62,7 @@ export default {
 
 ```ts
 // webpack.config.js
-import DotnetAssets from 'unplugin-dotnet-static-assets/webpack';
+import DotnetAssets from 'unplugin-dotnet-wasm/webpack';
 
 module.exports = {
   plugins: [
@@ -83,7 +83,7 @@ module.exports = {
 
 ```ts
 import { build } from 'esbuild';
-import DotnetAssets from 'unplugin-dotnet-static-assets/esbuild';
+import DotnetAssets from 'unplugin-dotnet-wasm/esbuild';
 
 build({
   plugins: [

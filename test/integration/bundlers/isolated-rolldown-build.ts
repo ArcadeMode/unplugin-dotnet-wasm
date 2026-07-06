@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild, DOTNET_NODE_BUILTINS } from './isolated-bundler-build.js';
 
@@ -11,7 +11,7 @@ export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
     this.warnings.length = 0;
     const [{ rolldown }, { default: DotnetAssets }] = await Promise.all([
       import('rolldown'),
-      import('unplugin-dotnet-static-assets/rolldown'),
+      import('unplugin-dotnet-wasm/rolldown'),
     ]);
 
     // Mark Node builtins as external so rolldown doesn't warn on unresolved bare imports.
@@ -34,3 +34,4 @@ export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
     await bundle.close();
   }
 }
+

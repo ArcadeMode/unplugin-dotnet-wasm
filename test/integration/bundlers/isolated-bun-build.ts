@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
@@ -18,7 +18,7 @@ export class IsolatedBunBuild extends IsolatedBundlerBuild {
     
     // Create a temporary build script that Bun will execute
     const buildScript = `
-import DotnetAssets from 'unplugin-dotnet-static-assets/bun';
+import DotnetAssets from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -76,4 +76,5 @@ try {
     }
   }
 }
+
 

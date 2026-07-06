@@ -25,7 +25,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   let assetResolver: AssetResolver | null = null;
 
   const base = {
-    name: 'unplugin-dotnet-static-assets',
+    name: 'unplugin-dotnet-wasm',
     enforce: 'pre' as const,
     async buildStart(): Promise<void> {
       const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);

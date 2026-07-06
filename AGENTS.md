@@ -4,7 +4,7 @@ Build and test guide for AI coding agents working in this repository.
 Monorepo: pnpm workspace, ESM-only, Node 20+, TypeScript strict.
 Run all commands from repo root unless noted.
 
-## Plugin — `unplugin-dotnet-static-assets`
+## Plugin — `unplugin-dotnet-wasm`
 
 - Build: `pnpm build:plugin`
 - Unit test: `pnpm test:unit` (auto-builds `SampleLibrary` first)

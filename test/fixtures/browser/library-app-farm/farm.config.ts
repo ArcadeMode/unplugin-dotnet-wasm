@@ -1,5 +1,5 @@
 import { defineConfig } from '@farmfe/core';
-import DotnetAssets from 'unplugin-dotnet-static-assets/farm';
+import DotnetAssets from 'unplugin-dotnet-wasm/farm';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -39,3 +39,4 @@ export default defineConfig({
     }),
   ],
 });
+

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
@@ -13,7 +13,7 @@ export class IsolatedRollupBuild extends IsolatedBundlerBuild {
       import('rollup'),
       import('@rollup/plugin-node-resolve'),
       import('rollup-plugin-esbuild'),
-      import('unplugin-dotnet-static-assets/rollup'),
+      import('unplugin-dotnet-wasm/rollup'),
     ]);
 
     // Platform-specific plugins: browser uses nodeResolve with browser: true,
@@ -38,3 +38,4 @@ export class IsolatedRollupBuild extends IsolatedBundlerBuild {
     await bundle.close();
   }
 }
+

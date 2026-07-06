@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
@@ -16,7 +16,7 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
     this.warnings.length = 0;
     const [{ default: webpack }, { default: DotnetAssets }] = await Promise.all([
       import('webpack'),
-      import('unplugin-dotnet-static-assets/webpack'),
+      import('unplugin-dotnet-wasm/webpack'),
     ]);
 
     await new Promise<void>((resolveP, rejectP) => {
@@ -57,3 +57,4 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
     });
   }
 }
+

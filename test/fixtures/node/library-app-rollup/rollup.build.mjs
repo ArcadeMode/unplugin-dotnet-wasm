@@ -1,5 +1,5 @@
 import * as rollup from 'rollup';
-import DotnetAssets from 'unplugin-dotnet-static-assets/rollup';
+import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
 import esbuild from 'rollup-plugin-esbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,3 +32,4 @@ await bundle.write({
 
 await bundle.close();
 process.exit(0);
+

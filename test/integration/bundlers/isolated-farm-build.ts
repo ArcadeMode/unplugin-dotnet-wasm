@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readdirSync } from 'node:fs';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-static-assets';
+import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix.js';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
 
@@ -18,7 +18,7 @@ export class IsolatedFarmBuild extends IsolatedBundlerBuild {
     this.warnings.length = 0;
     const [{ build }, { default: DotnetAssets }] = await Promise.all([
       import('@farmfe/core'),
-      import('unplugin-dotnet-static-assets/farm'),
+      import('unplugin-dotnet-wasm/farm'),
     ]);
 
     // Platform-specific targetEnv; both use hashed filenames
@@ -45,3 +45,4 @@ export class IsolatedFarmBuild extends IsolatedBundlerBuild {
     });
   }
 }
+

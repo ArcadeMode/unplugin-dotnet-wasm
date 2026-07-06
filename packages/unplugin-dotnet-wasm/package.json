@@ -1,7 +1,7 @@
 {
-  "name": "unplugin-dotnet-static-assets",
+  "name": "unplugin-dotnet-wasm",
   "version": "0.0.1",
-  "description": "Mount .NET static-web-assets output as a virtual module namespace for Vite, Webpack, Rollup, esbuild and Rspack.",
+  "description": "Mount .NET WebAssembly output as virtual modules for Vite, Webpack, Rollup, esbuild, Rspack, Rsbuild, Rolldown, Farm, and Bun.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

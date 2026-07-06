@@ -6,7 +6,7 @@ This monorepo contains:
 
 | Package | Description |
 |---|---|
-| [`unplugin-dotnet-static-assets`](packages/unplugin-dotnet-static-assets) | Vite/Rollup/Webpack/esbuild plugin — mounts .NET static-web-assets as virtual modules |
+| [`unplugin-dotnet-wasm`](packages/unplugin-dotnet-wasm) | Vite/Rollup/Webpack/esbuild plugin — mounts .NET WebAssembly as virtual modules |
 | [`sample-vite`](packages/samples/sample-vite) | Minimal Vite app wired to a .NET WASM library |
 
 ## Quick start

@@ -1,4 +1,4 @@
-# Engineering Specification: `unplugin-dotnet-static-assets`
+# Engineering Specification: `unplugin-dotnet-wasm`
 
 > Companion file: [execution-plan.md](execution-plan.md). This file describes the target system; the execution plan tracks build order, milestones, and acceptance criteria.
 
@@ -226,7 +226,7 @@ The plugin exports a single factory whose options are a **discriminated union** 
 
 The two are mutually exclusive: discovery options and `dotnetOutputDir` may not coexist. Both variants share `projectName` (required) and `logLevel` (optional, default `'warn'`).
 
-The exact TypeScript types live in [`packages/unplugin-dotnet-static-assets/src/types.ts`](packages/unplugin-dotnet-static-assets/src/types.ts) — that file is the source of truth for the public API. See §7 for working examples.
+The exact TypeScript types live in [`packages/unplugin-dotnet-wasm/src/types.ts`](packages/unplugin-dotnet-wasm/src/types.ts) — that file is the source of truth for the public API. See §7 for working examples.
 
 Defaults are part of the public contract; changes require a major version bump.
 
@@ -236,7 +236,7 @@ Defaults are part of the public contract; changes require a major version bump.
 
 ```ts
 // vite.config.ts
-import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
+import DotnetAssets from 'unplugin-dotnet-wasm/vite';
 
 export default {
   plugins: [
@@ -256,7 +256,7 @@ The bundler's own mode picks the variant — same plugin, mode-switched options:
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-static-assets/vite';
+import DotnetAssets from 'unplugin-dotnet-wasm/vite';
 
 export default defineConfig(({ mode }) => ({
   plugins: [
