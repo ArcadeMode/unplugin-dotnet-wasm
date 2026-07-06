@@ -73,7 +73,6 @@ for (const config of configs) {
   // Check if bundler is supported on this platform
   const supportedBundlers = BUNDLERS_SUPPORT[config.platform];
   if (!supportedBundlers.includes(config.bundler)) {
-    console.warn(`⚠️  SKIPPING: ${config.bundler} is not supported on ${config.platform} platform`);
     results.push({
       config: configName,
       type: config.type,
