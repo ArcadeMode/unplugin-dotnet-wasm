@@ -94,7 +94,7 @@ jobs:
           fi
 
       - name: Run test matrix
-        run: pnpm test:matrix -- --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }}
+        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }}
 
       - uses: actions/upload-artifact@v4
         if: always()
