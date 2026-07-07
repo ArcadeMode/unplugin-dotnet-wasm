@@ -1,9 +1,10 @@
 import { join } from 'node:path';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
+import { Platform } from '../test-matrix.js';
 
 export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, label: string) { super('esbuild', fixtureDir, label); }
+  constructor(fixtureDir: string, platform: Platform, label: string) { super('esbuild', fixtureDir, platform, label); }
   get entryChunk(): string { return join(this.assets, 'entry.js'); }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
