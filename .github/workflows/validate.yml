@@ -89,7 +89,7 @@ jobs:
 
       - name: Build fixtures
         if: matrix.build_mode != 'none'
-        run: pnpm build:fixtures -- --mode=${{ matrix.build_mode == 'publish' && 'release' || 'debug' }} --platform=${{ matrix.platform }}
+        run: pnpm build:fixtures --mode=${{ matrix.build_mode == 'publish' && 'release' || 'debug' }} --platform=${{ matrix.platform }}
 
       - name: Install Playwright browsers
         if: matrix.platform == 'browser' && matrix.build_mode != 'none'
