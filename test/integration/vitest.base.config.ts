@@ -8,7 +8,7 @@ const fingerprint = readFingerprint();
 const buildMode = readBuildMode();
 
 export function createVitestConfig(include: string[] | undefined, type: 'integration' | 'e2e-node') {
-  const configName = `${type}-${bundler}-${platform}-${fingerprint}-${buildMode}`;
+  const configName = `${type}-${bundler}-${platform}-${fingerprint}-${buildMode}-${process.platform}`;
   return defineConfig({
     test: {
       globals: false,

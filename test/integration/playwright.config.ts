@@ -7,7 +7,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = readBundler();
 const DIST_DIR = process.env.DIST_DIR
   ?? resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}/dist`);
-const configName = `e2e-browser-${BUNDLER}-browser-${readFingerprint()}-${readBuildMode()}`;
+const configName = `e2e-playwright-${BUNDLER}-browser-${readFingerprint()}-${readBuildMode()}-${process.platform}`;
 
 export default defineConfig({
   testDir: 'tests',
