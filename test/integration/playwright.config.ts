@@ -1,13 +1,13 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { readBundler, readShape } from './test-matrix-parameters';
+import { readBundler, readFingerprint, readBuildMode } from './test-matrix-parameters';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = readBundler();
 const DIST_DIR = process.env.DIST_DIR
   ?? resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}/dist`);
-const configName = `e2e-browser-${BUNDLER}-browser-${readShape()}`;
+const configName = `e2e-browser-${BUNDLER}-browser-${readFingerprint()}-${readBuildMode()}`;
 
 export default defineConfig({
   testDir: 'tests',

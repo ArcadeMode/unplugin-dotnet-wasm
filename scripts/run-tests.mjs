@@ -11,8 +11,8 @@ const commands = {
     'pnpm build:library:fingerprint',
     'pnpm build:fixtures',
     'pnpm test:unit',
-    'pnpm test:matrix --integration --fingerprint=true',
-    'pnpm test:matrix --e2e --fingerprint=true',
+    'pnpm test:matrix --integration --fingerprint=true --build-mode=debug',
+    'pnpm test:matrix --e2e --fingerprint=true --build-mode=debug',
   ],
   'fingerprint-disabled': [
     'pnpm clean:library',
@@ -20,13 +20,13 @@ const commands = {
     'pnpm build:library:nofingerprint',
     'pnpm build:fixtures',
     'pnpm test:unit',
-    'pnpm test:matrix --integration --fingerprint=false',
-    'pnpm test:matrix --e2e --fingerprint=false',
+    'pnpm test:matrix --integration --fingerprint=false --build-mode=debug',
+    'pnpm test:matrix --e2e --fingerprint=false --build-mode=debug',
   ],
   'no-build': [
     'pnpm clean:library',
     'pnpm build:plugin',
-    'pnpm test:matrix --integration --fingerprint=none',
+    'pnpm test:matrix --integration --fingerprint=false --build-mode=none',
   ],
 };
 

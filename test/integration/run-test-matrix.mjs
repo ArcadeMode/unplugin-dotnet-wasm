@@ -10,7 +10,7 @@ const args    = parseMatrixArgs();
 const configs = buildConfigs(args);
 
 console.log(`Running ${configs.length} test configuration(s)...`);
-console.log(`Fixture Shape: ${args.fixtureShape}\n`);
+console.log(`Fingerprint: ${args.fingerprint} | Build mode: ${args.buildMode}\n`);
 
 const results = configs.map((config, index) =>
   runConfig(config, { cwd: __dirname, vitestBin, index, total: configs.length })
