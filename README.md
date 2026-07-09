@@ -17,5 +17,5 @@ pnpm preview:sample
 ## Requirements
 
 - .NET 10 SDK
-- Node.js >= 20, pnpm >= 9
+- Node.js >= 24, pnpm >= 9
 - Bun >= 1.3 (optional, required only for testing the `bun` bundler integration)

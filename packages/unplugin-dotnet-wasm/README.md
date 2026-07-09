@@ -152,7 +152,7 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 24
 - .NET 10 SDK (build output must exist before bundling)
 - `unplugin` >= 2.0.0
 
