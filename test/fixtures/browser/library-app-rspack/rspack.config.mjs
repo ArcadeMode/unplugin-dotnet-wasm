@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-export default {
-  mode: 'production',
+export default (env, argv) => {
+  const isRelease = argv.mode === 'production';
+  return {
+  mode: argv.mode ?? 'production',
   target: 'web',
   entry: { main: resolve(__dirname, 'src/entry.ts') },
   output: {
@@ -36,10 +38,12 @@ export default {
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
-      configuration: 'Debug',
+      configuration: isRelease ? 'Release' : 'Debug',
+      isPublish: isRelease,
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
   ],
+};
 };
 

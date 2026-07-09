@@ -16,7 +16,8 @@ const bundle = await rollup.rollup({
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
-      configuration: 'Debug',
+      configuration: 'Release',
+      isPublish: true,
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
@@ -32,4 +33,3 @@ await bundle.write({
 
 await bundle.close();
 process.exit(0);
-

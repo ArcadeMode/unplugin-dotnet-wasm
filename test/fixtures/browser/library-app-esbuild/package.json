@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node esbuild.build.mjs",
+    "build": "node esbuild.debug.mjs",
+    "build:debug": "node esbuild.debug.mjs",
+    "build:release": "node esbuild.release.mjs",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",

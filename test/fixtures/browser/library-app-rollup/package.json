@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c --environment BUILD:development",
+    "build:debug": "rollup -c --environment BUILD:development",
+    "build:release": "rollup -c --environment BUILD:production",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",

@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "rspack build",
+    "build": "rspack build --mode development",
+    "build:debug": "rspack build --mode development",
+    "build:release": "rspack build --mode production",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",

@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "rolldown -c rolldown.config.mjs",
+    "build": "rolldown -c rolldown.config.mjs --environment BUILD:development",
+    "build:debug": "rolldown -c rolldown.config.mjs --environment BUILD:development",
+    "build:release": "rolldown -c rolldown.config.mjs --environment BUILD:production",
     "test": "node dist/entry.js",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
