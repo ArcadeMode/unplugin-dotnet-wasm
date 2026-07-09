@@ -53,7 +53,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         platform: [node, browser]
         fingerprint: ['true', 'false']
-        build_mode: [debug, publish, none]
+        build_mode: [debug, publish]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -79,20 +79,17 @@ jobs:
 
       - name: Build library
         run: |
-          if [ "${{ matrix.build_mode }}" = "none" ]; then
-            pnpm clean:library
-          elif [ "${{ matrix.build_mode }}" = "publish" ]; then
+          if [ "${{ matrix.build_mode }}" = "publish" ]; then
             pnpm publish:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
           else
             pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
           fi
 
       - name: Build fixtures
-        if: matrix.build_mode != 'none'
         run: pnpm build:fixtures --mode=${{ matrix.build_mode == 'publish' && 'release' || 'debug' }} --platform=${{ matrix.platform }}
 
       - name: Install Playwright browsers
-        if: matrix.platform == 'browser' && matrix.build_mode != 'none'
+        if: matrix.platform == 'browser'
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             pnpm --dir test/integration exec playwright install --with-deps chromium
@@ -101,7 +98,7 @@ jobs:
           fi
 
       - name: Run test matrix
-        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}${{ matrix.build_mode == 'none' && ' --integration' || '' }}
+        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -109,9 +106,51 @@ jobs:
           name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
           path: test/integration/test-results/
 
+  matrix-none:
+    name: Run integration tests (no build)
+    needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: pnpm install
+
+      - name: Build plugin
+        run: pnpm build:plugin
+
+      - name: Clean library
+        run: pnpm clean:library
+
+      - name: Run test matrix
+        run: pnpm test:matrix --fingerprint=false --build-mode=none --integration
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-none
+          path: test/integration/test-results/
+
   results:
     name: Publish test results
-    needs: [unit, matrix]
+    needs: [unit, matrix, matrix-none]
     if: always()
     runs-on: ubuntu-latest
     permissions:
