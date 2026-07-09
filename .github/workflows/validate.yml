@@ -53,6 +53,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         platform: [node, browser]
         fingerprint: ['true', 'false']
+        build_mode: [debug, publish, none]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -77,13 +78,21 @@ jobs:
         run: pnpm build:plugin
 
       - name: Build library
-        run: pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
+        run: |
+          if [ "${{ matrix.build_mode }}" = "none" ]; then
+            pnpm clean:library
+          elif [ "${{ matrix.build_mode }}" = "publish" ]; then
+            pnpm publish:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
+          else
+            pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
+          fi
 
       - name: Build fixtures
-        run: pnpm build:fixtures:${{ matrix.platform }}
+        if: matrix.build_mode != 'none'
+        run: pnpm build:fixtures -- --mode=${{ matrix.build_mode == 'publish' && 'release' || 'debug' }} --platform=${{ matrix.platform }}
 
       - name: Install Playwright browsers
-        if: matrix.platform == 'browser'
+        if: matrix.platform == 'browser' && matrix.build_mode != 'none'
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             pnpm --dir test/integration exec playwright install --with-deps chromium
@@ -92,12 +101,12 @@ jobs:
           fi
 
       - name: Run test matrix
-        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }}
+        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}${{ matrix.build_mode == 'none' && ' --integration' || '' }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}
+          name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
           path: test/integration/test-results/
 
   results:
