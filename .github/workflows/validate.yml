@@ -161,7 +161,6 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           pattern: test-results-*
-          merge-multiple: true
           path: results
 
       - name: Publish test results
