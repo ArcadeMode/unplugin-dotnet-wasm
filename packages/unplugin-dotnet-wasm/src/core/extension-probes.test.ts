@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ExtensionProbes } from './extension-probes.js';
+import { ExtensionProbes } from './extension-probes';
 
 describe('ExtensionProbes', () => {
   it('yields only the verbatim source when it already has an extension', () => {

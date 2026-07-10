@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { parseEndpointsManifest, type EndpointsManifest } from './manifest-endpoints.js';
+import { parseEndpointsManifest, type EndpointsManifest } from './manifests/manifest-endpoints';
 import {
   buildEndpointLookup,
   EndpointLookupBuildError,
   type EndpointMatch,
-} from './endpoint-lookup.js';
+} from './endpoint-lookup';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,

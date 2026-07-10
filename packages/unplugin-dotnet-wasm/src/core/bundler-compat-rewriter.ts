@@ -1,4 +1,4 @@
-import { DOTNET_NODE_BUILTINS } from './constants.js';
+import { DOTNET_NODE_BUILTINS } from './constants';
 
 export type BundlerFramework =
   | 'vite'

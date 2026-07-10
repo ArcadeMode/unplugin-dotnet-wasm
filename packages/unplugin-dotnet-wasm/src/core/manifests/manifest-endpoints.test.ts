@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseEndpointsManifest,
   EndpointsManifestParseError,
-} from './manifest-endpoints.js';
+} from './manifest-endpoints';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,

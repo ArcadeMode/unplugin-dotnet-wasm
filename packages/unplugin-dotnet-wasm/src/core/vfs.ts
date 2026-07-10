@@ -1,8 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
-import { type Logger, NULL_LOGGER } from './logger.js';
-import { stripLeadingSlash, toPosixPath } from './path-utils.js';
+import type { ManifestNode, RuntimeManifest } from './manifests/manifest-runtime';
+import { type Logger, NULL_LOGGER } from './logger';
+import { stripLeadingSlash, toPosixPath } from './path-utils';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */

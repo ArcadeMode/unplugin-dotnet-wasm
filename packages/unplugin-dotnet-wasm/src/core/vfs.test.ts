@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseRuntimeManifest } from './manifest-runtime.js';
-import { buildVfs, type VirtualFileSystem } from './vfs.js';
-import { type Logger, NULL_LOGGER } from './logger.js';
+import { parseRuntimeManifest } from './manifests/manifest-runtime';
+import { buildVfs, type VirtualFileSystem } from './vfs';
+import { type Logger, NULL_LOGGER } from './logger';
 
 const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
 const MANIFEST_PATH = resolve(

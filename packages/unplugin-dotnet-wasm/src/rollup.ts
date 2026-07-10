@@ -1,4 +1,4 @@
-import { dotnetStaticAssets } from './unplugin/index.js';
+import { dotnetStaticAssets } from './unplugin/index';
 
 const DotnetAssets = dotnetStaticAssets.rollup;
 export default DotnetAssets;

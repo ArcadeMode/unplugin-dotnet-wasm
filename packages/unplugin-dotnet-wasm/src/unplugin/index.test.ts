@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { dotnetStaticAssets } from './index.js';
+import { dotnetStaticAssets } from './index';
 
 function handler<T extends (...args: any[]) => any>(
   hook: T | { handler: T; order?: string } | null | undefined,

@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import type { DotnetAssetsOptions } from '../../types.js';
-import { discoverManifests } from './discover.js';
-import { parseRuntimeManifest, type RuntimeManifest } from './manifest-runtime.js';
-import { parseEndpointsManifest, type EndpointsManifest } from './manifest-endpoints.js';
+import type { DotnetAssetsOptions } from '../../types';
+import { discoverManifests } from './discover';
+import { parseRuntimeManifest, type RuntimeManifest } from './manifest-runtime';
+import { parseEndpointsManifest, type EndpointsManifest } from './manifest-endpoints';
 
 export interface ManifestLoaderResult {
   endpointsManifest: EndpointsManifest;

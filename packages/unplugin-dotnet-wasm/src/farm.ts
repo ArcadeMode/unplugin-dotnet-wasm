@@ -1,3 +1,3 @@
-import { dotnetStaticAssets } from './unplugin/index.js';
+import { dotnetStaticAssets } from './unplugin/index';
 
 export default dotnetStaticAssets.farm;

@@ -1,5 +1,5 @@
-import type { Endpoint, EndpointsManifest } from './manifest-endpoints.js';
-import { stripLeadingSlash, toPosixPath } from './path-utils.js';
+import type { Endpoint, EndpointsManifest } from './manifests/manifest-endpoints';
+import { stripLeadingSlash, toPosixPath } from './path-utils';
 
 export interface EndpointMatch {
   /** Physical file path relative to the .NET application root */

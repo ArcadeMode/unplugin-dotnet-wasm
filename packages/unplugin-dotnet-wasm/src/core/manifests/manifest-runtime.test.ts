@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseRuntimeManifest,
   ManifestParseError,
-} from './manifest-runtime.js';
+} from './manifest-runtime';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,

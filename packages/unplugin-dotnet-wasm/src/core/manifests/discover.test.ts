@@ -1,6 +1,6 @@
 import { resolve, join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { discoverManifests } from './discover.js';
+import { discoverManifests } from './discover';
 
 const SAMPLE_ROOT = resolve(__dirname, '../../../../samples/SampleLibrary');
 const EXPECTED_MANIFEST = resolve(
