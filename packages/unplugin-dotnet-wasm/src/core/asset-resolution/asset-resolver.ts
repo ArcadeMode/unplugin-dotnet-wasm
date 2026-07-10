@@ -1,7 +1,7 @@
 import type { VirtualFileSystem } from './vfs';
 import type { EndpointLookup } from './endpoint-lookup';
 import { ExtensionProbes } from './extension-probes';
-import { stripLeadingSlashOrDot, toPosixPath } from './path-utils';
+import { stripLeadingSlashOrDot, toPosixPath } from '../path-utils';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,

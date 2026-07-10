@@ -1,4 +1,4 @@
-import { hasExtension } from './path-utils';
+import { hasExtension } from '../path-utils';
 
 /**
  * Iterable expansion of a bundler specifier into candidate virtual paths, in priority order.

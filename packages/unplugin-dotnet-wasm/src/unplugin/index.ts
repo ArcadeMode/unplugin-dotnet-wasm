@@ -3,10 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types';
 import { ManifestLoader } from '../core/manifests/loader';
-import { buildEndpointLookup } from '../core/endpoint-lookup';
-import { buildVfs, buildEmptyVfs } from '../core/vfs';
+import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
+import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { createConsoleLogger } from '../core/logger';
-import { AssetResolver } from '../core/asset-resolver';
+import { AssetResolver } from '../core/asset-resolution/asset-resolver';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants';
 

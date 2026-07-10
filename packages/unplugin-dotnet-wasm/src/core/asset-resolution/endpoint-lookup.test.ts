@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { parseEndpointsManifest, type EndpointsManifest } from './manifests/manifest-endpoints';
+import { parseEndpointsManifest, type EndpointsManifest } from '../manifests/manifest-endpoints';
 import {
   buildEndpointLookup,
   EndpointLookupBuildError,
@@ -10,7 +10,7 @@ import {
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json',
+  '../../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json',
 );
 
 function loadFixture(): EndpointsManifest {
