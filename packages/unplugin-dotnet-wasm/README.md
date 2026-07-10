@@ -103,30 +103,43 @@ Once the plugin is configured, import .NET assets as regular ES modules:
 
 ```ts
 import { dotnet } from './_framework/dotnet';
-import { TypeShimInitializer, Counter } from './typeshim';
 
 const runtime = await dotnet.create();
-await TypeShimInitializer.initialize(runtime);
 runtime.runMain();
-
-const counter = new Counter(0);
-counter.Increment();
-console.log(counter.Value); // 1
 ```
 
-## Options
+## Configuration
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `projectName` | `string` | *required* | .NET project name (used to find manifest files) |
-| `projectRoot` | `string` | — | Path to the directory containing the `.csproj` |
-| `configuration` | `string` | `'Debug'` | MSBuild configuration |
-| `targetFramework` | `string` | — | Target framework moniker (e.g. `'net10.0'`) |
-| `isPublish` | `boolean` | `false` | Use `dotnet publish` output layout |
-| `dotnetOutputDir` | `string` | — | Explicit path to the build/publish output directory (alternative to `projectRoot`) |
-| `logLevel` | `string` | `'warn'` | `'silent'` \| `'error'` \| `'warn'` \| `'info'` \| `'debug'` |
+Pass either a **project-discovery** config or an **explicit output dir** config.
 
-Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
+### Project-discovery mode
+
+Locates manifests under `<projectRoot>/bin/<configuration>/<targetFramework>[/publish]/`.
+
+```ts
+DotnetAssets({
+  projectName: 'MyLibrary',    // required — used to find manifest files
+  projectRoot: '../MyLibrary', // path to the directory containing the .csproj
+  configuration: 'Debug',      // MSBuild configuration (default: 'Debug')
+  targetFramework: 'net10.0',  // target framework moniker, e.g. 'net10.0'
+  isPublish: false,            // true = use the default dotnet publish output layout (default: false)
+  logLevel: 'warn',            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
+})
+```
+
+`configuration` and `isPublish` are most commonly `(Debug, false)` or `(Release, true)`. These settings determine which standard SDK output tree the plugin reads. Whether that means a debug or production build, and whether to point at the publish layout, is up to you: set them to match your project's build pipeline.
+
+### Explicit output dir mode
+
+Use `dotnetOutputDir` when the .NET output is at a non-default path like a custom publish directory or when dotnet's [UseArtifactsOutput](https://learn.microsoft.com/en-us/dotnet/core/sdk/artifacts-output) is enabled.
+
+```ts
+DotnetAssets({
+  projectName: 'MyLibrary',                    // required — used to find manifest files
+  dotnetOutputDir: '../MyLibrary/my-out-dir',  // path to the .NET build/publish output dir
+  logLevel: 'warn',                            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
+})
+```
 
 ## Bundler support
 

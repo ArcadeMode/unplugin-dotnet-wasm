@@ -11,7 +11,7 @@ unplugin-dotnet-wasm enables importing .NET [WebAssembly Browser Apps](https://l
 Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
 
 > [!TIP]
-> Works great with WebAssembly Browser Apps powered by [TypeShim](https://github.com/ArcadeMode/TypeShim)
+> unplugin-dotnet-wasm pairs great with [TypeShim](https://github.com/ArcadeMode/TypeShim) for a seamless .NET > JS experience.
 
 ## Install
 
