@@ -1,7 +1,7 @@
 <h1 align=center tabindex=-1>unplugin-dotnet-wasm</h1>
 <p align=center tabindex=-1>
-  <i>Import .NET WebAssembly Browser Apps into your JS bundler like any other module</i><br/>
-  <i>Works with Vite, Webpack, Rollup, and every other unplugin-supported bundler, straight from `dotnet build`</i>
+  <i>Drop .NET WASM apps into JS projects like any other dependency</i><br/>
+  <i>Works with every major bundler, straight from `dotnet build`</i>
 </p>
 
 ## Why unplugin-dotnet-wasm
