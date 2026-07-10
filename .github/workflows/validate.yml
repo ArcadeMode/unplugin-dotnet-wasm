@@ -172,3 +172,9 @@ jobs:
         with:
           files: |
             results/**/*.junit.xml
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: all-test-results
+          path: results/
