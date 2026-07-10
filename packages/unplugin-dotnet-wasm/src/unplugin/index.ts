@@ -2,7 +2,7 @@ import { createUnplugin, UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types';
-import { ManifestLoader } from '../core/manifests/loader';
+import { ManifestLoader } from '../core/manifest-parsing/loader';
 import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { createConsoleLogger } from '../core/logger';

@@ -1,4 +1,4 @@
-import type { Endpoint, EndpointsManifest } from '../manifests/manifest-endpoints';
+import type { Endpoint, EndpointsManifest } from '../manifest-parsing/manifest-endpoints';
 import { stripLeadingSlash, toPosixPath } from '../path-utils';
 
 export interface EndpointMatch {

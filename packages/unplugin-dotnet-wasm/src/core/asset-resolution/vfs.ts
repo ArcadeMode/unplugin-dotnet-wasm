@@ -1,6 +1,6 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { ManifestNode, RuntimeManifest } from '../manifests/manifest-runtime';
+import type { ManifestNode, RuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { type Logger, NULL_LOGGER } from '../logger';
 import { stripLeadingSlash, toPosixPath } from '../path-utils';
 

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseRuntimeManifest } from '../manifests/manifest-runtime';
+import { parseRuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { buildVfs, type VirtualFileSystem } from './vfs';
 import { type Logger, NULL_LOGGER } from '../logger';
 
