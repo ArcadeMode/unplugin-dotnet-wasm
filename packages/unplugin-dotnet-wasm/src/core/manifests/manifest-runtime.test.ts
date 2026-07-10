@@ -8,7 +8,7 @@ import {
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
+  '../../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
 );
 
 describe('parseRuntimeManifest', () => {
