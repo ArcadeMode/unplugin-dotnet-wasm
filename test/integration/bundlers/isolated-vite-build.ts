@@ -3,8 +3,8 @@ import { join, resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import DotnetAssetsVite from 'unplugin-dotnet-wasm/vite';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
-import type { Platform } from '../test-matrix.js';
-import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
+import type { Platform } from '../test-matrix';
+import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
 export class IsolatedViteBuild extends IsolatedBundlerBuild {
   private readonly cacheDir: string;

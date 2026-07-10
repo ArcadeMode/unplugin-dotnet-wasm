@@ -1,6 +1,6 @@
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
-import type { Platform } from '../test-matrix.js';
-import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
+import type { Platform } from '../test-matrix';
+import { IsolatedBundlerBuild } from './isolated-bundler-build';
 import { join } from 'node:path';
 
 export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { rmSync } from 'node:fs';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
-import type { Platform } from '../test-matrix.js';
+import type { Platform } from '../test-matrix';
 
 // dotnet.js has bare `import('module')` / `import('process')` fallback paths
 // that only fire under Node. Some rollup-family drivers need these marked as

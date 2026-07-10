@@ -1,8 +1,8 @@
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
-import type { Platform } from '../test-matrix.js';
-import { IsolatedBundlerBuild } from './isolated-bundler-build.js';
+import type { Platform } from '../test-matrix';
+import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
 export class IsolatedBunBuild extends IsolatedBundlerBuild {
   constructor(fixtureDir: string, platform: Platform, label: string) {
