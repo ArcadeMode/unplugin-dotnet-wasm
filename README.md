@@ -43,7 +43,6 @@ See the [package README](packages/unplugin-dotnet-wasm/README.md) for the other 
 
 - Node.js >= 24
 - .NET 10 SDK, project built with `WasmBundlerFriendlyBootConfig=true`
-- `unplugin` >= 3.3.0
 
 ## Documentation
 
