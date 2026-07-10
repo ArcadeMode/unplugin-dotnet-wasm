@@ -142,13 +142,29 @@ Either `projectRoot` or `dotnetOutputDir` must be provided (not both).
 | Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] |
 | Bun | ✅ Supported | — |
 
-## How it works
+## Status & roadmap
 
-1. Reads `<ProjectName>.staticwebassets.runtime.json` and `<ProjectName>.staticwebassets.endpoints.json` from the .NET build output
-2. Builds a virtual filesystem mapping canonical routes to physical files across content roots
-3. Resolves fingerprinted filenames via the endpoints manifest (e.g. `dotnet.js` → `dotnet.abc123.js`)
-4. Emits binary assets (`.wasm`, `.dat`, `.pdb`) through Rollup's `emitFile` for content-hashed output
-5. Falls through `.ts` and `.js` files to the bundler's own transform pipeline
+The plugin is build-time only today. Scope so far and what's planned:
+
+**Done**
+
+- Build-time integration for multple bundlers ([table above](#bundler-support))
+  - 9 on browser targets
+  - 4 on Node targets 
+- Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
+- Fingerprint-aware resolution (canonical imports → hashed physical files)
+- Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline
+- Node built-ins externalized so the dotnet loader's Node paths don't break browser builds
+
+**Planned**
+
+1. IDE parity: emit a `tsconfig` + ambient `.d.ts` so editors see the same virtual tree the bundler does
+2. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
+3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
+4. Preload `<link>` injection from the endpoints manifest's preload metadata
+5. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
+
+Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
 
 ## Requirements
 
