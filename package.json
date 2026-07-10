@@ -16,7 +16,7 @@
     "clean:sample": "dotnet clean packages/samples/SampleLibrary/SampleLibrary.csproj -c Debug && dotnet clean packages/samples/SampleLibrary/SampleLibrary.csproj -c Release",
     "build:fixtures": "node scripts/build-fixtures.js",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
-    "test:unit": "pnpm build:sample && pnpm --filter unplugin-dotnet-wasm test",
+    "test:unit": "pnpm --filter unplugin-dotnet-wasm test",
     "test:matrix": "node test/integration/run-test-matrix.mjs",
     "test:debug-fingerprint": "node scripts/run-tests.mjs debug-fingerprint",
     "test:debug-nofingerprint": "node scripts/run-tests.mjs debug-nofingerprint",
