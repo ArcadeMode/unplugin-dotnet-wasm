@@ -97,8 +97,11 @@ jobs:
             pnpm --dir test/integration exec playwright install chromium
           fi
 
-      - name: Run test matrix
-        run: pnpm test:matrix --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+      - name: Run integration tests
+        run: pnpm test:matrix --integration --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+
+      - name: Run e2e tests
+        run: pnpm test:matrix --e2e --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
       - uses: actions/upload-artifact@v7
         if: always()
