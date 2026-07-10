@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
 import { ManifestLoader } from '../core/manifests/loader.js';
+import { buildEndpointLookup } from '../core/endpoint-lookup.js';
+import { buildVfs, buildEmptyVfs } from '../core/vfs.js';
 import { createConsoleLogger } from '../core/logger.js';
 import { AssetResolver } from '../core/asset-resolver.js';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter.js';
@@ -24,8 +26,12 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     name: 'unplugin-dotnet-wasm',
     enforce: 'pre' as const,
     async buildStart(): Promise<void> {
-      const loader = new ManifestLoader(logger);
-      const { endpointLookup, vfs } = await loader.load(options);
+      const loader = new ManifestLoader();
+      const { endpointsManifest, runtimeManifest, endpointsManifestPath } = await loader.load(options);
+      const endpointLookup = buildEndpointLookup(endpointsManifest);
+      const vfs = runtimeManifest
+        ? buildVfs(runtimeManifest, { logger })
+        : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
     },
     resolveId(source: string): string | null {
