@@ -51,10 +51,6 @@ interface NodePattern {
   pattern: string;
 }
 
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
-
 /**
  * statSync that returns true iff the path exists and is a regular file.
  */
@@ -65,10 +61,6 @@ function isFile(absPath: string): boolean {
     return false;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Manifest tree walkers
-// ---------------------------------------------------------------------------
 
 /**
  * Depth-first walk of the manifest node tree.
