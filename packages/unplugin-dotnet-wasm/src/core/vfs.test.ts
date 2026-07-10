@@ -142,11 +142,7 @@ describe('buildVfs with synthetic manifest: logging', () => {
   });
 
   it('emits a debug line when resolve misses', () => {
-    const missMessages = messages.filter(m => m.includes('could not resolve'));
-    const beforeMiss = messages.length;
     vfs.resolve('does-not-exist.js');
-    const afterMiss = messages.length;
-    // The debug line should already be captured from the resolve call above.
     expect(messages.some(m => m.includes('could not resolve:') && m.includes('does-not-exist.js'))).toBe(true);
   });
 });
