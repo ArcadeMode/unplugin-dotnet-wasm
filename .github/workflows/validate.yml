@@ -35,6 +35,9 @@ jobs:
       - name: Build plugin
         run: pnpm build:plugin
 
+      - name: Build fixture
+        run: pnpm build:sample
+
       - name: Run unit tests
         run: pnpm test:unit
 

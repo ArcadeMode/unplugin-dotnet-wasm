@@ -4,11 +4,11 @@ import { describe, it, expect } from 'vitest';
 import {
   parseRuntimeManifest,
   ManifestParseError,
-} from './manifest-runtime.js';
+} from './manifest-runtime';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
+  '../../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
 );
 
 describe('parseRuntimeManifest', () => {

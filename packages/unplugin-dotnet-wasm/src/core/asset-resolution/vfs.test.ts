@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseRuntimeManifest } from './manifest-runtime.js';
-import { buildVfs, type VirtualFileSystem } from './vfs.js';
-import { type Logger, NULL_LOGGER } from './logger.js';
+import { parseRuntimeManifest } from '../manifest-parsing/manifest-runtime';
+import { buildVfs, type VirtualFileSystem } from './vfs';
+import { type Logger, NULL_LOGGER } from '../logger';
 
-const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
+const SAMPLE_ROOT = resolve(__dirname, '../../../../samples/SampleLibrary');
 const MANIFEST_PATH = resolve(
   SAMPLE_ROOT,
   'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
@@ -107,29 +107,28 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
   });
 });
 
-describe('buildVfs with synthetic manifest: .ts shadows .d.ts', () => {
-  let debugMessages: string[];
+describe('buildVfs with synthetic manifest: logging', () => {
+  let messages: string[];
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
-    debugMessages = [];
-    const logger: Logger = { ...NULL_LOGGER, debug: msg => { debugMessages.push(msg); } };
+    messages = [];
+    const logger: Logger = {
+      ...NULL_LOGGER,
+      debug: msg => { messages.push(msg); },
+      info: msg => { messages.push(msg); },
+    };
 
-    // Pure in-memory test — no disk needed because the detection inspects only
-    // the enumerated Asset map.  Physical paths don't have to exist for this.
     vfs = buildVfs(
       parseRuntimeManifest(
         JSON.stringify({
           ContentRoots: ['/virt/'],
           Root: {
             Children: {
-              'foo.ts':   { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'foo.ts' },   Patterns: null },
-              'foo.d.ts': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'foo.d.ts' }, Patterns: null },
-              // bar.d.ts has no .ts sibling — should NOT trigger a shadow.
-              'bar.d.ts': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'bar.d.ts' }, Patterns: null },
+              'app.js': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'app.js' }, Patterns: null },
             },
             Asset: null,
-            Patterns: null,
+            Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
           },
         }),
       ),
@@ -137,17 +136,13 @@ describe('buildVfs with synthetic manifest: .ts shadows .d.ts', () => {
     );
   });
 
-  it('emits a debug warning mentioning foo.d.ts for the shadowed pair', () => {
-    expect(debugMessages.some(m => m.includes('foo.d.ts'))).toBe(true);
+  it('emits an info line summarizing VFS construction', () => {
+    expect(messages.some(m => m.includes('VFS constructed:'))).toBe(true);
+    expect(messages.some(m => m.includes('manifest assets'))).toBe(true);
   });
 
-  it('does not emit a warning for bar.d.ts (no .ts sibling)', () => {
-    expect(debugMessages.every(m => !m.includes('bar.d.ts'))).toBe(true);
-  });
-
-  it('resolve foo.d.ts (explicit) → foo.d.ts (exact match still works)', () => {
-    const asset = vfs.resolve('foo.d.ts');
-    expect(asset).toBeDefined();
-    expect(asset!.virtualPath).toBe('foo.d.ts');
+  it('emits a debug line when resolve misses', () => {
+    vfs.resolve('does-not-exist.js');
+    expect(messages.some(m => m.includes('could not resolve:') && m.includes('does-not-exist.js'))).toBe(true);
   });
 });

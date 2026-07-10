@@ -1,8 +1,8 @@
 import { it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve, join } from 'node:path';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
-import { createIsolatedBuild } from '../bundlers/index.js';
-import { describeWhen, currentBundler, currentPlatform, getFixtureDir } from '../test-matrix.js';
+import { createIsolatedBuild } from '../bundlers/index';
+import { describeWhen, currentBundler, currentPlatform, getFixtureDir } from '../test-matrix';
 
 const FIXTURE_DIR = getFixtureDir();
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');

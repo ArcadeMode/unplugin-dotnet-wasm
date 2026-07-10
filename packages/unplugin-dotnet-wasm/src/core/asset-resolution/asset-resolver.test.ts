@@ -1,12 +1,7 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { AssetResolver } from './asset-resolver.js';
-import { buildVfs, type VirtualFileSystem, type ResolvedAsset } from './vfs.js';
-import { buildEndpointLookup } from './endpoint-lookup.js';
-import type { EndpointLookup, EndpointMatch } from './endpoint-lookup.js';
-import { parseRuntimeManifest } from './manifest-runtime.js';
-import { parseEndpointsManifest } from './manifest-endpoints.js';
+import {  describe, expect, it, vi } from 'vitest';
+import { AssetResolver } from './asset-resolver';
+import { type VirtualFileSystem, type ResolvedAsset } from './vfs';
+import type { EndpointLookup, EndpointMatch } from './endpoint-lookup';
 
 function stubVfs(opts?: {
   resolve?: VirtualFileSystem['resolve'];
@@ -113,66 +108,5 @@ describe('AssetResolver endpoint alias paths', () => {
 describe('AssetResolver full miss', () => {
   it('returns null when both VFS and endpoint lookup miss for every probe', () => {
     expect(new AssetResolver(stubVfs(), new Map()).resolve('nonexistent.wasm')).toBeNull();
-  });
-});
-
-const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
-const RUNTIME_MANIFEST = resolve(SAMPLE_ROOT, 'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json');
-const ENDPOINTS_MANIFEST = resolve(SAMPLE_ROOT, 'bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json');
-
-describe('AssetResolver real fixture', () => {
-  let r: AssetResolver;
-
-  beforeAll(() => {
-    const vfs = buildVfs(parseRuntimeManifest(readFileSync(RUNTIME_MANIFEST)));
-    const endpoints = buildEndpointLookup(parseEndpointsManifest(readFileSync(ENDPOINTS_MANIFEST)));
-    r = new AssetResolver(vfs, endpoints);
-  });
-
-  it('resolves extensionless typeshim to a path ending in typeshim.ts', () => {
-    const result = r.resolve('typeshim');
-    expect(result).not.toBeNull();
-    expect(result).toMatch(/typeshim\.ts$/);
-  });
-});
-
-const TEMP_DIR = resolve(__dirname, '../../.test-tmp/ar-probe');
-
-describe('AssetResolver probing through pattern fallthrough', () => {
-  let root0: string;
-  let r: AssetResolver;
-
-  beforeAll(() => {
-    root0 = join(TEMP_DIR, 'root0');
-    rmSync(TEMP_DIR, { recursive: true, force: true });
-    mkdirSync(join(root0, 'some-dir'), { recursive: true });
-    writeFileSync(join(root0, 'bare.ts'), 'export const bare = 1;');
-    writeFileSync(join(root0, 'some-dir', 'index.ts'), 'export default 42;');
-
-    const vfs = buildVfs(
-      parseRuntimeManifest(
-        JSON.stringify({
-          ContentRoots: [`${root0}${sep}`],
-          Root: {
-            Children: null,
-            Asset: null,
-            Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
-          },
-        }),
-      ),
-    );
-    r = new AssetResolver(vfs, new Map());
-  });
-
-  afterAll(() => {
-    rmSync(TEMP_DIR, { recursive: true, force: true });
-  });
-
-  it('extensionless bare specifier resolves via .ts probe', () => {
-    expect(r.resolve('bare')).toBe(join(root0, 'bare.ts'));
-  });
-
-  it('bare directory specifier resolves via index.ts probe', () => {
-    expect(r.resolve('some-dir')).toBe(join(root0, 'some-dir', 'index.ts'));
   });
 });

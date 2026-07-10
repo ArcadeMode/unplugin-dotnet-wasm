@@ -1,8 +1,8 @@
 import { resolve, join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { discoverManifests } from './discover.js';
+import { discoverManifests } from './discover';
 
-const SAMPLE_ROOT = resolve(__dirname, '../../../samples/SampleLibrary');
+const SAMPLE_ROOT = resolve(__dirname, '../../../../samples/SampleLibrary');
 const EXPECTED_MANIFEST = resolve(
   SAMPLE_ROOT,
   'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
@@ -91,7 +91,7 @@ describe('discoverManifests with explicit dotnetOutputDir option', () => {
   });
 });
 
-const NONEXISTENT_ROOT = resolve(__dirname, '../../.test-tmp/does-not-exist');
+const NONEXISTENT_ROOT = resolve(__dirname, '../../../.test-tmp/does-not-exist');
 
 describe('discoverManifests with missing manifest', () => {
   it('throws when no manifest exists in the TFM dir', () => {

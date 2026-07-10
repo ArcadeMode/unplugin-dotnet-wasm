@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
-import type { Platform } from '../test-matrix.js';
-import { IsolatedBundlerBuild, DOTNET_NODE_BUILTINS } from './isolated-bundler-build.js';
+import type { Platform } from '../test-matrix';
+import { IsolatedBundlerBuild, DOTNET_NODE_BUILTINS } from './isolated-bundler-build';
 
 export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
   constructor(fixtureDir: string, platform: Platform, label: string) { super('rolldown', fixtureDir, platform, label); }

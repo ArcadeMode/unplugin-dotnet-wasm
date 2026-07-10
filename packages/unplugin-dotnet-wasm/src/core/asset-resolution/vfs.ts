@@ -1,8 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { ManifestNode, RuntimeManifest } from './manifest-runtime.js';
-import { type Logger, NULL_LOGGER } from './logger.js';
-import { stripLeadingSlash, toPosixPath } from './path-utils.js';
+import type { ManifestNode, RuntimeManifest } from '../manifest-parsing/manifest-runtime';
+import { type Logger, NULL_LOGGER } from '../logger';
+import { stripLeadingSlash, toPosixPath } from '../path-utils';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -51,10 +51,6 @@ interface NodePattern {
   pattern: string;
 }
 
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
-
 /**
  * statSync that returns true iff the path exists and is a regular file.
  */
@@ -65,10 +61,6 @@ function isFile(absPath: string): boolean {
     return false;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Manifest tree walkers
-// ---------------------------------------------------------------------------
 
 /**
  * Depth-first walk of the manifest node tree.
@@ -133,17 +125,10 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   // ── Step 2: pre-compile manifest patterns for lazy fallthrough. ──
   const patterns = collectPatterns(manifest.Root, []);
 
-  // ── Step 3: detect .ts / .d.ts shadowed pairs and emit debug warnings. ──
-  for (const [key, asset] of lookup) {
-    if (!key.endsWith('.d.ts')) continue;
-    const baseKey = key.slice(0, -'.d.ts'.length);
-    const tsHit = lookup.get(`${baseKey}.ts`);
-    if (tsHit !== undefined && !tsHit.physicalPath.endsWith('.d.ts')) {
-      logger.debug(
-        `".ts" shadows ".d.ts": "${tsHit.virtualPath}" takes precedence over "${asset.virtualPath}"`,
-      );
-    }
-  }
+  const patternCount = patterns.filter(p => p.pattern === '**').length;
+  logger.info(
+    `VFS constructed: ${lookup.size} manifest assets, ${manifest.ContentRoots.length} content root(s), ${patternCount} fallthrough pattern(s)`,
+  );
 
   function list(virtualDir: string): string[] {
     const norm = stripLeadingSlash(toPosixPath(virtualDir)).replace(/\/$/, '');
@@ -193,10 +178,15 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
       // Only `**` is honoured today; richer glob shapes can land when needed.
       if (pat.pattern !== '**') continue;
 
-      const hit = tryStatCandidate(vp, join(rawRoot, vp));
-      if (hit !== undefined) return hit;
+      const candidatePhysicalPath = join(rawRoot, vp);
+      const hit = tryStatCandidate(vp, candidatePhysicalPath);
+      if (hit !== undefined) {
+        logger.debug(`resolved via pattern: "${vp}" → "${candidatePhysicalPath}"`);
+        return hit;
+      }
     }
 
+    logger.debug(`could not resolve: "${vp}"`);
     return undefined;
   }
 
@@ -213,7 +203,10 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
 }
 
 export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: Logger }): VirtualFileSystem {
+  const logger = opts?.logger ?? NULL_LOGGER;
+
   if (!endpointsManifestPath) {
+    logger.debug('no manifest path: falling back to empty VFS');
     return buildVfs(
       {
         ContentRoots: [],
@@ -230,6 +223,9 @@ export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: 
   const manifestDir = dirname(endpointsManifestPath);
   const wwwroot = join(manifestDir, 'wwwroot');
   const contentRoot = existsSync(wwwroot) ? wwwroot : manifestDir;
+  const rootLabel = existsSync(wwwroot) ? 'wwwroot' : 'manifest dir';
+
+  logger.debug(`building single-root VFS from endpoints manifest using ${rootLabel}`);
 
   return buildVfs(
     {

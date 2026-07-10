@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' build",
+    "build": "pnpm -r build",
     "build:plugin": "pnpm --filter unplugin-dotnet-wasm build",
     "build:library:fingerprint": "dotnet build   test/fixtures/Library/Library.csproj -c Debug   -p:WasmFingerprintAssets=true",
     "publish:library:fingerprint": "dotnet publish test/fixtures/Library/Library.csproj -c Release -p:WasmFingerprintAssets=true",
@@ -16,7 +16,7 @@
     "clean:sample": "dotnet clean packages/samples/SampleLibrary/SampleLibrary.csproj -c Debug && dotnet clean packages/samples/SampleLibrary/SampleLibrary.csproj -c Release",
     "build:fixtures": "node scripts/build-fixtures.js",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
-    "test:unit": "pnpm build:sample && pnpm --filter unplugin-dotnet-wasm test",
+    "test:unit": "pnpm --filter unplugin-dotnet-wasm test",
     "test:matrix": "node test/integration/run-test-matrix.mjs",
     "test:debug-fingerprint": "node scripts/run-tests.mjs debug-fingerprint",
     "test:debug-nofingerprint": "node scripts/run-tests.mjs debug-nofingerprint",

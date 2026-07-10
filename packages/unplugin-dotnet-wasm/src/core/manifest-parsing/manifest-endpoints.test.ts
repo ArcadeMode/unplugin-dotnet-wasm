@@ -4,11 +4,11 @@ import { describe, it, expect } from 'vitest';
 import {
   parseEndpointsManifest,
   EndpointsManifestParseError,
-} from './manifest-endpoints.js';
+} from './manifest-endpoints';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json',
+  '../../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.endpoints.json',
 );
 
 describe('parseEndpointsManifest', () => {
