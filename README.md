@@ -37,7 +37,7 @@ export default defineConfig({
 });
 ```
 
-See the [package README](packages/unplugin-dotnet-wasm/README.md) for the other bundlers, the full options table, and how to import the assets at runtime.
+See the [package README](unplugin-dotnet-wasm/README.md) for the other bundlers, the full options table, and how to import the assets at runtime.
 
 ## Requirements
 

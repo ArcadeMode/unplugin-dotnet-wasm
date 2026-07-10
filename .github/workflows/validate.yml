@@ -45,7 +45,7 @@ jobs:
         if: always()
         with:
           name: test-results-unit-${{ matrix.os }}
-          path: packages/unplugin-dotnet-wasm/test-results/
+          path: unplugin-dotnet-wasm/test-results/
 
   matrix:
     name: Run integration tests

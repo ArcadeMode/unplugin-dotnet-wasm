@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ArcadeMode/unplugin-dotnet-wasm.git",
-    "directory": "packages/unplugin-dotnet-wasm"
+    "directory": "unplugin-dotnet-wasm"
   },
   "bugs": "https://github.com/ArcadeMode/unplugin-dotnet-wasm/issues",
   "keywords": [
