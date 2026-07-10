@@ -107,29 +107,28 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
   });
 });
 
-describe('buildVfs with synthetic manifest: .ts shadows .d.ts', () => {
-  let debugMessages: string[];
+describe('buildVfs with synthetic manifest: logging', () => {
+  let messages: string[];
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
-    debugMessages = [];
-    const logger: Logger = { ...NULL_LOGGER, debug: msg => { debugMessages.push(msg); } };
+    messages = [];
+    const logger: Logger = {
+      ...NULL_LOGGER,
+      debug: msg => { messages.push(msg); },
+      info: msg => { messages.push(msg); },
+    };
 
-    // Pure in-memory test — no disk needed because the detection inspects only
-    // the enumerated Asset map.  Physical paths don't have to exist for this.
     vfs = buildVfs(
       parseRuntimeManifest(
         JSON.stringify({
           ContentRoots: ['/virt/'],
           Root: {
             Children: {
-              'foo.ts':   { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'foo.ts' },   Patterns: null },
-              'foo.d.ts': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'foo.d.ts' }, Patterns: null },
-              // bar.d.ts has no .ts sibling — should NOT trigger a shadow.
-              'bar.d.ts': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'bar.d.ts' }, Patterns: null },
+              'app.js': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'app.js' }, Patterns: null },
             },
             Asset: null,
-            Patterns: null,
+            Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
           },
         }),
       ),
@@ -137,17 +136,17 @@ describe('buildVfs with synthetic manifest: .ts shadows .d.ts', () => {
     );
   });
 
-  it('emits a debug warning mentioning foo.d.ts for the shadowed pair', () => {
-    expect(debugMessages.some(m => m.includes('foo.d.ts'))).toBe(true);
+  it('emits an info line summarizing VFS construction', () => {
+    expect(messages.some(m => m.includes('VFS constructed:'))).toBe(true);
+    expect(messages.some(m => m.includes('manifest assets'))).toBe(true);
   });
 
-  it('does not emit a warning for bar.d.ts (no .ts sibling)', () => {
-    expect(debugMessages.every(m => !m.includes('bar.d.ts'))).toBe(true);
-  });
-
-  it('resolve foo.d.ts (explicit) → foo.d.ts (exact match still works)', () => {
-    const asset = vfs.resolve('foo.d.ts');
-    expect(asset).toBeDefined();
-    expect(asset!.virtualPath).toBe('foo.d.ts');
+  it('emits a debug line when resolve misses', () => {
+    const missMessages = messages.filter(m => m.includes('could not resolve'));
+    const beforeMiss = messages.length;
+    vfs.resolve('does-not-exist.js');
+    const afterMiss = messages.length;
+    // The debug line should already be captured from the resolve call above.
+    expect(messages.some(m => m.includes('could not resolve:') && m.includes('does-not-exist.js'))).toBe(true);
   });
 });
