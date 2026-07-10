@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Installs or verifies all required tooling:
-      - Node.js >= 20
+      - Node.js >= 24
       - pnpm >= 9        (via corepack)
       - .NET 10 SDK      (with wasm-tools workload)
       - pnpm dependencies
@@ -28,7 +28,7 @@ function Write-Fail { param([string]$Message) Write-Host "   $Message" -Foregrou
 Write-Step "Checking Node.js"
 $node = Get-Command node -ErrorAction SilentlyContinue
 if (-not $node) {
-    Write-Fail "Node.js is not installed. Install Node >= 20 from https://nodejs.org"
+    Write-Fail "Node.js is not installed. Install Node >= 24 from https://nodejs.org"
     exit 1
 }
 $nodeVersion = (node --version) -replace '^v'
