@@ -16,7 +16,7 @@ Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers
 ## Install
 
 ```bash
-npm i -D unplugin-dotnet-wasm unplugin
+npm i -D unplugin-dotnet-wasm
 ```
 
 ## Usage
