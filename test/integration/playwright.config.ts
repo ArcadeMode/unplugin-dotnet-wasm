@@ -14,7 +14,10 @@ export default defineConfig({
   testMatch: ['*.spec.ts'],
   timeout: 60_000,
   globalSetup: './global-setup.ts',
-  reporter: [['junit', { outputFile: resolve(__dirname, `test-results/e2e/${configName}.junit.xml`) }]],
+  outputDir: resolve(__dirname, `test-results/e2e/${BUNDLER}`),
+  reporter: [['junit', { 
+    outputFile: resolve(__dirname, `test-results/e2e/${BUNDLER}/${configName}.junit.xml`)
+  }]],
   use: {
     baseURL: 'http://localhost:5174',
     headless: true,
