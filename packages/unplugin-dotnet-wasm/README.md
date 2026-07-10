@@ -170,7 +170,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 
 - Node.js >= 24
 - .NET 10 SDK (build output must exist before bundling)
-- `unplugin` >= 2.0.0
+- `unplugin` >= 3.3.0
 
 [^esbuild-node-partial-support]: esbuild works on node but requires `dotnet.withResourceLoader((type: string, name: string, defaultUri: string) => new URL(defaultUri, import.meta.url).href)` to fix WASM asset resolution.
 
