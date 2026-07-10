@@ -15,19 +15,20 @@ declare global {
   var __libReady: boolean;
 }
 
-import { readBundler, readShape, readPlatform } from '../test-matrix-parameters';
+import { readBundler, readFingerprint, readBuildMode, readPlatform } from '../test-matrix-parameters';
 
 const currentBundler = readBundler();
-const currentShape = readShape();
+const currentFingerprint = readFingerprint();
+const currentBuildMode = readBuildMode();
 const currentPlatform = readPlatform();
-test.describe(`[${currentBundler}][${currentShape}][${currentPlatform}] WASM interop runtime behavior`, () => {
+test.describe(`[${currentBundler}][${currentFingerprint}][${currentBuildMode}][${currentPlatform}] WASM interop runtime behavior`, () => {
   test.describe.configure({ mode: 'serial' });
 
   let page!: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.skip(currentShape === 'none', 'skipped for "none" shape'); // no client to run.
-    test.skip(currentPlatform !== 'browser', 'skipped for non-browser platform'); // no browser to run.
+    test.skip(currentBuildMode === 'none', 'skipped for "none" build mode');
+    test.skip(currentPlatform !== 'browser', 'skipped for non-browser platform');
 
     page = await browser.newPage();
     await page.goto('/');

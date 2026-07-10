@@ -1,4 +1,3 @@
-// Run under Bun:  bun bun.build.ts
 import DotnetAssets from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,7 +25,8 @@ const result = await Bun.build({
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
-      configuration: 'Debug',
+      configuration: 'Release',
+      isPublish: true,
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
@@ -40,4 +40,3 @@ if (!result.success) {
 
 mkdirSync(outdir, { recursive: true });
 copyFileSync(resolve(__dirname, 'src/index.html'), resolve(outdir, 'index.html'));
-

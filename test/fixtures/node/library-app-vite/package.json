@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build --mode development",
+    "build:debug": "vite build --mode development",
+    "build:release": "vite build --mode production",
     "test": "node dist/entry.js",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"

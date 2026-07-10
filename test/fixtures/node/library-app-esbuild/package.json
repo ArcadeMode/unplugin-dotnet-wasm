@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node esbuild.build.mjs",
+    "build": "node esbuild.debug.mjs",
+    "build:debug": "node esbuild.debug.mjs",
+    "build:release": "node esbuild.release.mjs",
     "test": "node dist/entry.js",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"

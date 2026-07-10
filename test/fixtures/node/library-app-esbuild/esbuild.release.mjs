@@ -11,8 +11,6 @@ await esbuild.build({
   outdir,
   bundle: true,
   format: 'esm',
-  // 'node' platform: esbuild handles Node built-ins natively, generates file:// URLs for assets.
-  // The plugin resolves .wasm/.dat assets to file paths that work in Node context.
   platform: 'node',
   entryNames: 'entry',
   assetNames: 'assets/[name]-[hash]',
@@ -20,10 +18,10 @@ await esbuild.build({
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
-      configuration: 'Debug',
+      configuration: 'Release',
+      isPublish: true,
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
   ],
 });
-

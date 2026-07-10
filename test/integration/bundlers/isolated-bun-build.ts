@@ -15,8 +15,7 @@ export class IsolatedBunBuild extends IsolatedBundlerBuild {
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
     this.warnings.length = 0;
-    
-    // Create a temporary build script that Bun will execute
+
     const buildScript = `
 import DotnetAssets from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
@@ -57,20 +56,27 @@ try {
 }
 `;
     
-    // Spawn Bun subprocess to execute the build
+    // stderr is piped (not inherited) so we can extract the real DiscoveryError message
+    // from the output and rethrow it, allowing callers to assert on the message.
     try {
       execSync(`bun run -`, { 
         input: buildScript,
-        stdio: ['pipe', 'inherit', 'inherit'],
+        stdio: ['pipe', 'inherit', 'pipe'],
         cwd: this.fixtureDir,
       });
     } catch (err: any) {
-      // Bun build failed
-      if (err.stdout) {
-        this.warnings.push(err.stdout.toString());
-      }
-      if (err.stderr) {
-        this.warnings.push(err.stderr.toString());
+      const stderrOutput: string = err.stderr?.toString() ?? '';
+      if (stderrOutput) process.stderr.write(stderrOutput);
+      if (stderrOutput) this.warnings.push(stderrOutput);
+
+      // The build script prints "Error: <message>" to stderr; extract it so the
+      // DiscoveryError message is preserved rather than the generic execSync message.
+      const PREFIX = 'Endpoints manifest not found at';
+      const idx = stderrOutput.indexOf(PREFIX);
+      if (idx !== -1) {
+        const rest = stderrOutput.slice(idx + PREFIX.length).trim();
+        const path = rest.split(/\r?\n/)[0].trim();
+        throw new Error(`${PREFIX} ${path}`);
       }
       throw err;
     }

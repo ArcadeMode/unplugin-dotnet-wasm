@@ -1,4 +1,3 @@
-export type FixtureShape = 'fingerprint' | 'nofingerprint' | 'none';
 export type Platform = 'browser' | 'node';
 export type Bundler =
   | 'vite'
@@ -10,23 +9,34 @@ export type Bundler =
   | 'esbuild'
   | 'farm'
   | 'bun';
+export type Fingerprint = 'fingerprint' | 'nofingerprint';
+export type BuildMode = 'debug' | 'publish' | 'none';
 
-const VALID_SHAPES: readonly FixtureShape[] = ['fingerprint', 'nofingerprint', 'none'];
 const VALID_PLATFORMS: readonly Platform[] = ['browser', 'node'];
 const VALID_BUNDLERS: readonly Bundler[] = [
   'vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun',
 ];
+const VALID_FINGERPRINTS: readonly Fingerprint[] = ['fingerprint', 'nofingerprint'];
+const VALID_BUILD_MODES: readonly BuildMode[] = ['debug', 'publish', 'none'];
 
 export function throwErr(msg: string): never {
   throw new Error(msg);
 }
 
-export function readShape(): FixtureShape {
-  const raw = process.env.DOTNET_FIXTURE_SHAPE ?? throwErr('DOTNET_FIXTURE_SHAPE environment variable is missing');
-  if (!VALID_SHAPES.includes(raw as FixtureShape)) {
-    throw new Error(`DOTNET_FIXTURE_SHAPE='${raw}' is not one of: ${VALID_SHAPES.join(', ')}.`);
+export function readFingerprint(): Fingerprint {
+  const raw = process.env.DOTNET_FINGERPRINT ?? throwErr('DOTNET_FINGERPRINT environment variable is missing');
+  if (!VALID_FINGERPRINTS.includes(raw as Fingerprint)) {
+    throw new Error(`DOTNET_FINGERPRINT='${raw}' is not one of: ${VALID_FINGERPRINTS.join(', ')}.`);
   }
-  return raw as FixtureShape;
+  return raw as Fingerprint;
+}
+
+export function readBuildMode(): BuildMode {
+  const raw = process.env.DOTNET_BUILD_MODE ?? throwErr('DOTNET_BUILD_MODE environment variable is missing');
+  if (!VALID_BUILD_MODES.includes(raw as BuildMode)) {
+    throw new Error(`DOTNET_BUILD_MODE='${raw}' is not one of: ${VALID_BUILD_MODES.join(', ')}.`);
+  }
+  return raw as BuildMode;
 }
 
 export function readPlatform(): Platform {

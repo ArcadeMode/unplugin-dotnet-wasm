@@ -5,14 +5,10 @@ import { tmpdir } from 'node:os';
 import { createIsolatedBuild, type IsolatedBundlerBuild } from '../bundlers/index.js';
 import { describeWhen, currentBundler, currentPlatform, getFixtureDir } from '../test-matrix.js';
 
-// Prerequisite for fingerprint/nofingerprint shapes: npm build:library:fingerprint (or :nofingerprint)
-// The `none` shape covers the negative path: no publish output exists so dotnet clean should be ran before.
-
 const FIXTURE_DIR = getFixtureDir();
 const LIBRARY_DIR = resolve(__dirname, '../../fixtures/Library');
 const PUBLISH_DIR = join(LIBRARY_DIR, 'bin', 'Release', 'net10.0', 'publish');
 
-// Shared assertions re-used by both publish-build describe blocks.
 function assertPublishBuild(vb: IsolatedBundlerBuild): void {
   it('builds without "Could not resolve" warnings', () => {
     const bad = vb.warnings.filter(w => w.includes('Could not resolve'));
@@ -34,7 +30,6 @@ function assertPublishBuild(vb: IsolatedBundlerBuild): void {
     const distFile = distFiles.find(f => /^dotnet(\.native)?[.-][^/]+\.wasm$/.test(f));
     expect(distFile).toBeDefined();
     const frameworkDir = join(PUBLISH_DIR, 'wwwroot', '_framework');
-    // Match canonical OR fingerprinted — fresh fingerprint publish has only the fingerprinted variant.
     const srcName = readdirSync(frameworkDir).find(f => /^dotnet\.native(\.[a-z0-9]+)?\.wasm$/.test(f))!;
     expect(srcName).toBeDefined();
     const srcPath = join(frameworkDir, srcName);
@@ -47,7 +42,7 @@ function assertPublishBuild(vb: IsolatedBundlerBuild): void {
   });
 }
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Publish build (isPublish: true)', () => {
+describeWhen({ buildModes: ['publish'] })('Publish build (isPublish: true)', () => {
   const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-ispublish');
 
   beforeAll(() => vb.build({
@@ -63,7 +58,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Publish build (isPub
   assertPublishBuild(vb);
 });
 
-describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Publish build (explicit dotnetOutputDir)', () => {
+describeWhen({ buildModes: ['publish'] })('Publish build (explicit dotnetOutputDir)', () => {
   const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-dotnet-output-dir');
 
   beforeAll(() => vb.build({
@@ -77,7 +72,7 @@ describeWhen({ shapes: ['fingerprint', 'nofingerprint'] })('Publish build (expli
 });
 
 
-describeWhen({ shapes: ['none'] })('DiscoveryError when publish output is absent', () => {
+describeWhen({ buildModes: ['none'] })('DiscoveryError when publish output is absent', () => {
   it('isPublish: true → fails naming the searched publish dir', async () => {
     const vb = createIsolatedBuild(currentBundler, FIXTURE_DIR, currentPlatform, 'm2-3-discovery');
     try {
@@ -90,7 +85,6 @@ describeWhen({ shapes: ['none'] })('DiscoveryError when publish output is absent
         isPublish: true,
       })).rejects.toThrow(/Endpoints manifest not found at .*publish/);
 
-      // Re-run to capture the error object so we can assert the dir literally.
       const err = await vb.build({
         projectRoot: LIBRARY_DIR,
         projectName: 'Library',

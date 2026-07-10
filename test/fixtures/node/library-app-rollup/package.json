@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node rollup.build.mjs",
+    "build": "node rollup.debug.mjs",
+    "build:debug": "node rollup.debug.mjs",
+    "build:release": "node rollup.release.mjs",
     "test": "node dist/entry.js",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"

@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "rolldown -c rolldown.config.mjs",
+    "build": "rolldown -c rolldown.config.mjs --environment BUILD:development",
+    "build:debug": "rolldown -c rolldown.config.mjs --environment BUILD:development",
+    "build:release": "rolldown -c rolldown.config.mjs --environment BUILD:production",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",

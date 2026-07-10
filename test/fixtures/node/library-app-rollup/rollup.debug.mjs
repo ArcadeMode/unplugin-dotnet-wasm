@@ -1,28 +1,35 @@
-import DotnetAssets from 'unplugin-dotnet-wasm/rolldown';
+import * as rollup from 'rollup';
+import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
+import esbuild from 'rollup-plugin-esbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { builtinModules } from 'node:module';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const isRelease = process.env.BUILD === 'production';
+const outdir = resolve(__dirname, 'dist');
 
-export default {
+const bundle = await rollup.rollup({
   input: resolve(__dirname, 'src/entry.ts'),
-  output: {
-    dir: resolve(__dirname, 'dist'),
-    format: 'es',
-    entryFileNames: 'entry.js',
-  },
+  preserveEntrySignatures: 'strict',
   external: [...builtinModules, ...builtinModules.map(m => `node:${m}`)],
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
-      configuration: isRelease ? 'Release' : 'Debug',
-      isPublish: isRelease,
+      configuration: 'Debug',
+      isPublish: false,
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
+    esbuild({ target: 'es2022', platform: 'node' }),
   ],
-};
+});
 
+await bundle.write({
+  format: 'es',
+  dir: outdir,
+  entryFileNames: 'entry.js',
+});
+
+await bundle.close();
+process.exit(0);

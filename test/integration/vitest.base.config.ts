@@ -1,13 +1,15 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
-import { readBundler, readPlatform, readShape } from './test-matrix-parameters';
+import { readBundler, readPlatform, readFingerprint, readBuildMode } from './test-matrix-parameters';
 
 const bundler = readBundler();
 const platform = readPlatform();
-const fixtureShape = readShape();
+const fingerprint = readFingerprint();
+const buildMode = readBuildMode();
 
 export function createVitestConfig(include: string[] | undefined, type: 'integration' | 'e2e-node') {
-  const configName = `${type}-${bundler}-${platform}-${fixtureShape}`;
+  const configName = `${type}-${bundler}-${platform}-${fingerprint}-${buildMode}-${process.platform}`;
+  const subdir = type === 'integration' ? 'integration' : 'e2e';
   return defineConfig({
     test: {
       globals: false,
@@ -16,7 +18,7 @@ export function createVitestConfig(include: string[] | undefined, type: 'integra
       testTimeout: 60_000,
       reporters: ['default', 'junit'],
       outputFile: {
-        junit: resolve(__dirname, `test-results/${configName}.junit.xml`),
+        junit: resolve(__dirname, `test-results/${subdir}/${configName}.junit.xml`),
       },
     },
   });
