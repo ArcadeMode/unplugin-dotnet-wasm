@@ -48,7 +48,6 @@ const commands = {
 
 let cmds;
 if (filter === ''){
-  // Run all test suites in sequence
   cmds = [
     ...commands['no-build'],
     ...commands['debug-fingerprint'],

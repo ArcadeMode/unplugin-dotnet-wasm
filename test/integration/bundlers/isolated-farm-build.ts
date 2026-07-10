@@ -65,7 +65,6 @@ await build({
         env: { ...process.env, FARM_BUILD_CONFIG: configEnv },
       });
     } catch (err: any) {
-      // Write captured stderr back to the parent process for visibility.
       const stderrOutput: string = err.stderr?.toString() ?? '';
       if (stderrOutput) process.stderr.write(stderrOutput);
       if (stderrOutput) this.warnings.push(stderrOutput);

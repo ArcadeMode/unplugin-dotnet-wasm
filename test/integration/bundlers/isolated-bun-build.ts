@@ -15,8 +15,7 @@ export class IsolatedBunBuild extends IsolatedBundlerBuild {
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
     this.warnings.length = 0;
-    
-    // Create a temporary build script that Bun will execute
+
     const buildScript = `
 import DotnetAssets from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
@@ -57,7 +56,6 @@ try {
 }
 `;
     
-    // Spawn Bun subprocess to execute the build.
     // stderr is piped (not inherited) so we can extract the real DiscoveryError message
     // from the output and rethrow it, allowing callers to assert on the message.
     try {
@@ -67,7 +65,6 @@ try {
         cwd: this.fixtureDir,
       });
     } catch (err: any) {
-      // Bun build failed; write captured stderr back to the parent process for visibility.
       const stderrOutput: string = err.stderr?.toString() ?? '';
       if (stderrOutput) process.stderr.write(stderrOutput);
       if (stderrOutput) this.warnings.push(stderrOutput);
