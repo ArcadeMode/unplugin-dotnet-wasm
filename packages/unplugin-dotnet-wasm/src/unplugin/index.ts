@@ -2,11 +2,7 @@ import { createUnplugin, UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types.js';
-import { discoverManifests } from '../core/discover.js';
-import { parseRuntimeManifest } from '../core/manifest-runtime.js';
-import { parseEndpointsManifest } from '../core/manifest-endpoints.js';
-import { buildEndpointLookup } from '../core/endpoint-lookup.js';
-import { buildVfs, buildEmptyVfs } from '../core/vfs.js';
+import { ManifestLoader } from '../core/manifests/loader.js';
 import { createConsoleLogger } from '../core/logger.js';
 import { AssetResolver } from '../core/asset-resolver.js';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter.js';
@@ -28,15 +24,8 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     name: 'unplugin-dotnet-wasm',
     enforce: 'pre' as const,
     async buildStart(): Promise<void> {
-      const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
-      const [endpointsRaw, runtimeRaw] = await Promise.all([
-        readFile(endpointsManifestPath),
-        runtimeManifestPath ? readFile(runtimeManifestPath) : Promise.resolve(null),
-      ]);
-      const endpointLookup = buildEndpointLookup(parseEndpointsManifest(endpointsRaw));
-      const vfs = runtimeRaw
-        ? buildVfs(parseRuntimeManifest(runtimeRaw), { logger })
-        : buildEmptyVfs(endpointsManifestPath, { logger });
+      const loader = new ManifestLoader(logger);
+      const { endpointLookup, vfs } = await loader.load(options);
       assetResolver = new AssetResolver(vfs, endpointLookup);
     },
     resolveId(source: string): string | null {
