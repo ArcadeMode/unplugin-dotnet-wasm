@@ -36,4 +36,15 @@ export class AssetResolver {
 
     return null;
   }
+
+  /**
+   * Enumerate the canonical routes this resolver knows about, skipping
+   * fingerprint-alias endpoints (those carry a `label` pointing back to their
+   * canonical route). Each yielded route is resolvable via {@link resolve}.
+   */
+  *routes(): IterableIterator<string> {
+    for (const [route, match] of this.endpointLookup) {
+      if (match.label === undefined) yield route;
+    }
+  }
 }

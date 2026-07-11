@@ -7,6 +7,7 @@ import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { createConsoleLogger } from '../core/logger';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
+import { TypeShimGenerator } from '../core/type-shims/type-shim-generator';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants';
 
@@ -21,6 +22,10 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   const rewriter = new BundlerCompatRewriter(framework as BundlerFramework);
   
   let assetResolver: AssetResolver | null = null;
+  // Consumer root for generated type-shim packages. Captured from Vite's
+  // resolved config when available (see the Vite hook below); cwd otherwise.
+  let consumerRoot = process.cwd();
+  let typeShimGenerator: TypeShimGenerator | null = null;
 
   const base = {
     name: 'unplugin-dotnet-wasm',
@@ -33,6 +38,14 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         ? buildVfs(runtimeManifest, { logger })
         : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
+
+      // Editor/tsc type support via generated "magic" node_modules packages.
+      // MVP: Vite only (root captured from config); other bundlers land in a
+      // follow-up that resolves their consumer root.
+      if (framework === 'vite') {
+        typeShimGenerator = new TypeShimGenerator({ root: consumerRoot, resolver: assetResolver, logger });
+        await typeShimGenerator.generate();
+      }
     },
     resolveId(source: string): string | null {
       if (!assetResolver) return null;
@@ -54,6 +67,14 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   if (isRollupFamily) {
     return {
       ...base,
+      // Vite-only hook: capture the resolved consumer root so type-shim packages
+      // are written to the right node_modules. `configResolved` fires before
+      // `buildStart`, so `consumerRoot` is set in time. No-op for rollup/rolldown.
+      vite: {
+        configResolved(config: { root: string }): void {
+          consumerRoot = config.root;
+        },
+      },
       load: {
         filter: { id: BINARY_EXTENSIONS_REGEX },
         async handler(id: string): Promise<string> {
