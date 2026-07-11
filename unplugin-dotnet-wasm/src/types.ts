@@ -18,10 +18,10 @@ export interface DotnetAssetsBaseOptions {
 export interface DotnetAssetsDiscoveryOptions {
   /** Absolute or workspace-relative path to the directory containing the .csproj. */
   projectRoot: string;
-  /** MSBuild configuration. Default: `'Debug'`. */
-  configuration?: string;
+  /** MSBuild configuration. */
+  configuration: 'Debug' | 'Release' | (string & {});
   /** Target framework moniker (e.g. `'net10.0'`). */
-  targetFramework?: string;
+  targetFramework: 'net10.0' | (string & {});
   /** Use `dotnet publish` output layout (appends `publish/`). Default: `false`. */
   isPublish?: boolean;
 }
