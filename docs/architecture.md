@@ -1,6 +1,6 @@
 # unplugin-dotnet-wasm architecture
 
-Why the plugin is shaped the way it is. For usage, see the [package README](../packages/unplugin-dotnet-wasm/README.md); the public option types live in [`src/types.ts`](../packages/unplugin-dotnet-wasm/src/types.ts) and are the source of truth for the API.
+Why the plugin is shaped the way it is. For usage, see the [package README](../unplugin-dotnet-wasm/README.md); the public option types live in [`src/types.ts`](../unplugin-dotnet-wasm/src/types.ts) and are the source of truth for the API.
 
 ## The problem
 
@@ -44,7 +44,7 @@ The StaticWebAssets SDK enables fingerprinting by default, but it is not require
 
 ## Per-bundler emission strategies
 
-`meta.framework` dispatches to a family in [`src/unplugin/index.ts`](../packages/unplugin-dotnet-wasm/src/unplugin/index.ts); the core VFS/manifest layer stays bundler-agnostic. The families exist because each bundler emits binary assets differently:
+`meta.framework` dispatches to a family in [`src/unplugin/index.ts`](../unplugin-dotnet-wasm/src/unplugin/index.ts); the core VFS/manifest layer stays bundler-agnostic. The families exist because each bundler emits binary assets differently:
 
 - **Rollup family** (`rollup`, `vite`, `rolldown`): `load` + `this.emitFile({ type: 'asset' })` + the `import.meta.ROLLUP_FILE_URL_*` placeholder, rewritten to the hashed URL at bundle time. Vite build rides this path with zero Vite-specific code.
 - **Webpack family** (`webpack`, `rspack`, `rsbuild`): `load` is omitted (unplugin's webpack loader is not `raw`, so it would round-trip binaries through UTF-8 and corrupt them). Instead a scoped `asset/resource` `module.rules` entry is injected, keyed to the framework files so user `.wasm` imports keep their default handling. On rsbuild the rule is `unshift`ed so it wins over the built-in `.wasm → webassembly/async` rule.
@@ -55,7 +55,7 @@ The StaticWebAssets SDK enables fingerprinting by default, but it is not require
 
 With `WasmBundlerFriendlyBootConfig=true`, `dotnet.js` contains a real `import "./<asset>"` per asset, each expected to resolve to a **URL string**. For output to work under both browser and Node without a consumer-side shim, every asset import must be rewritten to `new URL("./<file>", import.meta.url).href`: a relative, `import.meta.url`-based, plain-string value, emitted as ESM. The dotnet runtime's built-in `fetch_like` already handles the resulting scheme (`http(s):` in the browser, `file:` in Node).
 
-Rollup-family and Farm produce this shape natively, so they support Node targets today. esbuild/bun emit bare strings and webpack/rspack/rsbuild emit `URL` instances (only under `output.module`), so **their Node targets are deferred** pending a rewrite step; browser output is unaffected. The [README bundler table](../packages/unplugin-dotnet-wasm/README.md#bundler-support) reflects the current matrix.
+Rollup-family and Farm produce this shape natively, so they support Node targets today. esbuild/bun emit bare strings and webpack/rspack/rsbuild emit `URL` instances (only under `output.module`), so **their Node targets are deferred** pending a rewrite step; browser output is unaffected. The [README bundler table](../unplugin-dotnet-wasm/README.md#bundler-support) reflects the current matrix.
 
 ## Testing model
 
