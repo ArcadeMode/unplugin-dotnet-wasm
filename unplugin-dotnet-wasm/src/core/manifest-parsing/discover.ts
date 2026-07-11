@@ -11,7 +11,7 @@ interface DiscoverByProjectOptions {
   /** MSBuild configuration. */
   configuration: 'Debug' | 'Release' | (string & {});
   /** Target framework moniker (e.g. `'net10.0'`). */
-  targetFramework: string;
+  targetFramework: 'net10.0' | (string & {});
   /** Append a `publish/` segment, matching `dotnet publish` output layout. Default: `false`. */
   isPublish?: boolean;
 }

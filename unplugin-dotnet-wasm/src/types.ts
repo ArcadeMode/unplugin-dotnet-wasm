@@ -21,7 +21,7 @@ export interface DotnetAssetsDiscoveryOptions {
   /** MSBuild configuration. */
   configuration: 'Debug' | 'Release' | (string & {});
   /** Target framework moniker (e.g. `'net10.0'`). */
-  targetFramework: string;
+  targetFramework: 'net10.0' | (string & {});
   /** Use `dotnet publish` output layout (appends `publish/`). Default: `false`. */
   isPublish?: boolean;
 }
