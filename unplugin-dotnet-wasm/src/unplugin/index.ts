@@ -22,8 +22,10 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   const rewriter = new BundlerCompatRewriter(framework as BundlerFramework);
   
   let assetResolver: AssetResolver | null = null;
-  // Consumer root for generated type-shim packages. Captured from Vite's
-  // resolved config when available (see the Vite hook below); cwd otherwise.
+  // Consumer root for generated type-shim packages. Each bundler family captures
+  // it from its own config before `buildStart` fires (Vite `config.root`, webpack
+  // `compiler.options.context`, esbuild `absWorkingDir`, Farm `root`); rollup /
+  // rolldown have no root concept and keep the cwd default.
   let consumerRoot = process.cwd();
   let typeShimGenerator: TypeShimGenerator | null = null;
 
@@ -39,13 +41,10 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
 
-      // Editor/tsc type support via generated "magic" node_modules packages.
-      // MVP: Vite only (root captured from config); other bundlers land in a
-      // follow-up that resolves their consumer root.
-      if (framework === 'vite') {
-        typeShimGenerator = new TypeShimGenerator({ root: consumerRoot, resolver: assetResolver, logger });
-        await typeShimGenerator.generate();
-      }
+      // Editor/tsc type support via generated "magic" node_modules packages,
+      // written under the consumer root captured per bundler family (above).
+      typeShimGenerator = new TypeShimGenerator({ root: consumerRoot, resolver: assetResolver, logger });
+      await typeShimGenerator.generate();
     },
     resolveId(source: string): string | null {
       if (!assetResolver) return null;
@@ -67,9 +66,9 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   if (isRollupFamily) {
     return {
       ...base,
-      // Vite-only hook: capture the resolved consumer root so type-shim packages
-      // are written to the right node_modules. `configResolved` fires before
-      // `buildStart`, so `consumerRoot` is set in time. No-op for rollup/rolldown.
+      // Vite: capture the resolved consumer root so type-shim packages land in
+      // the right node_modules. `configResolved` fires before `buildStart`, so
+      // `consumerRoot` is set in time. No-op for rollup/rolldown (no root concept).
       vite: {
         configResolved(config: { root: string }): void {
           consumerRoot = config.root;
@@ -121,21 +120,24 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
 
     return {
       ...base,
-      webpack(compiler: { options: { module?: { rules?: unknown[] } } }) {
+      webpack(compiler: { options: { context?: string; module?: { rules?: unknown[] } } }) {
+        if (compiler.options.context) consumerRoot = compiler.options.context;
         compiler.options.module ??= { rules: [] };
         compiler.options.module.rules ??= [];
         compiler.options.module.rules.push(webpackBinaryRule, webpackJsParserRule);
         externalizeNodeBuiltins(compiler.options as WebpackLikeOptions);
       },
-      rspack(compiler: { options: { module?: { rules?: unknown[] } } }) {
+      rspack(compiler: { options: { context?: string; module?: { rules?: unknown[] } } }) {
+        if (compiler.options.context) consumerRoot = compiler.options.context;
         compiler.options.module ??= { rules: [] };
         compiler.options.module.rules ??= [];
         compiler.options.module.rules.push(webpackBinaryRule, webpackJsParserRule);
         externalizeNodeBuiltins(compiler.options as WebpackLikeOptions);
       },
       rsbuild: {
-        setup(api: { modifyRspackConfig: (fn: (config: { module?: { rules?: unknown[] } }) => void) => void }) {
+        setup(api: { modifyRspackConfig: (fn: (config: { context?: string; module?: { rules?: unknown[] } }) => void) => void }) {
           api.modifyRspackConfig(config => {
+            if (config.context) consumerRoot = config.context;
             config.module ??= { rules: [] };
             config.module.rules ??= [];
             config.module.rules.unshift(webpackBinaryRule, webpackJsParserRule);
@@ -155,7 +157,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // { setup(build) {} } in unplugin 3.x (not bare functions).
   if (isEsbuildFamily) {
     const setup = (build: {
-      initialOptions: { external?: string[]; loader?: Record<string, string> };
+      initialOptions: { absWorkingDir?: string; external?: string[]; loader?: Record<string, string> };
       onResolve: (
         opts: { filter: RegExp },
         cb: (args: { path: string }) => { path: string } | null,
@@ -165,6 +167,8 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         cb: (args: { path: string }) => Promise<{ contents: string; loader: 'js' } | null> | null,
       ) => void;
     }) => {
+      // Capture the consumer root for type-shim generation (buildStart fires after setup).
+      if (build.initialOptions.absWorkingDir) consumerRoot = build.initialOptions.absWorkingDir;
       // Register Node built-ins as external so esbuild doesn't try to bundle them.
       build.initialOptions.external ??= [];
       for (const mod of DOTNET_NODE_BUILTINS) {
@@ -212,7 +216,8 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   return {
     ...base,
     farm: {
-      config(userConfig: { compilation?: { output?: { targetEnv?: string }; presetEnv?: unknown } }) {
+      config(userConfig: { root?: string; compilation?: { output?: { targetEnv?: string }; presetEnv?: unknown } }) {
+        if (userConfig.root) consumerRoot = userConfig.root;
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree = targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;

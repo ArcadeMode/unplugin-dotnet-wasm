@@ -39,8 +39,8 @@ update it to the Program-based approach (tracked as Aux I below).
 
 | # | Item | Depends on | Notes | Completed |
 |---|------|-----------|-------|-----------|
-| A | `_framework/dotnet` re-export path + `export { default }` + default-presence guard | **SDK emitting `dotnet.d.ts`** (external — investigate why `WasmEmitTypeScriptDefinitions=true` produces none) | Only slice blocked outside our code; `.d.ts` seam already stubbed in `emit()` | ☐ |
-| B | Multi-bundler root resolution + nearest-ancestor `node_modules` walk | Slice 1 | Lift the `framework==='vite'` gate; capture root per family (Webpack `compiler.options.context`, esbuild `absWorkingDir`, Farm `config.root`, Rollup/Rolldown cwd) | ☐ |
+| A | `_framework/dotnet` re-export path + `export { default }` + default-presence guard | Partially unblocked — `test/fixtures/Library` **does** emit `dotnet.d.ts` (the `samples/SampleLibrary` still doesn't; investigate the csproj/SDK difference) | **Partially done via Aux B:** the `.d.ts` re-export path now generates and resolves **named** exports (verified: esbuild fixture's `import { dotnet }` types clean); fixed a backslash-in-specifier bug (POSIX now). **Remaining:** `export { default }` + default-presence guard for libs whose `dotnet.d.ts` has a default export | ◑ |
+| B | Multi-bundler root resolution + nearest-ancestor `node_modules` walk | Slice 1 | ✅ Gate lifted; root captured per family (Vite `config.root`, Webpack/Rspack `compiler.options.context`, Rsbuild config `context`, esbuild/bun `absWorkingDir`, Farm `root`, Rollup/Rolldown cwd). Nearest-ancestor `node_modules` walk added (local-first). **Verified:** Vite (no regression), esbuild (typecheck-clean resolution end-to-end), webpack (builds + generates). All 125 unit tests pass | ✅ |
 | C | Yarn PnP guard (detect `process.versions.pnp` → warn once → skip) | Slice 1 | Cheap, self-contained; degrades to today's behavior | ☐ |
 | D | Idempotent content-keyed writes / stale-package pruning | Slice 1 | Uses the generator's `written` set; skip rewrite when content unchanged | ☐ |
 | E | Live dev refresh (`configureServer` + manifest watch re-invokes `generate()`) | Slice 1 | Biggest post-MVP UX win; generator instance already retained | ☐ |
@@ -49,4 +49,5 @@ update it to the Program-based approach (tracked as Aux I below).
 | H | Bare-specifier switch across all fixtures + README | B | Blast radius: 12+ fixtures | ☐ |
 | I | Patch `TYPES_PLAN.md`: `transpileDeclaration` → Program-based emit; note per-entrypoint checker cost (batch into one multi-root Program if entrypoint count grows) | Slice 1 | Doc correction discovered during Slice 1 | ☐ |
 
-**Critical path** — Slice 1 ✅ → (B, C, G, H, I parallel). A waits on the SDK; E, F are later polish.
+**Critical path** — Slice 1 ✅ → B ✅ → (C, G, H, I parallel). A is now mostly done (default-export
+handling remains); E, F are later polish.

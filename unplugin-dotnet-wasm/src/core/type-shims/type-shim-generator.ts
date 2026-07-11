@@ -1,9 +1,11 @@
 import { writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
+import { toPosixPath } from '../path-utils';
 
 export interface TypeShimGeneratorDeps {
   /** Consumer root; generated packages land in `<root>/node_modules`. */
@@ -52,6 +54,7 @@ function toEntry(route: string, physicalPath: string, kind: TypeEntry['kind']): 
 export class TypeShimGenerator {
   private ts?: typeof import('typescript');
   private tsUnavailable = false;
+  private nodeModulesBase?: string;
   private readonly written = new Set<string>();
 
   constructor(private readonly deps: TypeShimGeneratorDeps) {}
@@ -91,7 +94,7 @@ export class TypeShimGenerator {
     entries: TypeEntry[],
     ts: typeof import('typescript'),
   ): Promise<void> {
-    const pkgDir = join(this.deps.root, 'node_modules', pkgName);
+    const pkgDir = join(this.resolveNodeModulesBase(), pkgName);
     try {
       await mkdir(pkgDir, { recursive: true });
 
@@ -121,9 +124,10 @@ export class TypeShimGenerator {
   /** Produce the `.d.ts` text for one entrypoint, or `null` to skip it. */
   private emit(entry: TypeEntry, ts: typeof import('typescript')): string | null {
     if (entry.kind === 'dts') {
-      // Post-MVP: re-export the existing `.d.ts` (with `export { default }` when present).
-      // The .NET SDK does not emit `dotnet.d.ts` yet, so this path is currently unreached.
-      const specifier = entry.physicalPath.replace(TS_ROUTE, '');
+      // Re-export the existing `.d.ts` by absolute, extensionless, POSIX specifier
+      // (backslashes would be parsed as string escapes). `export *` forwards named
+      // types/values but not `default` — appending that is Aux A.
+      const specifier = toPosixPath(entry.physicalPath.replace(TS_ROUTE, ''));
       return `export * from '${specifier}';\n`;
     }
 
@@ -154,6 +158,26 @@ export class TypeShimGenerator {
       return null;
     }
     return dts;
+  }
+
+  /**
+   * The `node_modules` directory to write packages into. Local-first: use
+   * `<root>/node_modules` when it exists, else walk up to the nearest ancestor
+   * that has one (covers hoisted monorepos), else fall back to creating one under
+   * the root. Node resolves up the tree, so any ancestor on the entry files' path
+   * makes the package resolvable. Cached after first resolution.
+   */
+  private resolveNodeModulesBase(): string {
+    if (this.nodeModulesBase) return this.nodeModulesBase;
+    let dir = this.deps.root;
+    for (;;) {
+      const candidate = join(dir, 'node_modules');
+      if (existsSync(candidate)) return (this.nodeModulesBase = candidate);
+      const parent = dirname(dir);
+      if (parent === dir) break; // reached the filesystem root
+      dir = parent;
+    }
+    return (this.nodeModulesBase = join(this.deps.root, 'node_modules'));
   }
 
   /**
