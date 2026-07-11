@@ -15,7 +15,7 @@ Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers
 
 ## Documentation
 
-- [Package README](packages/unplugin-dotnet-wasm/README.md): install, per-bundler setup, options, and the bundler support matrix.
+- [Package README](unplugin-dotnet-wasm/README.md): install, per-bundler setup, options, and the bundler support matrix.
 - [Architecture](docs/architecture.md): the problem, the manifest-driven design, and the rationale behind each decision.
 
 ## Run the sample
