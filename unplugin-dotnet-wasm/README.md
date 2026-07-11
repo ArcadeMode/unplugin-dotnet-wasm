@@ -1,34 +1,40 @@
 # unplugin-dotnet-wasm
 
-Mount .NET static-web-assets output as a virtual module namespace for Vite, Webpack, Rollup, and esbuild.
+unplugin-dotnet-wasm enables importing .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) through your favorite JavaScript bundler's own module graph: no manual copy step, no public-dir hacks, and it works against the fast `dotnet build`, saving the slow `dotnet publish` for when you are actually publishing.
 
-The plugin reads the static-web-assets manifests emitted by `dotnet build` / `dotnet publish` and
-exposes every framework asset (`.wasm`, `.js`, `.dat`, `.pdb`, `.d.ts`) through the bundler's
-module graph — no manual copy step, no public-dir hacks.
+Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
+
+> [!TIP]
+> unplugin-dotnet-wasm pairs great with [TypeShim](https://github.com/ArcadeMode/TypeShim) for a seamless .NET > JS experience.
 
 ## Install
 
 ```bash
-npm i -D unplugin-dotnet-wasm unplugin
+npm i -D unplugin-dotnet-wasm
 ```
 
 ## Usage
+
+Register the plugin in your bundler config. The import path is the only thing that differs across bundlers; the `DotnetAssets({...})` call is identical everywhere. Options are documented under [Configuration](#configuration).
+
+### Bundler examples
 
 <details>
 <summary><strong>Vite</strong></summary>
 
 ```ts
-// vite.config.ts
 import { defineConfig } from 'vite';
 import DotnetAssets from 'unplugin-dotnet-wasm/vite';
 
 export default defineConfig({
+  // ...
   plugins: [
     DotnetAssets({
-      projectRoot: '../MyLibrary',
       projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
+      isPublish: false,
     }),
   ],
 });
@@ -37,19 +43,20 @@ export default defineConfig({
 </details>
 
 <details>
-<summary><strong>Rollup</strong></summary>
+<summary><strong>Webpack</strong></summary>
 
-```ts
-// rollup.config.js
-import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
+```js
+import DotnetAssets from 'unplugin-dotnet-wasm/webpack';
 
 export default {
+  // ...
   plugins: [
     DotnetAssets({
-      projectRoot: '../MyLibrary',
       projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
+      isPublish: false,
     }),
   ],
 };
@@ -58,21 +65,37 @@ export default {
 </details>
 
 <details>
-<summary><strong>Webpack</strong></summary>
+<summary><strong>Rollup</strong></summary>
 
-```ts
-// webpack.config.js
-import DotnetAssets from 'unplugin-dotnet-wasm/webpack';
+Rollup does not resolve bare module specifiers on its own, so the dotnet runtime's internal imports need `@rollup/plugin-node-resolve`:
 
-module.exports = {
+```js
+import nodeResolve from '@rollup/plugin-node-resolve';
+import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
+
+export default {
+  // ...
   plugins: [
+    nodeResolve({ browser: true }),   // omit `browser` when targeting Node
     DotnetAssets({
-      projectRoot: '../MyLibrary',
       projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
+      isPublish: false,
     }),
   ],
+};
+```
+
+**Node target:** externalize Node built-ins so the dotnet runtime's Node-only paths don't get pulled into the graph:
+
+```js
+import { builtinModules } from 'node:module';
+
+export default {
+  // ...
+  external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
 };
 ```
 
@@ -82,22 +105,168 @@ module.exports = {
 <summary><strong>esbuild</strong></summary>
 
 ```ts
-import { build } from 'esbuild';
+import * as esbuild from 'esbuild';
 import DotnetAssets from 'unplugin-dotnet-wasm/esbuild';
 
-build({
+await esbuild.build({
+  // ...
   plugins: [
     DotnetAssets({
-      projectRoot: '../MyLibrary',
       projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
+      isPublish: false,
+    }),
+  ],
+});
+```
+
+When targeting Node, the runtime needs an explicit resource loader — see [Runtime usage](#runtime-usage) below.
+
+</details>
+
+<details>
+<summary><strong>Rspack</strong></summary>
+
+```js
+import DotnetAssets from 'unplugin-dotnet-wasm/rspack';
+
+export default {
+  // ...
+  plugins: [
+    DotnetAssets({
+      projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      isPublish: false,
+    }),
+  ],
+};
+```
+
+</details>
+
+<details>
+<summary><strong>Rsbuild</strong></summary>
+
+```ts
+import { defineConfig } from '@rsbuild/core';
+import DotnetAssets from 'unplugin-dotnet-wasm/rsbuild';
+
+export default defineConfig({
+  // ...
+  plugins: [
+    DotnetAssets({
+      projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      isPublish: false,
     }),
   ],
 });
 ```
 
 </details>
+
+<details>
+<summary><strong>Rolldown</strong></summary>
+
+```js
+import DotnetAssets from 'unplugin-dotnet-wasm/rolldown';
+
+export default {
+  // ...
+  plugins: [
+    DotnetAssets({
+      projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      isPublish: false,
+    }),
+  ],
+};
+```
+
+**Node target:** externalize Node built-ins so the dotnet runtime's Node-only paths don't get pulled into the graph:
+
+```js
+import { builtinModules } from 'node:module';
+
+export default {
+  // ...
+  external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
+};
+```
+
+</details>
+
+<details>
+<summary><strong>Bun</strong></summary>
+
+Bun refuses to emit files with unknown extensions. Declare the three binary asset types the dotnet runtime references:
+
+```ts
+import DotnetAssets from 'unplugin-dotnet-wasm/bun';
+
+await Bun.build({
+  // ...
+  loader: {
+    '.wasm': 'file',
+    '.dat': 'file',
+    '.pdb': 'file',
+  },
+  plugins: [
+    DotnetAssets({
+      projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      isPublish: false,
+    }),
+  ],
+});
+```
+
+</details>
+
+<details>
+<summary><strong>Farm</strong></summary>
+
+Farm parses unknown extensions as JavaScript by default and injects `core-js` polyfills. Two options make it emit dotnet's binary assets cleanly without pulling in `core-js`:
+
+```ts
+import { defineConfig } from '@farmfe/core';
+import DotnetAssets from 'unplugin-dotnet-wasm/farm';
+
+export default defineConfig({
+  compilation: {
+    // ...
+    assets: {
+      include: ['wasm', 'dat', 'pdb'],   // treat as emittable static assets
+    },
+    output: {
+      targetEnv: 'browser-esnext',       // skip core-js polyfill injection
+    },
+  },
+  plugins: [
+    DotnetAssets({
+      projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      isPublish: false,
+    }),
+  ],
+});
+```
+
+</details>
+
+### Runtime usage
 
 Once the plugin is configured, import .NET assets as regular ES modules:
 
@@ -107,6 +276,22 @@ import { dotnet } from './_framework/dotnet';
 const runtime = await dotnet.create();
 runtime.runMain();
 ```
+
+<details>
+<summary><strong>Note on esbuild resource loading on Node</strong></summary>
+
+When targeting Node with esbuild, the dotnet runtime a resource loader so the runtime can succesfully resolvee WASM URLs:
+
+```ts
+import { dotnet } from './_framework/dotnet';
+
+const runtime = await dotnet
+  .withResourceLoader((type, name, defaultUri) => new URL(defaultUri, import.meta.url).href)
+  .create();
+runtime.runMain();
+```
+
+</details>
 
 ## Configuration
 
@@ -118,16 +303,16 @@ Locates manifests under `<projectRoot>/bin/<configuration>/<targetFramework>[/pu
 
 ```ts
 DotnetAssets({
-  projectName: 'MyLibrary',    // required — used to find manifest files
+  projectName: 'MyLibrary',    // used to find manifest files
   projectRoot: '../MyLibrary', // path to the directory containing the .csproj
-  configuration: 'Debug',      // MSBuild configuration (default: 'Debug')
+  configuration: 'Debug',      // MSBuild configuration, e.g. 'Debug' or 'Release'
   targetFramework: 'net10.0',  // target framework moniker, e.g. 'net10.0'
-  isPublish: false,            // true = use the default dotnet publish output layout (default: false)
+  isPublish: false,            // true = read from the dotnet publish output layout
   logLevel: 'warn',            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
 })
 ```
 
-`configuration` and `isPublish` are most commonly `(Debug, false)` or `(Release, true)`. These settings determine which standard SDK output tree the plugin reads. Whether that means a debug or production build, and whether to point at the publish layout, is up to you: set them to match your project's build pipeline.
+All fields above are required except `logLevel`. `configuration` and `isPublish` typically pair as `(Debug, false)` for development and `(Release, true)` for production — set them to match your project's build pipeline.
 
 ### Explicit output dir mode
 
@@ -148,12 +333,12 @@ DotnetAssets({
 | Vite | ✅ Supported | ✅ Supported |
 | Rollup | ✅ Supported | ✅ Supported |
 | Rolldown | ✅ Supported | ✅ Supported |
-| Webpack | ✅ Supported | — |
-| Rspack | ✅ Supported | — |
-| Rsbuild | ✅ Supported | — |
+| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] |
+| Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] |
+| Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] |
 | esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] |
 | Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] |
-| Bun | ✅ Supported | — |
+| Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] |
 
 ## Status & roadmap
 
@@ -173,18 +358,21 @@ The plugin is build-time only today. Scope so far and what's planned:
 
 1. IDE parity: emit a `tsconfig` + ambient `.d.ts` so editors see the same virtual tree the bundler does
 2. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
-3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
-4. Preload `<link>` injection from the endpoints manifest's preload metadata
-5. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
+3. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
+4. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
+5. Preload `<link>` injection from the endpoints manifest's preload metadata
 
 Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
 
 ## Requirements
 
 - Node.js >= 24
-- .NET 10 SDK (build output must exist before bundling)
-- `unplugin` >= 3.3.0
+- .NET SDK >= 10 (build output must exist before bundling)
 
-[^esbuild-node-partial-support]: esbuild works on node but requires `dotnet.withResourceLoader((type: string, name: string, defaultUri: string) => new URL(defaultUri, import.meta.url).href)` to fix WASM asset resolution.
+[^esbuild-node-partial-support]: esbuild works on Node but the runtime needs an explicit `.withResourceLoader(...)` call to resolve WASM URLs. See [Runtime usage](#runtime-usage).
 
-[^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks without a linker; the module system runtime is emitted but chunks are never imported or executed. This architectural limitation affects virtual-module-heavy bundling scenarios like dotnet static-web-assets. Farm's HTML orchestration works correctly for browser targets.
+[^webpack-family-node-no-support]: Webpack/Rspack/Rsbuild emit `URL` instances for asset imports; the dotnet runtime needs URL strings. Rewrite step pending — see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+
+[^bun-node-no-support]: Bun emits bare strings for asset imports; the dotnet runtime needs URL strings. Rewrite step pending — see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+
+[^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)

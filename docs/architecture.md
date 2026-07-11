@@ -8,11 +8,11 @@ This plugin concerns .NET WebAssembly projects built in **bundler-friendly mode*
 
 - **`dotnet build` output isn't bundleable.** A plain build leaves the `bin/` output incomplete: the assets those `import` statements point at aren't all present there in a form a JS bundler can follow, so the bundle fails. This is the fast, inner-loop build, and it's the one that doesn't work.
 
-- **`dotnet publish` fixes completeness but is slow.** Publish produces the full asset set, so bundling can succeed against it. But publish is a heavyweight step; paying it on every source change makes the inner dev loop painfully slow, exactly the loop where fast feedback matters most.
+- **`dotnet publish` output bundles but is slow.** Publish produces the full asset set, so bundling can succeed against it. But publish is a heavyweight step; paying it on every source change makes the inner dev loop painfully slow.
 
 - **Even publish output needs bundler surgery.** Consuming it still requires notable per-bundler configuration (asset handling, resolution, Node built-in shims, and more). That setup burden is a real barrier to adopting .NET WASM into an existing JS project, and it has to be redone for each bundler.
 
-- **The emitted JS trips up static analysis.** The SDK's loader and runtime JavaScript trip up bundler static analysis, producing a stream of warnings on every build.
+- **The emitted JS trips up static analysis.** The SDK's loader and runtime JavaScript trip up bundler static analysis, producing a stream of warnings on every build. These dont break functionality but are still annoying.
 
 The plugin aims to adres the above by making the fast `dotnet build` output directly bundleable and absorbs the per-bundler configuration while adjusting the JS to silence warnings. With unplugin-dotnet-wasm, a .NET WASM app drops into a JS project like any other dependency. How it does that is the rest of this document.
 
@@ -34,11 +34,11 @@ The plugin resolves everything the manifests declare and hands anything else bac
 
 The `{Project}.staticwebassets.endpoints.json` lists the routes an app needs, with their fingerprint aliases and response headers. `{Project}.staticwebassets.runtime.json` (only after `dotnet build`) maps each file to its scattered location, from which the plugin builds a VFS that serves them as one directory. Without it (after `dotnet publish`), the VFS overlays the publish directory as all files will be present there.
 
-### Fallback to the bundler, not takeover
+### Fallback to the bundler for unresolved assets
 
 For a specifier it recognises, the plugin returns the physical file path; otherwise it returns nothing and the bundler's native resolver takes over. It never owns the whole resolution job. unplugin's uniform resolve hook is what makes this cooperation work across bundlers: a resolved `dotnet.js` can `import './dotnet.native.wasm'` itself, with the plugin re-engaging only for the next manifest-declared asset.
 
-### Fingerprinting falls out of the manifest approach
+### Fingerprinting implicitly supported
 
 The StaticWebAssets SDK enables fingerprinting by default, but it is not required to be a first-class concept in the plugin. Since the endpoints manifest maps every canonical route to its actual file, a name like `_framework/Library.wasm` or `_framework/Library.9mhy6srgqs.wasm` resolves through the same lookup. However the SDK names or organises files, they resolve as long as they appear in the manifests. Hence fingerprint on/off is a test axis, not a separate code path.
 
@@ -46,9 +46,9 @@ The StaticWebAssets SDK enables fingerprinting by default, but it is not require
 
 `meta.framework` dispatches to a family in [`src/unplugin/index.ts`](../unplugin-dotnet-wasm/src/unplugin/index.ts); the core VFS/manifest layer stays bundler-agnostic. The families exist because each bundler emits binary assets differently:
 
-- **Rollup family** (`rollup`, `vite`, `rolldown`): `load` + `this.emitFile({ type: 'asset' })` + the `import.meta.ROLLUP_FILE_URL_*` placeholder, rewritten to the hashed URL at bundle time. Vite build rides this path with zero Vite-specific code.
-- **Webpack family** (`webpack`, `rspack`, `rsbuild`): `load` is omitted (unplugin's webpack loader is not `raw`, so it would round-trip binaries through UTF-8 and corrupt them). Instead a scoped `asset/resource` `module.rules` entry is injected, keyed to the framework files so user `.wasm` imports keep their default handling. On rsbuild the rule is `unshift`ed so it wins over the built-in `.wasm → webassembly/async` rule.
-- **esbuild family** (`esbuild`, `bun`): `resolveId` is dropped (unplugin routes it into a plugin-scoped namespace that defeats the native `.wasm → file` loader). `onResolve` is registered directly inside `setup(build)` so files stay in the default namespace.
+- **Rollup family** (`rollup`, `vite`, `rolldown`): `load` + `this.emitFile({ type: 'asset' })` + the `import.meta.ROLLUP_FILE_URL_*` placeholder, which these bundlers rewrite to the hashed URL at bundle time.
+- **Webpack family** (`webpack`, `rspack`, `rsbuild`): `load` is omitted (unplugin's webpack loader corrupts binaries if passed through load). Instead a scoped `module.rules` entry is injected to serve wasm/dat/pdb as `asset/resource`. These rules are scoped to the dotnet framework files so user `.wasm` imports keep their default handling. On rsbuild the rule is prepended to the ruleset to win over the built-in `.wasm → webassembly/async` rule.
+- **esbuild family** (`esbuild`, `bun`): `resolveId` is dropped in favour of `onResolve` directly inside `setup(build)` so files stay in the default namespace.
 - **Farm**: Rollup-shaped `resolveId`; binary emission is opted in by the consumer via `compilation.assets.include: ['wasm']` (Farm exposes no plugin hook for it).
 
 ## Cross-target output contract (why Node support is a subset)
