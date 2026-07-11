@@ -1,5 +1,5 @@
-import { dotnet } from './_framework/dotnet';
-import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from './typeshim';
+import { dotnet } from '_framework/dotnet';
+import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
 
 async function initializeWasmRuntime(): Promise<void> {
   const runtimeInfo = await dotnet.create();

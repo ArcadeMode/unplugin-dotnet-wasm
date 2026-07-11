@@ -102,7 +102,7 @@ describe('dotnetStaticAssets — resolveId (real SampleLibrary fixture)', () => 
   });
 
   it('resolves ./typeshim (leading ./) to the same path', () => {
-    const result = callResolveId(plugin, './typeshim');
+    const result = callResolveId(plugin, 'typeshim');
     expect(result).toMatch(/typeshim\.ts$/);
   });
 

@@ -1,5 +1,5 @@
-import { dotnet } from './_framework/dotnet';
-import { TypeShimInitializer, Counter } from './typeshim';
+import { dotnet } from '_framework/dotnet';
+import { TypeShimInitializer, Counter } from 'typeshim';
 
 async function boot(): Promise<void> {
   const runtime = await dotnet.create();

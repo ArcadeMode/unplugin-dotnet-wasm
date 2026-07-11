@@ -271,7 +271,7 @@ export default defineConfig({
 Once the plugin is configured, import .NET assets as regular ES modules:
 
 ```ts
-import { dotnet } from './_framework/dotnet';
+import { dotnet } from '_framework/dotnet';
 
 const runtime = await dotnet.create();
 runtime.runMain();
@@ -283,7 +283,7 @@ runtime.runMain();
 When targeting Node with esbuild, the dotnet runtime a resource loader so the runtime can succesfully resolvee WASM URLs:
 
 ```ts
-import { dotnet } from './_framework/dotnet';
+import { dotnet } from '_framework/dotnet';
 
 const runtime = await dotnet
   .withResourceLoader((type, name, defaultUri) => new URL(defaultUri, import.meta.url).href)
