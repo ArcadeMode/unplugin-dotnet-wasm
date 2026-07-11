@@ -13,51 +13,36 @@ Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers
 > [!TIP]
 > unplugin-dotnet-wasm pairs great with [TypeShim](https://github.com/ArcadeMode/TypeShim) for a seamless .NET > JS experience.
 
-## Install
-
-```bash
-npm i -D unplugin-dotnet-wasm
-```
-
-## Usage
-
-```ts
-// vite.config.ts
-import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-wasm/vite';
-
-export default defineConfig({
-  plugins: [
-    DotnetAssets({
-      projectRoot: '../MyLibrary',
-      projectName: 'MyLibrary',
-      targetFramework: 'net10.0',
-    }),
-  ],
-});
-```
-
-See the [package README](unplugin-dotnet-wasm/README.md) for the other bundlers, the full options table, and how to import the assets at runtime.
-
-## Requirements
-
-- Node.js >= 24
-- .NET 10 SDK, project built with `WasmBundlerFriendlyBootConfig=true`
-
 ## Documentation
 
 - [Package README](packages/unplugin-dotnet-wasm/README.md): install, per-bundler setup, options, and the bundler support matrix.
 - [Architecture](docs/architecture.md): the problem, the manifest-driven design, and the rationale behind each decision.
 
-## Developing this repo
+## Run the sample
 
-pnpm workspace, ESM-only, Node 24+, TypeScript strict. See [AGENTS.md](AGENTS.md) for the full build and test matrix.
+Make sure to have Node 24+ and .NET 10 SDK installed. 
 
+If you dont have `pnpm` installed yet:
 ```bash
-# build the sample .NET library, then build & preview the Vite sample
+npm install -g pnpm 
+# or
+corepack enable && corepack prepare pnpm@latest --activate
+```
+
+Then install dependencies
+```bash
+pnpm install
+```
+
+And build+run the vite sample
+```bash
 pnpm build:sample
 pnpm build:sample:vite
 pnpm preview:sample
 ```
 
+Other bundler samples can be found in the `./test/fixtures/[browser|node]` directories.
+
 Testing the `bun` integration additionally requires Bun >= 1.3.
+
+> To quickly set up all dependencies for the repo run: `./dev-env-init.ps1`
