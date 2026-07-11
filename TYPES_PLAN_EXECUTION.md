@@ -45,9 +45,10 @@ update it to the Program-based approach (tracked as Aux I below).
 | D | Idempotent content-keyed writes / stale-package pruning | Slice 1 | Uses the generator's `written` set; skip rewrite when content unchanged | ☐ |
 | E | Live dev refresh (`configureServer` + manifest watch re-invokes `generate()`) | Slice 1 | Biggest post-MVP UX win; generator instance already retained | ☐ |
 | F | Standalone generate CLI (postinstall/CI priming for fresh checkout) | Slice 1 | Fixes the wiped-`node_modules`-after-`npm ci` lapse | ☐ |
-| G | Tests: unit (discover/emit/write) + integration gate (`tsc --noEmit` in a fixture) into the matrix | Slice 1 | Locks the behavior down | ☐ |
+| G.a | **Integration-level** behavior + `tsc` gate | Slice 1 | ✅ `test/integration/tests/type-shims.test.ts` — inspects on-disk state from the standard fixture build (does not build itself), gated to `debug`. Asserts the fixture's local `node_modules` exists and contains `typeshim/{package.json,index.d.ts}` and `_framework/{package.json,dotnet/index.d.ts}`; then runs the fixture's own `tsc --noEmit` and asserts absence of `Cannot find module 'typeshim'` / `'_framework/dotnet'`. Verified passing (esbuild/node, webpack/browser) and fails loud when a package is hidden | ✅ |
+| G.b | Unit tests (discover / emit / write + `routes()`, `typeKind`, `toEntry`, nearest-ancestor walk, skip paths) | G.a + **generator factoring finalized** | Deferred until the generator refactor is settled, so tests aren't written against a shape that will change. Pure-unit + temp-dir generator-behavior tests per the Aux G design | ☐ |
 | H | Bare-specifier switch across all fixtures + README | B | Blast radius: 12+ fixtures | ☐ |
 | I | Patch `TYPES_PLAN.md`: `transpileDeclaration` → Program-based emit; note per-entrypoint checker cost (batch into one multi-root Program if entrypoint count grows) | Slice 1 | Doc correction discovered during Slice 1 | ☐ |
 
-**Critical path** — Slice 1 ✅ → B ✅ → (C, G, H, I parallel). A is now mostly done (default-export
-handling remains); E, F are later polish.
+**Critical path** — Slice 1 ✅ → B ✅ → G.a ✅ → (C, H, I parallel). G.b follows once the generator
+factoring is settled. A is now mostly done (default-export handling remains); E, F are later polish.
