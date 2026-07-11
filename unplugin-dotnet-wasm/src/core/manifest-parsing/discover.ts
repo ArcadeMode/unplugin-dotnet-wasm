@@ -8,10 +8,10 @@ interface DiscoverByProjectOptions {
   projectName: string;
   /** Absolute or workspace-relative path to the directory containing the .csproj. */
   projectRoot: string;
-  /** MSBuild configuration. Default: `'Debug'`. */
-  configuration?: string;
+  /** MSBuild configuration. */
+  configuration: 'Debug' | 'Release' | (string & {});
   /** Target framework moniker (e.g. `'net10.0'`). */
-  targetFramework?: string;
+  targetFramework: string;
   /** Append a `publish/` segment, matching `dotnet publish` output layout. Default: `false`. */
   isPublish?: boolean;
 }
@@ -40,8 +40,8 @@ export function discoverManifests(opts: DiscoverOptions): Manifests {
     : join(
         resolve(opts.projectRoot),
         'bin',
-        opts.configuration ?? 'Debug',
-        opts.targetFramework ?? '',
+        opts.configuration,
+        opts.targetFramework,
         opts.isPublish ? 'publish' : '',
       );
 
@@ -49,7 +49,14 @@ export function discoverManifests(opts: DiscoverOptions): Manifests {
   const endpointsManifestPath = join(manifestDir, `${opts.projectName}.staticwebassets.endpoints.json`);
 
   if (!existsSync(endpointsManifestPath)) {
-    throw new DiscoveryError(`Endpoints manifest not found at ${manifestDir}`, {});
+    const context: DiscoveryContext = 'projectRoot' in opts
+      ? {
+          projectRoot: opts.projectRoot,
+          configuration: opts.configuration,
+          targetFramework: opts.targetFramework,
+        }
+      : {};
+    throw new DiscoveryError(`Endpoints manifest not found at ${manifestDir}`, context);
   }
 
   return {
