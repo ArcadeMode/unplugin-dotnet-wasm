@@ -8,6 +8,7 @@ import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { createConsoleLogger } from '../core/logger';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
 import { TypeShimGenerator } from '../core/type-shims/type-shim-generator';
+import { SourceFileChangeTracker } from '../core/type-shims/source-file-change-tracker';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants';
 
@@ -16,16 +17,15 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   const isRollupFamily = framework === 'rollup' || framework === 'vite' || framework === 'rolldown';
   const isWebpackFamily = framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
   const isEsbuildFamily = framework === 'esbuild' || framework === 'bun';
-  
+
   const logLevel = options.logLevel ?? 'warn';
   const logger = createConsoleLogger(logLevel);
   const rewriter = new BundlerCompatRewriter(framework as BundlerFramework);
-  
+  // Tracks source file mtimes across builds (survives the plugin instance lifetime).
+  const changeTracker = new SourceFileChangeTracker();
+
   let assetResolver: AssetResolver | null = null;
-  // Consumer root for generated type-shim packages. Each bundler family captures
-  // it from its own config before `buildStart` fires (Vite `config.root`, webpack
-  // `compiler.options.context`, esbuild `absWorkingDir`, Farm `root`); rollup /
-  // rolldown have no root concept and keep the cwd default.
+  // Default root path of project, bundler families may override.
   let consumerRoot = process.cwd();
   let typeShimGenerator: TypeShimGenerator | null = null;
 
@@ -41,9 +41,12 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
 
-      // Editor/tsc type support via generated "magic" node_modules packages,
-      // written under the consumer root captured per bundler family (above).
-      typeShimGenerator = new TypeShimGenerator({ root: consumerRoot, resolver: assetResolver, logger });
+      typeShimGenerator = new TypeShimGenerator({
+        root: consumerRoot,
+        resolver: assetResolver,
+        logger,
+        changeTracker,
+      });
       await typeShimGenerator.generate();
     },
     resolveId(source: string): string | null {

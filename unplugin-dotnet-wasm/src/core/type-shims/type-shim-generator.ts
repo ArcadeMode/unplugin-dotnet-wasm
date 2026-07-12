@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -6,22 +6,19 @@ import { pathToFileURL } from 'node:url';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
 import { toPosixPath } from '../path-utils';
+import type { SourceFileChangeTracker } from './source-file-change-tracker';
 
 export interface TypeShimGeneratorDeps {
-  /** Consumer root; generated packages land in `<root>/node_modules`. */
   root: string;
-  /** Sole manifest dependency — owns route enumeration and physical resolution. */
   resolver: AssetResolver;
   logger: Logger;
+  changeTracker: SourceFileChangeTracker;
 }
 
 /** A single virtual type entrypoint discovered from the manifest. */
 interface TypeEntry {
-  /** First path segment of the specifier → fake package name (`typeshim`, `_framework`). */
   pkgName: string;
-  /** Remaining path after the package segment; `''` for a root entrypoint. */
   subpath: string;
-  /** Physical `.ts`/`.d.ts` file on disk (fingerprints already resolved). */
   physicalPath: string;
   kind: 'ts' | 'dts';
 }
@@ -100,21 +97,65 @@ export class TypeShimGenerator {
 
       const exports: Record<string, { types: string }> = {};
       for (const entry of entries) {
-        const dts = this.emit(entry, ts);
-        if (dts === null) continue;
+        // Check for source changes; record mtime regardless of outcome.
+        const changed = await this.deps.changeTracker.hasChanged(entry.physicalPath);
         const relFile = entry.subpath ? `${entry.subpath}/index.d.ts` : 'index.d.ts';
         const absFile = join(pkgDir, relFile);
-        await mkdir(dirname(absFile), { recursive: true });
-        await writeFile(absFile, dts, 'utf8');
+
+        // Skip emit if the source hasn't changed and the output file exists.
+        // Still add the entry to exports so the package.json stays complete.
+        if (!changed && existsSync(absFile)) {
+          exports[entry.subpath ? `./${entry.subpath}` : '.'] = { types: `./${relFile}` };
+          continue;
+        }
+
+        // Emit (or re-emit if changed).
+        const dts = this.emit(entry, ts);
+        if (dts === null) continue;
+
+        // Skip write if the file exists and its content matches the newly produced string.
+        let shouldWrite = true;
+        if (existsSync(absFile)) {
+          try {
+            const existing = await readFile(absFile, 'utf8');
+            if (existing === dts) shouldWrite = false;
+          } catch {
+            // Read failed → write to be safe (ensures a corrupted file self-heals).
+            shouldWrite = true;
+          }
+        }
+
+        if (shouldWrite) {
+          await mkdir(dirname(absFile), { recursive: true });
+          await writeFile(absFile, dts, 'utf8');
+        }
+
         exports[entry.subpath ? `./${entry.subpath}` : '.'] = { types: `./${relFile}` };
       }
       if (Object.keys(exports).length === 0) return;
 
-      await writeFile(
-        join(pkgDir, 'package.json'),
-        JSON.stringify({ name: pkgName, version: '0.0.0', private: true, exports }, null, 2),
-        'utf8',
+      // Skip package.json write if it exists and matches the produced JSON.
+      const pkgJsonPath = join(pkgDir, 'package.json');
+      const pkgJsonContent = JSON.stringify(
+        { name: pkgName, version: '0.0.0', private: true, exports },
+        null,
+        2,
       );
+      let shouldWritePackageJson = true;
+      if (existsSync(pkgJsonPath)) {
+        try {
+          const existing = await readFile(pkgJsonPath, 'utf8');
+          if (existing === pkgJsonContent) shouldWritePackageJson = false;
+        } catch {
+          // Read failed → write to be safe.
+          shouldWritePackageJson = true;
+        }
+      }
+
+      if (shouldWritePackageJson) {
+        await writeFile(pkgJsonPath, pkgJsonContent, 'utf8');
+      }
+
       this.written.add(pkgDir);
     } catch (err) {
       this.deps.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
