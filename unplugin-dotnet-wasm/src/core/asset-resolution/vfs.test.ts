@@ -1,4 +1,5 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRuntimeManifest } from '../manifest-parsing/manifest-runtime';
@@ -50,16 +51,12 @@ describe('buildVfs with real fixture', () => {
 
 });
 
-const TEMP_DIR = resolve(__dirname, '../../.test-tmp/vfs-pat');
-
 describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
   let root0: string;
   let vfs: VirtualFileSystem;
 
   beforeAll(() => {
-    root0 = join(TEMP_DIR, 'root0');
-    rmSync(TEMP_DIR, { recursive: true, force: true });
-    mkdirSync(root0, { recursive: true });
+    root0 = mkdtempSync(join(tmpdir(), 'vfs-pat-'));
     writeFileSync(join(root0, 'unlisted.css'), 'body {}');
 
     // Manifest with no explicit Asset entries — only the `**` fallthrough rule.
@@ -78,7 +75,7 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
   });
 
   afterAll(() => {
-    rmSync(TEMP_DIR, { recursive: true, force: true });
+    rmSync(root0, { recursive: true, force: true });
   });
 
   it('finds a file on disk under the patterned content root via stat', () => {
