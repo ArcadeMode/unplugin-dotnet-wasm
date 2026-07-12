@@ -7,14 +7,6 @@ import { toPosixPath } from '../path-utils';
 import type { SourceFileChangeTracker } from './source-file-change-tracker';
 import type { TsDefinitionEmitter } from './ts-definition-emitter';
 
-export interface TypeShimGeneratorDeps {
-  root: string;
-  resolver: AssetResolver;
-  logger: Logger;
-  changeTracker: SourceFileChangeTracker;
-  emitter: TsDefinitionEmitter;
-}
-
 /** A single virtual type entrypoint discovered from the manifest. */
 interface TypeEntry {
   pkgName: string;
@@ -43,17 +35,19 @@ function toEntry(route: string, physicalPath: string, kind: TypeEntry['kind']): 
 
 /**
  * Generates "magic" type-only packages under the consumer's `node_modules` so
- * tsserver/`tsc` resolve the plugin's virtual imports with full types, without
- * any tsconfig changes. Stateful: instantiated once per build, holds the set of
- * packages written this session (basis for idempotent rewrites, stale pruning,
- * and dev-session live refresh later), and delegates .ts declaration emit to
- * the injected TsDefinitionEmitter.
+ * tsserver/`tsc` resolve the plugin's virtual imports with full types.
  */
 export class TypeShimGenerator {
   private nodeModulesBase?: string;
   private readonly written = new Set<string>();
 
-  constructor(private readonly deps: TypeShimGeneratorDeps) {}
+  constructor(
+    private readonly root: string,
+    private readonly resolver: AssetResolver,
+    private readonly logger: Logger,
+    private readonly changeTracker: SourceFileChangeTracker,
+    private readonly emitter: TsDefinitionEmitter,
+  ) {}
 
   /** Discover → emit → write. Idempotent; safe to call on every build. */
   async generate(): Promise<void> {
@@ -68,10 +62,10 @@ export class TypeShimGenerator {
   /** Enumerate TS-declaration entrypoints from the resolver, grouped by package. */
   private discover(): Map<string, TypeEntry[]> {
     const groups = new Map<string, TypeEntry[]>();
-    for (const route of this.deps.resolver.routes()) {
+    for (const route of this.resolver.routes()) {
       const kind = typeKind(route);
       if (!kind) continue;
-      const physicalPath = this.deps.resolver.resolve(route);
+      const physicalPath = this.resolver.resolve(route);
       if (physicalPath === null) continue;
       const entry = toEntry(route, physicalPath, kind);
       const group = groups.get(entry.pkgName);
@@ -91,7 +85,7 @@ export class TypeShimGenerator {
       const exports: Record<string, { types: string }> = {};
       for (const entry of entries) {
         // Check for source changes; record mtime regardless of outcome.
-        const changed = await this.deps.changeTracker.hasChanged(entry.physicalPath);
+        const changed = await this.changeTracker.hasChanged(entry.physicalPath);
         const relFile = entry.subpath ? `${entry.subpath}/index.d.ts` : 'index.d.ts';
         const absFile = join(pkgDir, relFile);
 
@@ -151,7 +145,7 @@ export class TypeShimGenerator {
 
       this.written.add(pkgDir);
     } catch (err) {
-      this.deps.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
+      this.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
     }
   }
 
@@ -165,7 +159,7 @@ export class TypeShimGenerator {
       return `export * from '${specifier}';\n`;
     }
 
-    return this.deps.emitter.emit(entry.physicalPath);
+    return this.emitter.emit(entry.physicalPath);
   }
 
   /**
@@ -177,7 +171,7 @@ export class TypeShimGenerator {
    */
   private resolveNodeModulesBase(): string {
     if (this.nodeModulesBase) return this.nodeModulesBase;
-    let dir = this.deps.root;
+    let dir = this.root;
     for (;;) {
       const candidate = join(dir, 'node_modules');
       if (existsSync(candidate)) return (this.nodeModulesBase = candidate);
@@ -185,7 +179,7 @@ export class TypeShimGenerator {
       if (parent === dir) break; // reached the filesystem root
       dir = parent;
     }
-    return (this.nodeModulesBase = join(this.deps.root, 'node_modules'));
+    return (this.nodeModulesBase = join(this.root, 'node_modules'));
   }
 
 }

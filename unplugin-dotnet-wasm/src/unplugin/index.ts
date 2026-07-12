@@ -43,13 +43,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       assetResolver = new AssetResolver(vfs, endpointLookup);
 
       const emitter = new TsDefinitionEmitter({ root: consumerRoot, logger });
-      typeShimGenerator = new TypeShimGenerator({
-        root: consumerRoot,
-        resolver: assetResolver,
+      typeShimGenerator = new TypeShimGenerator(
+        consumerRoot,
+        assetResolver,
         logger,
         changeTracker,
         emitter,
-      });
+      );
       await typeShimGenerator.generate();
     },
     resolveId(source: string): string | null {
