@@ -46,9 +46,9 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       typeShimGenerator = new TypeShimGenerator(
         consumerRoot,
         assetResolver,
-        logger,
         changeTracker,
         emitter,
+        logger
       );
       await typeShimGenerator.generate();
     },

@@ -20,16 +20,15 @@ function typeKind(route: string): TypeEntry['kind'] | null {
  * tsserver/`tsc` resolve the plugin's virtual imports with full types.
  */
 export class TypeShimGenerator {
-  private readonly written = new Set<string>();
   private locator: NodeModulesLocator;
   private writer: IdempotentFileWriter;
 
   constructor(
     root: string,
     private readonly resolver: AssetResolver,
-    private readonly logger: Logger,
     private readonly changeTracker: SourceFileChangeTracker,
     private readonly emitter: TsDefinitionEmitter,
+    private readonly logger: Logger,
   ) {
     this.locator = new NodeModulesLocator(root);
     this.writer = new IdempotentFileWriter();
@@ -84,7 +83,6 @@ export class TypeShimGenerator {
       const manifest = pkg.emit();
       if (manifest === null) return;
       await this.writer.write(manifest.path, manifest.json);
-      this.written.add(pkg.dir);
     } catch (err) {
       this.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
     }
