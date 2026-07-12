@@ -9,6 +9,7 @@ import { createConsoleLogger } from '../core/logger';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
 import { TypeShimGenerator } from '../core/type-shims/type-shim-generator';
 import { SourceFileChangeTracker } from '../core/type-shims/source-file-change-tracker';
+import { TsDefinitionEmitter } from '../core/type-shims/ts-definition-emitter';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants';
 
@@ -41,11 +42,13 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
 
+      const emitter = new TsDefinitionEmitter({ root: consumerRoot, logger });
       typeShimGenerator = new TypeShimGenerator({
         root: consumerRoot,
         resolver: assetResolver,
         logger,
         changeTracker,
+        emitter,
       });
       await typeShimGenerator.generate();
     },

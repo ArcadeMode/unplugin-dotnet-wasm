@@ -1,18 +1,18 @@
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
 import { toPosixPath } from '../path-utils';
 import type { SourceFileChangeTracker } from './source-file-change-tracker';
+import type { TsDefinitionEmitter } from './ts-definition-emitter';
 
 export interface TypeShimGeneratorDeps {
   root: string;
   resolver: AssetResolver;
   logger: Logger;
   changeTracker: SourceFileChangeTracker;
+  emitter: TsDefinitionEmitter;
 }
 
 /** A single virtual type entrypoint discovered from the manifest. */
@@ -44,13 +44,12 @@ function toEntry(route: string, physicalPath: string, kind: TypeEntry['kind']): 
 /**
  * Generates "magic" type-only packages under the consumer's `node_modules` so
  * tsserver/`tsc` resolve the plugin's virtual imports with full types, without
- * any tsconfig changes. Stateful: instantiated once per build, holds the loaded
- * `typescript` module and the set of packages written this session (basis for
- * idempotent rewrites, stale pruning, and dev-session live refresh later).
+ * any tsconfig changes. Stateful: instantiated once per build, holds the set of
+ * packages written this session (basis for idempotent rewrites, stale pruning,
+ * and dev-session live refresh later), and delegates .ts declaration emit to
+ * the injected TsDefinitionEmitter.
  */
 export class TypeShimGenerator {
-  private ts?: typeof import('typescript');
-  private tsUnavailable = false;
   private nodeModulesBase?: string;
   private readonly written = new Set<string>();
 
@@ -61,11 +60,8 @@ export class TypeShimGenerator {
     const groups = this.discover();
     if (groups.size === 0) return;
 
-    const ts = await this.loadTs();
-    if (!ts) return;
-
     for (const [pkgName, entries] of groups) {
-      await this.writePackage(pkgName, entries, ts);
+      await this.writePackage(pkgName, entries);
     }
   }
 
@@ -89,12 +85,9 @@ export class TypeShimGenerator {
   private async writePackage(
     pkgName: string,
     entries: TypeEntry[],
-    ts: typeof import('typescript'),
   ): Promise<void> {
     const pkgDir = join(this.resolveNodeModulesBase(), pkgName);
     try {
-      await mkdir(pkgDir, { recursive: true });
-
       const exports: Record<string, { types: string }> = {};
       for (const entry of entries) {
         // Check for source changes; record mtime regardless of outcome.
@@ -110,7 +103,7 @@ export class TypeShimGenerator {
         }
 
         // Emit (or re-emit if changed).
-        const dts = this.emit(entry, ts);
+        const dts = this.emit(entry);
         if (dts === null) continue;
 
         // Skip write if the file exists and its content matches the newly produced string.
@@ -163,7 +156,7 @@ export class TypeShimGenerator {
   }
 
   /** Produce the `.d.ts` text for one entrypoint, or `null` to skip it. */
-  private emit(entry: TypeEntry, ts: typeof import('typescript')): string | null {
+  private emit(entry: TypeEntry): string | null {
     if (entry.kind === 'dts') {
       // Re-export the existing `.d.ts` by absolute, extensionless, POSIX specifier
       // (backslashes would be parsed as string escapes). `export *` forwards named
@@ -172,33 +165,7 @@ export class TypeShimGenerator {
       return `export * from '${specifier}';\n`;
     }
 
-    // Full type-directed declaration emit via a single-file Program. Unlike
-    // `transpileDeclaration`, this does not require `--isolatedDeclarations`
-    // conformance, so it handles ordinary SDK-generated TypeScript.
-    const options: import('typescript').CompilerOptions = {
-      declaration: true,
-      emitDeclarationOnly: true,
-      skipLibCheck: true,
-      strict: false,
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-    };
-    const host = ts.createCompilerHost(options, /* setParentNodes */ true);
-    let dts: string | undefined;
-    host.writeFile = (fileName, text) => {
-      if (fileName.endsWith('.d.ts')) dts = text;
-    };
-    const program = ts.createProgram([entry.physicalPath], options, host);
-    program.emit(undefined, undefined, undefined, /* emitOnlyDtsFiles */ true);
-
-    if (dts === undefined) {
-      this.deps.logger.warn(
-        `type-shims: declaration emit produced no output for "${entry.physicalPath}"; skipping`,
-      );
-      return null;
-    }
-    return dts;
+    return this.deps.emitter.emit(entry.physicalPath);
   }
 
   /**
@@ -221,30 +188,4 @@ export class TypeShimGenerator {
     return (this.nodeModulesBase = join(this.deps.root, 'node_modules'));
   }
 
-  /**
-   * Lazily load `typescript`, resolved from the **consumer's** `node_modules`
-   * so the emitted `.d.ts` matches their language version. Warns once and stays
-   * disabled if it is not installed there.
-   */
-  private async loadTs(): Promise<typeof import('typescript') | undefined> {
-    if (this.ts) return this.ts;
-    if (this.tsUnavailable) return undefined;
-
-    // A require anchored in the consumer root; the base file need not exist.
-    const consumerRequire = createRequire(join(this.deps.root, '__tsresolve__.js'));
-    try {
-      const entry = consumerRequire.resolve('typescript');
-      const mod = (await import(pathToFileURL(entry).href)) as
-        | typeof import('typescript')
-        | { default: typeof import('typescript') };
-      this.ts = 'default' in mod ? mod.default : mod;
-      return this.ts;
-    } catch {
-      this.tsUnavailable = true;
-      this.deps.logger.warn(
-        'type-shims: typescript not resolvable from the consumer root; skipping type generation',
-      );
-      return undefined;
-    }
-  }
 }
