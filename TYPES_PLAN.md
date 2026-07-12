@@ -61,17 +61,21 @@ program only ever imports a `.d.ts`, `skipLibCheck` applies uniformly and SDK-ge
 program is always checked, even inside `node_modules` — which is exactly why we do not re-export
 one).
 
-- **`.ts` target** (e.g. `typeshim.ts`) → `ts.transpileDeclaration` (TS 5.5+, isolated single-file
-  emit) produces a complete `.d.ts`; write it as the package's `index.d.ts`. The generated
-  `typeshim.ts` is self-contained (every referenced type is defined in-file), so isolated emit is
-  lossless. `export default`, if present, is carried through **natively** — no separate detection
-  step.
+- **`.ts` target** (e.g. `typeshim.ts`) → a single-file `Program` (`createProgram` +
+  `emitDeclarationOnly`, capturing the `.d.ts` via a custom `writeFile`) produces a complete
+  `.d.ts`; write it as the package's `index.d.ts`. `ts.transpileDeclaration` was rejected: it
+  requires `--isolatedDeclarations` conformance the SDK-generated `typeshim.ts` lacks, so it fails
+  on ordinary TS; a type-directed Program handles the SDK output as-is. `export default`, if
+  present, is carried through **natively** — no separate detection step.
 - **`.d.ts` target** (e.g. `dotnet.d.ts`) → no transpile; the package `index.d.ts` re-exports it
   with `export *` **plus** `export { default }`. Specifier = physical path with the trailing
   `.d.ts` stripped (extensionless), so TS re-appends `.d.ts` and resolves correctly **even when
   fingerprinted** (`dotnet.<hash>` → `dotnet.<hash>.d.ts`), preferring `.d.ts` over a sibling `.js`.
-- **Isolated emit fails** for a `.ts` target (needs cross-file type info) → warn naming the file
-  and **skip that entrypoint**; the others still generate.
+- **Emit produces no `.d.ts`** for a `.ts` target → warn naming the file and **skip that
+  entrypoint**; the others still generate.
+- **Cost** — each `.ts` entrypoint spins up its own single-file `Program` (a fresh checker). Fine
+  at today's count (one, `typeshim`); if entrypoints multiply, batch into a single multi-root
+  `Program` rather than paying checker startup per file.
 
 ## Discovery (manifest-driven, no hardcoding)
 
@@ -114,13 +118,13 @@ appear automatically; nothing is hardcoded.
 ## TypeScript dependency
 
 `typescript` is already a **direct dependency** (`^5.5.0`), so it is present whenever the plugin
-is — no optional-peer dance, no regex fallback. Emit prefers the **consumer's** resolved copy
-(`require.resolve('typescript', { paths: [consumerRoot] })`, falling back to the plugin's own) so
-the emitted `.d.ts` matches the consumer's language version. TS is **not** bundled/vendored (size +
-version skew).
+is — no optional-peer dance, no regex fallback. Emit resolves TypeScript from the **consumer's**
+`node_modules` (via `createRequire` at the consumer root) so the emitted `.d.ts` matches the
+consumer's language version; if it is not resolvable there, emit warns once and skips — there is no
+fallback to the plugin's own copy. TS is **not** bundled/vendored (size + version skew).
 
-- **Isolated emit fails for a target** → log a warning naming the file and **skip that entrypoint**
-  (still generate the others).
+- **Declaration emit produces no output for a target** → log a warning naming the file and **skip
+  that entrypoint** (still generate the others).
 
 A skipped entrypoint simply falls back to today's behavior (unresolved import / no editor types)
 rather than emitting a possibly-wrong shim.

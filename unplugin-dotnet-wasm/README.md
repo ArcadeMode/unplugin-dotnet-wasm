@@ -350,17 +350,20 @@ The plugin is build-time only today. Scope so far and what's planned:
   - 9 on browser targets
   - 4 on Node targets 
 - Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
-- Fingerprint-aware resolution (canonical imports → hashed physical files)
-- Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline
+- Fingerprint-aware resolution
+- Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
 - Node built-ins externalized so the dotnet loader's Node paths don't break browser builds
+- IDE / language-server type support: editors and `tsc` are aware of the TypeScript emitted from your .NET WASM project like:
+  - the SDK's own `dotnet.d.ts`
+  - your own `.ts` files under `wwwroot`
+  - generated output like `typeshim.ts` ([TypeShim](https://github.com/ArcadeMode/TypeShim))
 
 **Planned**
 
-1. IDE parity: emit a `tsconfig` + ambient `.d.ts` so editors see the same virtual tree the bundler does
-2. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
-3. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
-4. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
-5. Preload `<link>` injection from the endpoints manifest's preload metadata
+1. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
+2. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
+3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
+4. Preload `<link>` injection from the endpoints manifest's preload metadata
 
 Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
 
@@ -376,3 +379,5 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 [^bun-node-no-support]: Bun emits bare strings for asset imports; the dotnet runtime needs URL strings. Rewrite step pending — see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
 
 [^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
+
+[^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
