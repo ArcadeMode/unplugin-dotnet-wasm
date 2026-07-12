@@ -303,10 +303,10 @@ Locates manifests under `<projectRoot>/bin/<configuration>/<targetFramework>[/pu
 
 ```ts
 DotnetAssets({
-  projectName: 'MyLibrary',    // used to find manifest files
-  projectRoot: '../MyLibrary', // path to the directory containing the .csproj
-  configuration: 'Debug',      // MSBuild configuration, e.g. 'Debug' or 'Release'
-  targetFramework: 'net10.0',  // target framework moniker, e.g. 'net10.0'
+  projectName: 'MyLibrary',    // * used to find manifest files
+  projectRoot: '../MyLibrary', // * path to the directory containing the .csproj
+  configuration: 'Debug',      // * MSBuild configuration, e.g. 'Debug' or 'Release'
+  targetFramework: 'net10.0',  // * target framework moniker, e.g. 'net10.0'
   isPublish: false,            // true = read from the dotnet publish output layout
   logLevel: 'warn',            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
 })
@@ -320,8 +320,8 @@ Use `dotnetOutputDir` when the .NET output is at a non-default path like a custo
 
 ```ts
 DotnetAssets({
-  projectName: 'MyLibrary',                    // required — used to find manifest files
-  dotnetOutputDir: '../MyLibrary/my-out-dir',  // path to the .NET build/publish output dir
+  projectName: 'MyLibrary',                    // * used to find manifest files
+  dotnetOutputDir: '../MyLibrary/my-out-dir',  // * path to the .NET build/publish output dir
   logLevel: 'warn',                            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
 })
 ```
