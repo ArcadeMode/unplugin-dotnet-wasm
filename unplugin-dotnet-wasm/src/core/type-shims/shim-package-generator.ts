@@ -25,7 +25,7 @@ const TYPESHIM_SENTINEL: CollisionSentinelFile = {
  * Generates "magic" type-only packages under the consumer's `node_modules` so
  * tsserver/`tsc` resolve the plugin's virtual imports with full types.
  */
-export class TypeShimGenerator {
+export class ShimPackageGenerator {
   private locator: NodeModulesLocator;
   private writer: IdempotentFileWriter;
   private collisionChecker: PackageCollisionChecker;

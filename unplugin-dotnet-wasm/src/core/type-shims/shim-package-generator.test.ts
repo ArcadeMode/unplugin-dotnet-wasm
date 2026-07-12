@@ -7,7 +7,7 @@ import type { SourceFileChangeTracker } from './source-file-change-tracker';
 import type { TsDefinitionEmitter } from './ts-definition-emitter';
 import type { TypeEntry } from './type-entry';
 import type { Logger } from '../logger';
-import { TypeShimGenerator } from './type-shim-generator';
+import { ShimPackageGenerator } from './shim-package-generator';
 
 function createLogger(): Logger {
   return { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
@@ -42,7 +42,7 @@ function tempRoot(): { root: string; nm: string } {
   return { root, nm: join(root, 'node_modules') };
 }
 
-describe('TypeShimGenerator.generate', () => {
+describe('ShimPackageGenerator.generate', () => {
   it('filters non-TS/unresolvable routes and groups the rest by package', async () => {
     const { root, nm } = tempRoot();
     const resolver = createResolver(
@@ -55,7 +55,7 @@ describe('TypeShimGenerator.generate', () => {
       },
     );
     const emitter = createEmitter((e) => `// dts:${e.pkgName}/${e.subpath}\n`);
-    const generator = new TypeShimGenerator(
+    const generator = new ShimPackageGenerator(
       root,
       resolver,
       createTracker(true),
@@ -90,7 +90,7 @@ describe('TypeShimGenerator.generate', () => {
     writeFileSync(join(nm, 'typeshim', 'index.d.ts'), '// stale but valid\n');
 
     const emitter = createEmitter(() => '// freshly emitted\n');
-    const generator = new TypeShimGenerator(
+    const generator = new ShimPackageGenerator(
       root,
       createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }),
       createTracker(false), // unchanged
@@ -110,7 +110,7 @@ describe('TypeShimGenerator.generate', () => {
 
   it('skips an entry whose emit returns null and writes no manifest for an empty package', async () => {
     const { root, nm } = tempRoot();
-    const generator = new TypeShimGenerator(
+    const generator = new ShimPackageGenerator(
       root,
       createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }),
       createTracker(true),
@@ -127,7 +127,7 @@ describe('TypeShimGenerator.generate', () => {
   it('catches a throwing collaborator and warns instead of rejecting', async () => {
     const { root } = tempRoot();
     const logger = createLogger();
-    const generator = new TypeShimGenerator(
+    const generator = new ShimPackageGenerator(
       root,
       createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }),
       createTracker(true),
@@ -154,7 +154,7 @@ describe('TypeShimGenerator.generate', () => {
     writeFileSync(dummyPath, dummyContent);
 
     const logger = createLogger();
-    const generator = new TypeShimGenerator(
+    const generator = new ShimPackageGenerator(
       root,
       createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }),
       createTracker(true),

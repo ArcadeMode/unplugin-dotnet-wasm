@@ -7,7 +7,7 @@ import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { createConsoleLogger } from '../core/logger';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
-import { TypeShimGenerator } from '../core/type-shims/type-shim-generator';
+import { ShimPackageGenerator } from '../core/type-shims/shim-package-generator';
 import { SourceFileChangeTracker } from '../core/type-shims/source-file-change-tracker';
 import { TsDefinitionEmitter } from '../core/type-shims/ts-definition-emitter';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
@@ -28,7 +28,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   let assetResolver: AssetResolver | null = null;
   // Default root path of project, bundler families may override.
   let consumerRoot = process.cwd();
-  let typeShimGenerator: TypeShimGenerator | null = null;
+  let packageGenerator: ShimPackageGenerator | null = null;
 
   const base = {
     name: 'unplugin-dotnet-wasm',
@@ -43,14 +43,14 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       assetResolver = new AssetResolver(vfs, endpointLookup);
 
       const emitter = new TsDefinitionEmitter({ root: consumerRoot, logger });
-      typeShimGenerator = new TypeShimGenerator(
+      packageGenerator = new ShimPackageGenerator(
         consumerRoot,
         assetResolver,
         changeTracker,
         emitter,
         logger
       );
-      await typeShimGenerator.generate();
+      await packageGenerator.generate();
     },
     resolveId(source: string): string | null {
       if (!assetResolver) return null;
