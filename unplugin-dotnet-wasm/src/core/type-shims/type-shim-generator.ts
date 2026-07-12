@@ -1,37 +1,18 @@
 import { existsSync } from 'node:fs';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
-import { toPosixPath } from '../path-utils';
 import type { SourceFileChangeTracker } from './source-file-change-tracker';
 import type { TsDefinitionEmitter } from './ts-definition-emitter';
 import { IdempotentFileWriter } from './idempotent-file-writer';
 import { NodeModulesLocator } from './node-modules-locator';
 import { ShimPackage } from './shim-package';
-
-/** A single virtual type entrypoint discovered from the manifest. */
-interface TypeEntry {
-  pkgName: string;
-  subpath: string;
-  physicalPath: string;
-  kind: 'ts' | 'dts';
-}
-
-const TS_ROUTE = /\.(d\.ts|ts|mts|cts)$/;
+import { TS_ROUTE, TypeEntry } from './type-entry';
 
 /** Classify a route by its TypeScript extension, or `null` if it is not one. */
 function typeKind(route: string): TypeEntry['kind'] | null {
   if (/\.d\.ts$/.test(route)) return 'dts';
   if (TS_ROUTE.test(route)) return 'ts';
   return null;
-}
-
-/** Split a route into `{ pkgName, subpath }` and strip its TS extension. */
-function toEntry(route: string, physicalPath: string, kind: TypeEntry['kind']): TypeEntry {
-  const specifier = route.replace(TS_ROUTE, '');
-  const slash = specifier.indexOf('/');
-  const pkgName = slash === -1 ? specifier : specifier.slice(0, slash);
-  const subpath = slash === -1 ? '' : specifier.slice(slash + 1);
-  return { pkgName, subpath, physicalPath, kind };
 }
 
 /**
@@ -44,7 +25,7 @@ export class TypeShimGenerator {
   private writer: IdempotentFileWriter;
 
   constructor(
-    private readonly root: string,
+    root: string,
     private readonly resolver: AssetResolver,
     private readonly logger: Logger,
     private readonly changeTracker: SourceFileChangeTracker,
@@ -72,7 +53,7 @@ export class TypeShimGenerator {
       if (!kind) continue;
       const physicalPath = this.resolver.resolve(route);
       if (physicalPath === null) continue;
-      const entry = toEntry(route, physicalPath, kind);
+      const entry = new TypeEntry(route, physicalPath, kind);
       const group = groups.get(entry.pkgName);
       if (group) group.push(entry);
       else groups.set(entry.pkgName, [entry]);
@@ -89,15 +70,13 @@ export class TypeShimGenerator {
     try {
       for (const entry of entries) {
         const { relFile, absFile } = pkg.fileFor(entry.subpath);
-        // Check for source changes; record mtime regardless of outcome.
         const changed = await this.changeTracker.hasChanged(entry.physicalPath);
-        // Skip emit if the source hasn't changed and the output exists;
-        // still record the export so package.json stays complete.
         if (!changed && existsSync(absFile)) {
+          // Ensure package.json stays complete.
           pkg.addExport(entry.subpath, relFile);
           continue;
         }
-        const dts = this.emit(entry);
+        const dts = this.emitter.emit(entry);
         if (dts === null) continue;
         await this.writer.write(absFile, dts);
         pkg.addExport(entry.subpath, relFile);
@@ -109,19 +88,6 @@ export class TypeShimGenerator {
     } catch (err) {
       this.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
     }
-  }
-
-  /** Produce the `.d.ts` text for one entrypoint, or `null` to skip it. */
-  private emit(entry: TypeEntry): string | null {
-    if (entry.kind === 'dts') {
-      // Re-export the existing `.d.ts` by absolute, extensionless, POSIX specifier
-      // (backslashes would be parsed as string escapes). `export *` forwards named
-      // types/values but not `default` — appending that is Aux A.
-      const specifier = toPosixPath(entry.physicalPath.replace(TS_ROUTE, ''));
-      return `export * from '${specifier}';\n`;
-    }
-
-    return this.emitter.emit(entry.physicalPath);
   }
 
 }

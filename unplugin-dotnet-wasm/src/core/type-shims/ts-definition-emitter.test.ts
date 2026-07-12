@@ -1,92 +1,115 @@
 import { describe, it, expect, vi } from 'vitest';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { TsDefinitionEmitter } from './ts-definition-emitter';
+import { join } from 'node:path';
 import type { Logger } from '../logger';
+import { TsDefinitionEmitter } from './ts-definition-emitter';
+import { TypeEntry } from './type-entry';
 
-function createMockLogger(): Logger {
-  return {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  };
-}
+describe('TsDefinitionEmitter.emit', () => {
+  describe('with dts entry', () => {
+    it('returns export statement with posix path', () => {
+      const logger: Logger = {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+      };
 
-describe('TsDefinitionEmitter', () => {
-  it('emits a declaration for a real .ts source when typescript resolves', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'emitter-'));
-    const tsFile = join(tempDir, 'example.ts');
-    // A simple TS file that should produce a declaration.
-    await writeFile(tsFile, 'export function greet(name: string): string { return `Hello, ${name}`; }');
+      const emitter = new TsDefinitionEmitter({
+        root: '/',
+        logger,
+      });
 
-    const logger = createMockLogger();
-    // Use the current working directory (the package dir) as root, where typescript should resolve.
-    const emitter = new TsDefinitionEmitter({ root: process.cwd(), logger });
+      const entry = new TypeEntry(
+        'pkg/mod.d.ts',
+        'C:\\path\\to\\pkg\\mod.d.ts',
+        'dts',
+      );
 
-    const result = emitter.emit(tsFile);
+      const result = emitter.emit(entry);
 
-    expect(result).not.toBeNull();
-    expect(result).toContain('declare function greet');
-    expect(result).toContain('string');
-    expect(logger.warn).not.toHaveBeenCalled();
+      expect(result).toBe("export * from 'C:/path/to/pkg/mod';\n");
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('normalizes backslashes to forward slashes in posix path', () => {
+      const logger: Logger = {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+      };
+
+      const emitter = new TsDefinitionEmitter({
+        root: '/',
+        logger,
+      });
+
+      const entry = new TypeEntry(
+        'pkg/nested/mod.d.ts',
+        'C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts',
+        'dts',
+      );
+
+      const result = emitter.emit(entry);
+
+      expect(result).toBe("export * from 'C:/deep/nested/path/pkg/nested/mod';\n");
+    });
   });
 
-  it('returns null and warns once when typescript is not resolvable', () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'emitter-no-ts-'));
-    const tsFile = join(tempDir, 'example.ts');
+  describe('with ts entry (no TypeScript)', () => {
+    it('returns null and warns when TypeScript is unavailable', () => {
+      const logger: Logger = {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+      };
 
-    const logger = createMockLogger();
-    // Use an isolated temp dir that has no typescript.
-    const emitter = new TsDefinitionEmitter({ root: tempDir, logger });
+      // Create a temp directory with no node_modules/typescript
+      const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
 
-    const first = emitter.emit(tsFile);
-    expect(first).toBeNull();
+      const emitter = new TsDefinitionEmitter({
+        root: emptyRoot,
+        logger,
+      });
 
-    const warnCalls = (logger.warn as any).mock.calls;
-    expect(warnCalls.length).toBe(1);
-    expect(warnCalls[0][0]).toContain('typescript not resolvable from the consumer root');
+      const entry = new TypeEntry('pkg/mod.ts', '/path/to/pkg/mod.ts', 'ts');
 
-    // Second call should return null without warning again.
-    const second = emitter.emit(tsFile);
-    expect(second).toBeNull();
-    expect(warnCalls.length).toBe(1); // Still only one warning.
-  });
+      const result = emitter.emit(entry);
 
-  it('emits a minimal declaration for files with no exportable content', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'emitter-empty-'));
-    const tsFile = join(tempDir, 'empty.ts');
-    // A TS file with only comments produces minimal (empty) declaration content.
-    await writeFile(tsFile, '// This is just a comment\n// with no exports\n');
+      expect(result).toBeNull();
+      expect(logger.warn).toHaveBeenCalledOnce();
+      expect(logger.warn).toHaveBeenCalledWith(
+        'type-shims: typescript not resolvable from the consumer root; skipping type generation',
+      );
+    });
 
-    const logger = createMockLogger();
-    const emitter = new TsDefinitionEmitter({ root: process.cwd(), logger });
+    it('caches unavailable state and only warns once', () => {
+      const logger: Logger = {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+      };
 
-    const result = emitter.emit(tsFile);
+      const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
 
-    // TypeScript emits an empty declaration file (not undefined), so we get an empty string.
-    expect(typeof result).toBe('string');
-    expect(logger.warn).not.toHaveBeenCalled();
-  });
+      const emitter = new TsDefinitionEmitter({
+        root: emptyRoot,
+        logger,
+      });
 
-  it('handles multiple ts files independently when typescript resolves', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'emitter-multi-'));
-    const tsFile1 = join(tempDir, 'file1.ts');
-    const tsFile2 = join(tempDir, 'file2.ts');
-    await writeFile(tsFile1, 'export interface User { name: string; }');
-    await writeFile(tsFile2, 'export type Status = "active" | "inactive";');
+      const entry1 = new TypeEntry('pkg/mod1.ts', '/path/to/pkg/mod1.ts', 'ts');
+      const entry2 = new TypeEntry('pkg/mod2.ts', '/path/to/pkg/mod2.ts', 'ts');
 
-    const logger = createMockLogger();
-    const emitter = new TsDefinitionEmitter({ root: process.cwd(), logger });
+      const result1 = emitter.emit(entry1);
+      const result2 = emitter.emit(entry2);
 
-    const result1 = emitter.emit(tsFile1);
-    const result2 = emitter.emit(tsFile2);
-
-    expect(result1).not.toBeNull();
-    expect(result1).toContain('User');
-    expect(result2).not.toBeNull();
-    expect(result2).toContain('Status');
+      expect(result1).toBeNull();
+      expect(result2).toBeNull();
+      expect(logger.warn).toHaveBeenCalledOnce();
+    });
   });
 });

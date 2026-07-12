@@ -1,6 +1,8 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { Logger } from '../logger';
+import { toPosixPath } from '../path-utils';
+import { type TypeEntry, TS_ROUTE } from './type-entry';
 
 export interface TsDefinitionEmitterDeps {
   root: string;
@@ -19,12 +21,26 @@ export class TsDefinitionEmitter {
 
   constructor(private readonly deps: TsDefinitionEmitterDeps) {}
 
+  /** Produce the `.d.ts` text for one entrypoint, or `null` to skip it. */
+  public emit(entry: TypeEntry): string | null {
+    if (entry.kind === 'dts') {
+      // Re-export the existing `.d.ts` by absolute, extensionless specifier.
+      const specifier = toPosixPath(entry.physicalPath.replace(TS_ROUTE, ''));
+      return `export * from '${specifier}';\n`;
+    }
+    if (entry.kind === 'ts') {
+      // Emit a `.d.ts` from the `.ts` source via TypeScript.
+      return this.emitDeclaration(entry.physicalPath);
+    }
+    return null;
+  }
+
   /**
    * Emit a single-file declaration (.d.ts) from a TypeScript source.
    * Returns the declaration text, or null if the source has no declaration output
    * or TypeScript is unavailable.
    */
-  public emit(path: string): string | null {
+  private emitDeclaration(path: string): string | null {
     const ts = this.load();
     if (!ts) return null;
 
