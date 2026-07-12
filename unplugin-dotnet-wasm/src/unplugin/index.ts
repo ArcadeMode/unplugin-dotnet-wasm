@@ -11,6 +11,7 @@ import { ShimPackageGenerator } from '../core/type-shims/shim-package-generator'
 import { SourceFileChangeTracker } from '../core/type-shims/source-file-change-tracker';
 import { TsDefinitionEmitter } from '../core/type-shims/ts-definition-emitter';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
+import { isYarnPnp } from '../core/is-yarn-pnp';
 import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants';
 
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta: UnpluginContextMeta) => {
@@ -41,6 +42,11 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         ? buildVfs(runtimeManifest, { logger })
         : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
+
+      if (isYarnPnp()) {
+        logger.warn(`Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${options.projectName}' will most likely not be available.`);
+        return;
+      }
 
       const emitter = new TsDefinitionEmitter(consumerRoot, logger);
       packageGenerator = new ShimPackageGenerator(
