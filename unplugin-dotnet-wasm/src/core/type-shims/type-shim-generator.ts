@@ -1,11 +1,12 @@
-import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
 import { toPosixPath } from '../path-utils';
 import type { SourceFileChangeTracker } from './source-file-change-tracker';
 import type { TsDefinitionEmitter } from './ts-definition-emitter';
+import { IdempotentFileWriter } from './idempotent-file-writer';
+import { NodeModulesLocator } from './node-modules-locator';
+import { ShimPackage } from './shim-package';
 
 /** A single virtual type entrypoint discovered from the manifest. */
 interface TypeEntry {
@@ -38,8 +39,9 @@ function toEntry(route: string, physicalPath: string, kind: TypeEntry['kind']): 
  * tsserver/`tsc` resolve the plugin's virtual imports with full types.
  */
 export class TypeShimGenerator {
-  private nodeModulesBase?: string;
   private readonly written = new Set<string>();
+  private locator: NodeModulesLocator;
+  private writer: IdempotentFileWriter;
 
   constructor(
     private readonly root: string,
@@ -47,7 +49,10 @@ export class TypeShimGenerator {
     private readonly logger: Logger,
     private readonly changeTracker: SourceFileChangeTracker,
     private readonly emitter: TsDefinitionEmitter,
-  ) {}
+  ) {
+    this.locator = new NodeModulesLocator(root);
+    this.writer = new IdempotentFileWriter();
+  }
 
   /** Discover → emit → write. Idempotent; safe to call on every build. */
   async generate(): Promise<void> {
@@ -80,70 +85,27 @@ export class TypeShimGenerator {
     pkgName: string,
     entries: TypeEntry[],
   ): Promise<void> {
-    const pkgDir = join(this.resolveNodeModulesBase(), pkgName);
+    const pkg = new ShimPackage(this.locator, pkgName);
     try {
-      const exports: Record<string, { types: string }> = {};
       for (const entry of entries) {
+        const { relFile, absFile } = pkg.fileFor(entry.subpath);
         // Check for source changes; record mtime regardless of outcome.
         const changed = await this.changeTracker.hasChanged(entry.physicalPath);
-        const relFile = entry.subpath ? `${entry.subpath}/index.d.ts` : 'index.d.ts';
-        const absFile = join(pkgDir, relFile);
-
-        // Skip emit if the source hasn't changed and the output file exists.
-        // Still add the entry to exports so the package.json stays complete.
+        // Skip emit if the source hasn't changed and the output exists;
+        // still record the export so package.json stays complete.
         if (!changed && existsSync(absFile)) {
-          exports[entry.subpath ? `./${entry.subpath}` : '.'] = { types: `./${relFile}` };
+          pkg.addExport(entry.subpath, relFile);
           continue;
         }
-
-        // Emit (or re-emit if changed).
         const dts = this.emit(entry);
         if (dts === null) continue;
-
-        // Skip write if the file exists and its content matches the newly produced string.
-        let shouldWrite = true;
-        if (existsSync(absFile)) {
-          try {
-            const existing = await readFile(absFile, 'utf8');
-            if (existing === dts) shouldWrite = false;
-          } catch {
-            // Read failed → write to be safe (ensures a corrupted file self-heals).
-            shouldWrite = true;
-          }
-        }
-
-        if (shouldWrite) {
-          await mkdir(dirname(absFile), { recursive: true });
-          await writeFile(absFile, dts, 'utf8');
-        }
-
-        exports[entry.subpath ? `./${entry.subpath}` : '.'] = { types: `./${relFile}` };
+        await this.writer.write(absFile, dts);
+        pkg.addExport(entry.subpath, relFile);
       }
-      if (Object.keys(exports).length === 0) return;
-
-      // Skip package.json write if it exists and matches the produced JSON.
-      const pkgJsonPath = join(pkgDir, 'package.json');
-      const pkgJsonContent = JSON.stringify(
-        { name: pkgName, version: '0.0.0', private: true, exports },
-        null,
-        2,
-      );
-      let shouldWritePackageJson = true;
-      if (existsSync(pkgJsonPath)) {
-        try {
-          const existing = await readFile(pkgJsonPath, 'utf8');
-          if (existing === pkgJsonContent) shouldWritePackageJson = false;
-        } catch {
-          // Read failed → write to be safe.
-          shouldWritePackageJson = true;
-        }
-      }
-
-      if (shouldWritePackageJson) {
-        await writeFile(pkgJsonPath, pkgJsonContent, 'utf8');
-      }
-
-      this.written.add(pkgDir);
+      const manifest = pkg.emit();
+      if (manifest === null) return;
+      await this.writer.write(manifest.path, manifest.json);
+      this.written.add(pkg.dir);
     } catch (err) {
       this.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
     }
@@ -160,26 +122,6 @@ export class TypeShimGenerator {
     }
 
     return this.emitter.emit(entry.physicalPath);
-  }
-
-  /**
-   * The `node_modules` directory to write packages into. Local-first: use
-   * `<root>/node_modules` when it exists, else walk up to the nearest ancestor
-   * that has one (covers hoisted monorepos), else fall back to creating one under
-   * the root. Node resolves up the tree, so any ancestor on the entry files' path
-   * makes the package resolvable. Cached after first resolution.
-   */
-  private resolveNodeModulesBase(): string {
-    if (this.nodeModulesBase) return this.nodeModulesBase;
-    let dir = this.root;
-    for (;;) {
-      const candidate = join(dir, 'node_modules');
-      if (existsSync(candidate)) return (this.nodeModulesBase = candidate);
-      const parent = dirname(dir);
-      if (parent === dir) break; // reached the filesystem root
-      dir = parent;
-    }
-    return (this.nodeModulesBase = join(this.root, 'node_modules'));
   }
 
 }
