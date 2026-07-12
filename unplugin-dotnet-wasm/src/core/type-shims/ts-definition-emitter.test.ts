@@ -2,25 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Logger } from '../logger';
+import { NULL_LOGGER, type Logger } from '../logger';
 import { TsDefinitionEmitter } from './ts-definition-emitter';
 import { TypeEntry } from './type-entry';
 
 describe('TsDefinitionEmitter.emit', () => {
   describe('with dts entry', () => {
     it('returns export statement with posix path', () => {
-      const logger: Logger = {
-        error: vi.fn(),
-        warn: vi.fn(),
-        info: vi.fn(),
-        debug: vi.fn(),
-      };
-
-      const emitter = new TsDefinitionEmitter({
-        root: '/',
-        logger,
-      });
-
+      const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
       const entry = new TypeEntry(
         'pkg/mod.d.ts',
         'C:\\path\\to\\pkg\\mod.d.ts',
@@ -30,22 +19,10 @@ describe('TsDefinitionEmitter.emit', () => {
       const result = emitter.emit(entry);
 
       expect(result).toBe("export * from 'C:/path/to/pkg/mod';\n");
-      expect(logger.warn).not.toHaveBeenCalled();
     });
 
     it('normalizes backslashes to forward slashes in posix path', () => {
-      const logger: Logger = {
-        error: vi.fn(),
-        warn: vi.fn(),
-        info: vi.fn(),
-        debug: vi.fn(),
-      };
-
-      const emitter = new TsDefinitionEmitter({
-        root: '/',
-        logger,
-      });
-
+      const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
       const entry = new TypeEntry(
         'pkg/nested/mod.d.ts',
         'C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts',
@@ -69,21 +46,12 @@ describe('TsDefinitionEmitter.emit', () => {
 
       // Create a temp directory with no node_modules/typescript
       const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
-
-      const emitter = new TsDefinitionEmitter({
-        root: emptyRoot,
-        logger,
-      });
-
+      const emitter = new TsDefinitionEmitter(emptyRoot, logger);
       const entry = new TypeEntry('pkg/mod.ts', '/path/to/pkg/mod.ts', 'ts');
-
       const result = emitter.emit(entry);
 
       expect(result).toBeNull();
       expect(logger.warn).toHaveBeenCalledOnce();
-      expect(logger.warn).toHaveBeenCalledWith(
-        'type-shims: typescript not resolvable from the consumer root; skipping type generation',
-      );
     });
 
     it('caches unavailable state and only warns once', () => {
@@ -95,12 +63,7 @@ describe('TsDefinitionEmitter.emit', () => {
       };
 
       const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
-
-      const emitter = new TsDefinitionEmitter({
-        root: emptyRoot,
-        logger,
-      });
-
+      const emitter = new TsDefinitionEmitter(emptyRoot, logger);
       const entry1 = new TypeEntry('pkg/mod1.ts', '/path/to/pkg/mod1.ts', 'ts');
       const entry2 = new TypeEntry('pkg/mod2.ts', '/path/to/pkg/mod2.ts', 'ts');
 

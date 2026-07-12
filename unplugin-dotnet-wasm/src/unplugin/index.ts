@@ -42,7 +42,7 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
         : buildEmptyVfs(endpointsManifestPath, { logger });
       assetResolver = new AssetResolver(vfs, endpointLookup);
 
-      const emitter = new TsDefinitionEmitter({ root: consumerRoot, logger });
+      const emitter = new TsDefinitionEmitter(consumerRoot, logger);
       packageGenerator = new ShimPackageGenerator(
         consumerRoot,
         assetResolver,

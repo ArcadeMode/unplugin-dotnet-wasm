@@ -4,22 +4,14 @@ import type { Logger } from '../logger';
 import { toPosixPath } from '../path-utils';
 import { type TypeEntry, TS_ROUTE } from './type-entry';
 
-export interface TsDefinitionEmitterDeps {
-  root: string;
-  logger: Logger;
-}
-
 /**
- * Manages lazy loading and usage of the TypeScript module for declaration
- * emission. Loads synchronously on first real use, logs failure once, then
- * returns null forever after. Clients can always call emit() without checking
- * for TypeScript availability first.
+ * Accepts .ts or .d.ts entrypoints and emits a single-file .d.ts for each.
  */
 export class TsDefinitionEmitter {
   private ts?: typeof import('typescript');
   private unavailable = false;
 
-  constructor(private readonly deps: TsDefinitionEmitterDeps) {}
+  constructor(private readonly root: string, private readonly logger: Logger) {}
 
   /** Produce the `.d.ts` text for one entrypoint, or `null` to skip it. */
   public emit(entry: TypeEntry): string | null {
@@ -37,16 +29,12 @@ export class TsDefinitionEmitter {
 
   /**
    * Emit a single-file declaration (.d.ts) from a TypeScript source.
-   * Returns the declaration text, or null if the source has no declaration output
-   * or TypeScript is unavailable.
+   * Returns null if the source has no type declarations or TypeScript is unavailable.
    */
   private emitDeclaration(path: string): string | null {
     const ts = this.load();
     if (!ts) return null;
 
-    // Full type-directed declaration emit via a single-file Program. Unlike
-    // `transpileDeclaration`, this does not require `--isolatedDeclarations`
-    // conformance, so it handles ordinary SDK-generated TypeScript.
     const options: import('typescript').CompilerOptions = {
       declaration: true,
       emitDeclarationOnly: true,
@@ -65,7 +53,7 @@ export class TsDefinitionEmitter {
     program.emit(undefined, undefined, undefined, /* emitOnlyDtsFiles */ true);
 
     if (dts === undefined) {
-      this.deps.logger.warn(
+      this.logger.warn(
         `type-shims: declaration emit produced no output for "${path}"; skipping`,
       );
       return null;
@@ -82,15 +70,15 @@ export class TsDefinitionEmitter {
     if (this.ts) return this.ts;
     if (this.unavailable) return undefined;
 
-    const consumerRequire = createRequire(join(this.deps.root, '__tsresolve__.js'));
+    const consumerRequire = createRequire(join(this.root, '__tsresolve__.js'));
     try {
       const mod = consumerRequire('typescript');
       this.ts = 'default' in mod ? mod.default : mod;
       return this.ts;
     } catch {
       this.unavailable = true;
-      this.deps.logger.warn(
-        'type-shims: typescript not resolvable from the consumer root; skipping type generation',
+      this.logger.warn(
+        'Type generation disabled: This may cause editor/tsc errors for .NET WASM imports. Install "typescript" in your project to fix this.',
       );
       return undefined;
     }
