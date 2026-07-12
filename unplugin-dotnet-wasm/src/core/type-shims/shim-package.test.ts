@@ -2,12 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
 import { ShimPackage } from './shim-package';
 import type { NodeModulesLocator } from './node-modules-locator';
+import { TypeEntry } from './type-entry';
 
 // Mock locator that returns a fixed directory
 function createMockLocator(baseDir: string): NodeModulesLocator {
   return {
     resolve: () => baseDir,
   } as NodeModulesLocator;
+}
+
+function createTypeEntry(subpath: string): TypeEntry {
+  return { subpath, physicalPath: '/some/path', kind: 'dts', pkgName: 'my-pkg' };
 }
 
 describe('ShimPackage', () => {
@@ -23,8 +28,7 @@ describe('ShimPackage', () => {
     const baseDir = '/test/node_modules';
     const locator = createMockLocator(baseDir);
     const pkg = new ShimPackage(locator, 'my-pkg');
-
-    const { relFile, absFile } = pkg.fileFor('');
+    const { relFile, absFile } = pkg.fileFor(createTypeEntry(''));
 
     expect(relFile).toBe('index.d.ts');
     expect(absFile).toBe(join(baseDir, 'my-pkg', 'index.d.ts'));
@@ -35,7 +39,7 @@ describe('ShimPackage', () => {
     const locator = createMockLocator(baseDir);
     const pkg = new ShimPackage(locator, 'my-pkg');
 
-    const { relFile, absFile } = pkg.fileFor('sub');
+    const { relFile, absFile } = pkg.fileFor(createTypeEntry('sub'));
 
     expect(relFile).toBe('sub/index.d.ts');
     expect(absFile).toBe(join(baseDir, 'my-pkg', 'sub/index.d.ts'));
@@ -46,7 +50,7 @@ describe('ShimPackage', () => {
     const locator = createMockLocator(baseDir);
     const pkg = new ShimPackage(locator, 'my-pkg');
 
-    const { relFile, absFile } = pkg.fileFor('sub/path');
+    const { relFile, absFile } = pkg.fileFor(createTypeEntry('sub/path'));
 
     expect(relFile).toBe('sub/path/index.d.ts');
     expect(absFile).toBe(join(baseDir, 'my-pkg', 'sub/path/index.d.ts'));

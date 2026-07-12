@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import type { NodeModulesLocator } from './node-modules-locator';
+import { TypeEntry } from './type-entry';
 
 /**
  * A pure, no-IO builder for one generated package. Owns the subpath→file layout,
@@ -15,8 +16,8 @@ export class ShimPackage {
   }
 
   /** Absolute and package-relative output path for an entry's subpath. */
-  fileFor(subpath: string): { relFile: string; absFile: string } {
-    const relFile = subpath ? `${subpath}/index.d.ts` : 'index.d.ts';
+  fileFor(entry: TypeEntry): { relFile: string; absFile: string } {
+    const relFile = entry.subpath ? `${entry.subpath}/index.d.ts` : 'index.d.ts';
     const absFile = join(this.dir, relFile);
     return { relFile, absFile };
   }

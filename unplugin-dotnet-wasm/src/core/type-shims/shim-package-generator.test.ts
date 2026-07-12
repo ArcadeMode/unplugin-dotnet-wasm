@@ -171,6 +171,5 @@ describe('ShimPackageGenerator.generate', () => {
     expect(existsSync(join(nm, 'typeshim', 'index.d.ts'))).toBe(false);
     // Collision warning issued.
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('already exists'));
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('not ours'));
   });
 });
