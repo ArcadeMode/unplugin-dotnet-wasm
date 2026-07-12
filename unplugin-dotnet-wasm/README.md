@@ -352,7 +352,7 @@ The plugin is build-time only today. Scope so far and what's planned:
 - Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
 - Fingerprint-aware resolution
 - Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
-- Node built-ins externalized so the dotnet loader's Node paths don't break browser builds
+- Node built-ins externalized so the dotnet loader's Node paths don't break browser builds[^rollup-family-node-externals]
 - IDE / language-server type support: editors and `tsc` are aware of the TypeScript emitted from your .NET WASM project like:
   - the SDK's own `dotnet.d.ts`
   - your own `.ts` files under `wwwroot`
@@ -381,3 +381,5 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 [^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
 
 [^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
+
+[^rollup-family-node-externals]: Rollup and Rolldown can't be configured from within the plugin to externalize Node built-ins; See the Rollup and Rolldown examples above on how to configure it in the consuming project.
