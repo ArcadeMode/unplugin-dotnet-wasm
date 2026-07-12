@@ -361,7 +361,7 @@ The plugin is build-time only today. Scope so far and what's planned:
 **Planned**
 
 1. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
-2. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
+2. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes — including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
 3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
 4. Preload `<link>` injection from the endpoints manifest's preload metadata
 
