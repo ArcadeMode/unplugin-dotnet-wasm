@@ -364,6 +364,10 @@ The plugin is build-time only today. Scope so far and what's planned:
 2. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes — including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
 3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
 4. Preload `<link>` injection from the endpoints manifest's preload metadata
+5. Managed .NET builds (opt-in): optionally drive `dotnet build`/`watch` from the plugin, guaranteeing fresh assets and one-command dev
+6. CLI codegen: prime editor type shims outside a build (e.g. in CI or after `npm ci`) for build-free `tsc` jobs
+7. Prune orphaned generated type packages from `node_modules` when their backing .NET route goes away
+8. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included
 
 Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
 
