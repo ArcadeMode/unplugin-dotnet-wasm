@@ -375,6 +375,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 
 - Node.js >= 24
 - .NET SDK >= 10 (build output must exist before bundling)
+- TypeScript >= 5 (optional — enables editor / `tsc` type support for .NET WASM imports)
 
 [^esbuild-node-partial-support]: esbuild works on Node but the runtime needs an explicit `.withResourceLoader(...)` call to resolve WASM URLs. See [Runtime usage](#runtime-usage).
 
