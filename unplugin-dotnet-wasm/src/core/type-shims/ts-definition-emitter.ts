@@ -45,9 +45,7 @@ export class TsDefinitionEmitter {
     program.emit(undefined, undefined, undefined, /* emitOnlyDtsFiles */ true);
 
     if (dts === undefined) {
-      this.logger.warn(
-        `type-shims: declaration emit produced no output for "${sourceFile}"; skipping`,
-      );
+      this.logger.warn(`No definition file could be generated for "${sourceFile}"; skipping`);
       return null;
     }
     return dts;

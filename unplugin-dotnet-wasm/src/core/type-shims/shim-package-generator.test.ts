@@ -132,6 +132,8 @@ describe('ShimPackageGenerator.generate', () => {
 
     expect(existsSync(join(nm, 'typeshim', 'index.d.ts'))).toBe(false);
     expect(existsSync(join(nm, 'typeshim', 'package.json'))).toBe(false);
+    expect(existsSync(join(nm, 'typeshim'))).toBe(false);
+    expect(existsSync(join(nm, 'typeshim', '.dotnet-wasm-typeshim'))).toBe(false);
   });
 
   it('catches a throwing collaborator and warns instead of rejecting', async () => {

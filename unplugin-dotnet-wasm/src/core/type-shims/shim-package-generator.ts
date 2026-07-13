@@ -50,34 +50,46 @@ export class ShimPackageGenerator {
   private async writePackage(group: DiscoveryGroup): Promise<void> {
     const pkg = new ShimPackage(this.locator, group.packageName);
     try {
+      const planned = await this.planPackageEntries(pkg, group);
+
+      if (planned.length === 0) return;
       if (await this.collision(pkg, group)) return;
 
-      for (const entry of group.entries.filter(e => e.sourceFile || e.definitionFile)) {
-        const chosenFile = entry.definitionFile ?? entry.sourceFile;
-        if (!chosenFile) continue;
-
-        const { relFile, absFile } = pkg.fileFor(entry.subpath);
-        const changed = await this.changeTracker.hasChanged(chosenFile);
-        if (!changed && existsSync(absFile)) {
-          // Ensure package.json stays complete.
-          pkg.addExport(entry.subpath, relFile);
-          continue;
+      for (const item of planned) {
+        if (item.dts !== undefined) {
+          await this.writer.write(item.absFile, item.dts);
         }
-
-        const dts = entry.definitionFile ? this.emitter.reExport(entry.definitionFile)
-          : entry.sourceFile ? this.emitter.compile(entry.sourceFile)
-          : null;
-        if (dts === null) continue;
-
-        await this.writer.write(absFile, dts);
-        pkg.addExport(entry.subpath, relFile);
+        pkg.addExport(item.subpath, item.relFile);
       }
       const manifest = pkg.emitPackageJson();
-      if (manifest === null) return;
-      await this.writer.write(manifest.path, manifest.json);
+      if (manifest !== null) {
+        await this.writer.write(manifest.path, manifest.json);
+      }
     } catch (err) {
-      this.logger.warn(`type-shims: write failed for "${group.packageName}" (${String(err)}); skipping`);
+      this.logger.warn(`write failed for "${group.packageName}" (${String(err)}); skipping`);
     }
+  }
+
+  private async planPackageEntries(pkg: ShimPackage, group: DiscoveryGroup): Promise<{ subpath: string; relFile: string; absFile: string; dts?: string }[]> {
+    const planned: Array<{ subpath: string; relFile: string; absFile: string; dts?: string }> = [];
+    for (const entry of group.entries) {
+      const chosenFile = entry.definitionFile ?? entry.sourceFile;
+      if (!chosenFile) continue;
+
+      const { relFile, absFile } = pkg.fileFor(entry.subpath);
+      const changed = await this.changeTracker.hasChanged(chosenFile);
+      if (!changed && existsSync(absFile)) {
+        planned.push({ subpath: entry.subpath, relFile, absFile });
+        continue;
+      }
+
+      const dts = entry.definitionFile
+        ? this.emitter.reExport(entry.definitionFile)
+        : this.emitter.compile(entry.sourceFile!);
+      if (dts === null) continue;
+      planned.push({ subpath: entry.subpath, relFile, absFile, dts });
+    }
+    return planned;
   }
 
   private async collision(pkg: ShimPackage, group: DiscoveryGroup): Promise<boolean> {

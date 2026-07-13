@@ -21,7 +21,7 @@ function runTypecheck(cwd: string): string {
   }
 }
 
-describeWhen({ buildModes: ['debug'] })('type-shims: generated packages in the fixture node_modules', () => {
+describeWhen({ buildModes: ['debug'] })('generated packages in the fixture node_modules', () => {
   it('fixture node_modules directory exists', () => {
     expect(existsSync(NODE_MODULES)).toBe(true);
   });
