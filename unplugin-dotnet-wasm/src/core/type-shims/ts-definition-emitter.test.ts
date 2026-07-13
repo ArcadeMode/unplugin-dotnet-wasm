@@ -4,75 +4,59 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NULL_LOGGER, type Logger } from '../logger';
 import { TsDefinitionEmitter } from './ts-definition-emitter';
-import { TypeEntry } from './type-entry';
 
-describe('TsDefinitionEmitter.emit', () => {
-  describe('with dts entry', () => {
-    it('returns export statement with posix path', () => {
-      const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
-      const entry = new TypeEntry(
-        'pkg/mod.d.ts',
-        'C:\\path\\to\\pkg\\mod.d.ts',
-        'dts',
-      );
+describe('TsDefinitionEmitter.reExport', () => {
+  it('returns export statement with posix path for .d.ts', () => {
+    const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
 
-      const result = emitter.emit(entry);
+    const result = emitter.reExport('C:\\path\\to\\pkg\\mod.d.ts');
 
-      expect(result).toBe("export * from 'C:/path/to/pkg/mod';\n");
-    });
-
-    it('normalizes backslashes to forward slashes in posix path', () => {
-      const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
-      const entry = new TypeEntry(
-        'pkg/nested/mod.d.ts',
-        'C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts',
-        'dts',
-      );
-
-      const result = emitter.emit(entry);
-
-      expect(result).toBe("export * from 'C:/deep/nested/path/pkg/nested/mod';\n");
-    });
+    expect(result).toBe("export * from 'C:/path/to/pkg/mod';\n");
   });
 
-  describe('with ts entry (no TypeScript)', () => {
-    it('returns null and warns when TypeScript is unavailable', () => {
-      const logger: Logger = {
-        error: vi.fn(),
-        warn: vi.fn(),
-        info: vi.fn(),
-        debug: vi.fn(),
-      };
+  it('normalizes backslashes to forward slashes in posix path', () => {
+    const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
 
-      // Create a temp directory with no node_modules/typescript
-      const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
-      const emitter = new TsDefinitionEmitter(emptyRoot, logger);
-      const entry = new TypeEntry('pkg/mod.ts', '/path/to/pkg/mod.ts', 'ts');
-      const result = emitter.emit(entry);
+    const result = emitter.reExport('C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts');
 
-      expect(result).toBeNull();
-      expect(logger.warn).toHaveBeenCalledOnce();
-    });
+    expect(result).toBe("export * from 'C:/deep/nested/path/pkg/nested/mod';\n");
+  });
+});
 
-    it('caches unavailable state and only warns once', () => {
-      const logger: Logger = {
-        error: vi.fn(),
-        warn: vi.fn(),
-        info: vi.fn(),
-        debug: vi.fn(),
-      };
+describe('TsDefinitionEmitter.compile', () => {
+  it('returns null and warns once when TypeScript is unavailable', () => {
+    const logger: Logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
 
-      const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
-      const emitter = new TsDefinitionEmitter(emptyRoot, logger);
-      const entry1 = new TypeEntry('pkg/mod1.ts', '/path/to/pkg/mod1.ts', 'ts');
-      const entry2 = new TypeEntry('pkg/mod2.ts', '/path/to/pkg/mod2.ts', 'ts');
+    const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
+    const emitter = new TsDefinitionEmitter(emptyRoot, logger);
 
-      const result1 = emitter.emit(entry1);
-      const result2 = emitter.emit(entry2);
+    const result = emitter.compile('/path/to/pkg/mod.ts');
 
-      expect(result1).toBeNull();
-      expect(result2).toBeNull();
-      expect(logger.warn).toHaveBeenCalledOnce();
-    });
+    expect(result).toBeNull();
+    expect(logger.warn).toHaveBeenCalledOnce();
+  });
+
+  it('caches unavailable state and only warns once on repeated calls', () => {
+    const logger: Logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
+    const emitter = new TsDefinitionEmitter(emptyRoot, logger);
+
+    const result1 = emitter.compile('/path/to/pkg/mod1.ts');
+    const result2 = emitter.compile('/path/to/pkg/mod2.ts');
+
+    expect(result1).toBeNull();
+    expect(result2).toBeNull();
+    expect(logger.warn).toHaveBeenCalledOnce();
   });
 });

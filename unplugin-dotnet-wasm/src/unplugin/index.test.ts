@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { dotnetStaticAssets } from './index';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DotnetStaticAssetsPlugin = any;
 
-function handler<T extends (...args: any[]) => any>(
+function handler<T extends (...args: DotnetStaticAssetsPlugin[]) => unknown>(
   hook: T | { handler: T; order?: string } | null | undefined,
 ): T | undefined {
   if (!hook) return undefined;
@@ -11,19 +13,19 @@ function handler<T extends (...args: any[]) => any>(
   return (hook as { handler: T }).handler;
 }
 
-async function callBuildStart(plugin: any): Promise<void> {
+async function callBuildStart(plugin: DotnetStaticAssetsPlugin): Promise<void> {
   await handler(plugin.buildStart)?.call({});
 }
 
-function callResolveId(plugin: any, source: string): string | null | undefined {
+function callResolveId(plugin: DotnetStaticAssetsPlugin, source: string): string | null | undefined {
   return handler(plugin.resolveId)?.call({}, source, undefined, {});
 }
 
 function callLoad(
-  plugin: any,
+  plugin: DotnetStaticAssetsPlugin,
   id: string,
   emitFileMock = vi.fn().mockReturnValue('ref-id'),
-): any {
+): DotnetStaticAssetsPlugin {
   return handler(plugin.load)?.call({ emitFile: emitFileMock }, id);
 }
 
@@ -61,7 +63,7 @@ describe('dotnetStaticAssets — buildStart with explicit dotnetOutputDir', () =
 });
 
 describe('dotnetStaticAssets — resolveId (real SampleLibrary fixture)', () => {
-  let plugin: any;
+  let plugin: DotnetStaticAssetsPlugin;
 
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({
@@ -118,7 +120,7 @@ describe('dotnetStaticAssets — resolveId (real SampleLibrary fixture)', () => 
 });
 
 describe('dotnetStaticAssets — load', () => {
-  let plugin: any;
+  let plugin: DotnetStaticAssetsPlugin;
   let dotnetNativeWasm: string;
   let icudtDat: string;
   let libraryPdb: string;
@@ -180,7 +182,7 @@ describe('dotnetStaticAssets — load', () => {
 });
 
 describe('dotnetStaticAssets — transform (FRAMEWORK_JS_REGEX scoping)', () => {
-  let plugin: any;
+  let plugin: DotnetStaticAssetsPlugin;
 
   beforeAll(async () => {
     plugin = dotnetStaticAssets.rollup({

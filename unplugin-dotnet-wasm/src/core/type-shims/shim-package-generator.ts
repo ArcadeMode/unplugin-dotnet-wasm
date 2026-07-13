@@ -7,7 +7,7 @@ import { IdempotentFileWriter } from './idempotent-file-writer';
 import { NodeModulesLocator } from './node-modules-locator';
 import { PackageCollisionChecker, type CollisionSentinelFile } from './package-collision-checker';
 import { ShimPackage } from './shim-package';
-import { TS_ROUTE, TypeEntry } from './type-entry';
+import { FileDiscoverer, type DiscoveryGroup } from './file-discoverer';
 
 const TYPESHIM_SENTINEL: CollisionSentinelFile = {
   name: '.dotnet-wasm-typeshim',
@@ -22,10 +22,11 @@ export class ShimPackageGenerator {
   private locator: NodeModulesLocator;
   private writer: IdempotentFileWriter;
   private collisionChecker: PackageCollisionChecker;
+  private discoverer: FileDiscoverer;
 
   constructor(
     root: string,
-    private readonly resolver: AssetResolver,
+    resolver: AssetResolver,
     private readonly changeTracker: SourceFileChangeTracker,
     private readonly emitter: TsDefinitionEmitter,
     private readonly logger: Logger,
@@ -33,69 +34,60 @@ export class ShimPackageGenerator {
     this.locator = new NodeModulesLocator(root);
     this.writer = new IdempotentFileWriter();
     this.collisionChecker = new PackageCollisionChecker(this.writer, TYPESHIM_SENTINEL);
+    this.discoverer = new FileDiscoverer(resolver, logger);
   }
 
   /** Idempotent: safe to call on every build. */
   async generate(): Promise<void> {
-    const groups = this.discover();
-    if (groups.size === 0) return;
+    const groups = this.discoverer.discover();
+    if (groups.length === 0) return;
 
-    for (const [pkgName, entries] of groups) {
-      await this.writePackage(pkgName, entries);
+    for (const group of groups) {
+      await this.writePackage(group);
     }
   }
 
-  private discover(): Map<string, TypeEntry[]> {
-    const groups = new Map<string, TypeEntry[]>();
-    for (const route of this.resolver.routes()) {
-      const kind = determineTSFileKind(route);
-      if (!kind) continue;
-
-      const physicalPath = this.resolver.resolve(route);
-      if (physicalPath === null) continue;
-      
-      const entry = new TypeEntry(route, physicalPath, kind);
-      const group = groups.get(entry.pkgName);
-      if (group) group.push(entry);
-      else groups.set(entry.pkgName, [entry]);
-    }
-    return groups;
-
-    function determineTSFileKind(route: string): TypeEntry['kind'] | null {
-      if (/\.d\.ts$/.test(route)) return 'dts';
-      if (TS_ROUTE.test(route)) return 'ts';
-      return null;
-    }
-  }
-
-  private async writePackage(
-    pkgName: string,
-    entries: TypeEntry[],
-  ): Promise<void> {
-    const pkg = new ShimPackage(this.locator, pkgName);
+  private async writePackage(group: DiscoveryGroup): Promise<void> {
+    const pkg = new ShimPackage(this.locator, group.packageName);
     try {
-      if (!(await this.collisionChecker.ensureCollisionFree(pkg.dir))) {
-        this.logger.warn(`"${pkgName}" already exists in node_modules. Skipping to avoid corrupting it. To resolve this, rename your source file or its path to not start with "${pkgName}". Conflicting files: [${entries.map(e => e.physicalPath).join(', ')}].`);
-        return;
-      }
-      for (const entry of entries) {
-        const { relFile, absFile } = pkg.fileFor(entry);
-        const changed = await this.changeTracker.hasChanged(entry.physicalPath);
+      if (await this.collision(pkg, group)) return;
+
+      for (const entry of group.entries.filter(e => e.sourceFile || e.definitionFile)) {
+        const chosenFile = entry.definitionFile ?? entry.sourceFile;
+        if (!chosenFile) continue;
+
+        const { relFile, absFile } = pkg.fileFor(entry.subpath);
+        const changed = await this.changeTracker.hasChanged(chosenFile);
         if (!changed && existsSync(absFile)) {
           // Ensure package.json stays complete.
           pkg.addExport(entry.subpath, relFile);
           continue;
         }
-        const dts = this.emitter.emit(entry);
+
+        const dts = entry.definitionFile ? this.emitter.reExport(entry.definitionFile)
+          : entry.sourceFile ? this.emitter.compile(entry.sourceFile)
+          : null;
         if (dts === null) continue;
+
         await this.writer.write(absFile, dts);
         pkg.addExport(entry.subpath, relFile);
       }
-      const manifest = pkg.emit();
+      const manifest = pkg.emitPackageJson();
       if (manifest === null) return;
       await this.writer.write(manifest.path, manifest.json);
     } catch (err) {
-      this.logger.warn(`type-shims: write failed for "${pkgName}" (${String(err)}); skipping`);
+      this.logger.warn(`type-shims: write failed for "${group.packageName}" (${String(err)}); skipping`);
     }
+  }
+
+  private async collision(pkg: ShimPackage, group: DiscoveryGroup): Promise<boolean> {
+    if (!(await this.collisionChecker.ensureCollisionFree(pkg.dir))) {
+        const conflictingFiles = group.entries
+          .flatMap(e => [e.sourceFile, e.definitionFile].filter((f): f is string => Boolean(f)))
+          .join(', ');
+        this.logger.warn(`"${group.packageName}" already exists in node_modules. Skipping to avoid corrupting it. To resolve this, rename your source file or its path to not start with "${group.packageName}". Conflicting files: [${conflictingFiles}].`);
+        return true;
+      }
+      return false;
   }
 }

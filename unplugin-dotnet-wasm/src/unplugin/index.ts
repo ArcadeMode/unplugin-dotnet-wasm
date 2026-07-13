@@ -1,4 +1,4 @@
-import { createUnplugin, UnpluginContextMeta } from 'unplugin';
+import { createUnplugin, type UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { DotnetAssetsOptions } from '../types';
