@@ -84,8 +84,8 @@ export class ShimPackageGenerator {
       }
 
       const dts = entry.definitionFile
-        ? this.emitter.reExport(entry.definitionFile)
-        : this.emitter.compile(entry.sourceFile!);
+        ? this.emitter.forwardDTS(entry.definitionFile)
+        : this.emitter.compileToDTS(entry.sourceFile!);
       if (dts === null) continue;
       planned.push({ subpath: entry.subpath, relFile, absFile, dts });
     }

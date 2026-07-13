@@ -3,11 +3,7 @@ import { existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 /**
- * Write `content` to `absPath` only if it differs from what is already on disk,
- * so an unchanged rebuild does not bump the file's mtime (which would trigger
- * spurious tsserver / bundler-watch churn). Ensures the parent dir exists.
- * A read failure on an existing file falls through to a write, so a corrupted
- * or unreadable file self-heals. Returns whether a write happened.
+ * Doesnt write the content of the file wouldnt change.
  */
 export class IdempotentFileWriter {
   async write(absPath: string, content: string): Promise<boolean> {

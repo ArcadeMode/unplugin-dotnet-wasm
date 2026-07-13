@@ -30,13 +30,13 @@ function createTracker(changed: boolean): SourceFileChangeTracker {
 function createEmitter(
   reExportImpl?: (defFile: string) => string,
   compileImpl?: (sourceFile: string) => string | null,
-): TsDefinitionEmitter & { reExport: ReturnType<typeof vi.fn>; compile: ReturnType<typeof vi.fn> } {
+): TsDefinitionEmitter & { forwardDTS: ReturnType<typeof vi.fn>; compileToDTS: ReturnType<typeof vi.fn> } {
   return {
-    reExport: vi.fn(reExportImpl || ((defFile) => `export * from '${defFile.slice(0, -5)}';\n`)),
-    compile: vi.fn(compileImpl || (() => '// compiled\n')),
+    forwardDTS: vi.fn(reExportImpl || ((defFile) => `export * from '${defFile.slice(0, -5)}';\n`)),
+    compileToDTS: vi.fn(compileImpl || (() => '// compiled\n')),
   } as unknown as TsDefinitionEmitter & {
-    reExport: ReturnType<typeof vi.fn>;
-    compile: ReturnType<typeof vi.fn>;
+    forwardDTS: ReturnType<typeof vi.fn>;
+    compileToDTS: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -60,7 +60,7 @@ describe('ShimPackageGenerator.generate', () => {
     );
     const emitter = createEmitter(
       (defFile) => {
-        // Strip declaration extension like real reExport does
+        // Strip declaration extension like real forwardDTS does
         return `export * from '${defFile.slice(0, -5)}';\n`;
       },
       (sourceFile) => `// compiled:${sourceFile}\n`,
@@ -110,7 +110,7 @@ describe('ShimPackageGenerator.generate', () => {
 
     await generator.generate();
 
-    expect(emitter.compile).not.toHaveBeenCalled();
+    expect(emitter.compileToDTS).not.toHaveBeenCalled();
     // File left untouched...
     expect(readFileSync(join(nm, 'typeshim', 'index.d.ts'), 'utf8')).toBe('// stale but valid\n');
     // ...but the export is still recorded in the manifest.
@@ -118,13 +118,13 @@ describe('ShimPackageGenerator.generate', () => {
     expect(pkg.exports).toEqual({ '.': { types: './index.d.ts' } });
   });
 
-  it('skips an entry whose compile returns null and writes no manifest for an empty package', async () => {
+  it('skips an entry whose compileToDTS returns null and writes no manifest for an empty package', async () => {
     const { root, nm } = tempRoot();
     const generator = new ShimPackageGenerator(
       root,
       createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }),
       createTracker(true),
-      createEmitter(undefined, () => null), // compile returns null
+      createEmitter(undefined, () => null), // compileToDTS returns null
       createLogger(),
     );
 
@@ -206,11 +206,11 @@ describe('ShimPackageGenerator.generate', () => {
 
     await generator.generate();
 
-    // Should have called reExport with the definition file path
-    expect(emitter.reExport).toHaveBeenCalledOnce();
-    const reExportCall = (emitter.reExport as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+    // Should have called forwardDTS with the definition file path
+    expect(emitter.forwardDTS).toHaveBeenCalledOnce();
+    const reExportCall = (emitter.forwardDTS as ReturnType<typeof vi.fn>).mock.calls[0]![0];
     expect(reExportCall).toBe('/src/foo.d.ts');
-    expect(emitter.compile).not.toHaveBeenCalled();
+    expect(emitter.compileToDTS).not.toHaveBeenCalled();
     // File should contain the re-export
     expect(readFileSync(join(nm, 'pkg', 'foo', 'index.d.ts'), 'utf8')).toContain('export * from');
   });

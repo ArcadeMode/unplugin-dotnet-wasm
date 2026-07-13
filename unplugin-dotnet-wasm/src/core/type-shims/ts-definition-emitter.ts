@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
+import path, { join } from 'node:path';
 import type { Logger } from '../logger';
 import type typescript from 'typescript';
 import { toPosixPath } from '../path-utils';
@@ -12,16 +12,28 @@ export class TsDefinitionEmitter {
 
   constructor(private readonly root: string, private readonly logger: Logger) {}
 
-  public reExport(definitionFile: string): string {
+  /**
+   * Generates .d.ts content that re-exports definitionFile 
+   */
+  public forwardDTS(definitionFile: string): string {
+    if (!definitionFile.endsWith(DECL_EXT)) {
+      throw new Error(`Expected a .d.ts file path, got "${definitionFile}"`);
+    }
+    if (!path.isAbsolute(definitionFile)) {
+      throw new Error(`Expected an absolute path, got "${definitionFile}"`);
+    }
     const pathClean = definitionFile.slice(0, -DECL_EXT.length);
     return `export * from '${toPosixPath(pathClean)}';\n`;
   }
 
   /**
-   * Accepts .ts files.
-   * Returns null if the source has no type declarations or TypeScript is unavailable.
+   * Compiles .ts to .d.ts, returns null if compilation failed.
    */
-  public compile(sourceFile: string): string | null {
+  public compileToDTS(sourceFile: string): string | null {
+    if (!sourceFile.endsWith('.ts')) {
+      throw new Error(`Expected a .ts file path, got "${sourceFile}"`);
+    }
+
     const ts = this.load();
     if (!ts) return null;
 
