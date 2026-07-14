@@ -11,15 +11,6 @@ export type ConnectMiddleware = (
   next: NextFn,
 ) => void;
 
-/**
- * Bundler-agnostic connect middleware that serves .NET static web assets in dev.
- *
- * Owns any route the resolver recognises — `_framework/*.{wasm,dat,pdb}` and
- * `_content/**` — streaming the physical file with the endpoint manifest's
- * response headers. The dotnet runtime JS modules (FRAMEWORK_JS_REGEX) pass
- * through to the bundler so its transform can rewrite them. Unknown routes and
- * misses fall through via `next()`.
- */
 export function createAssetMiddleware(
   resolver: AssetResolver,
   logger: Logger,

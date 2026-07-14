@@ -2,7 +2,7 @@ import type { VirtualFileSystem } from './vfs';
 import type { EndpointLookup } from './endpoint-lookup';
 import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
-import { stripLeadingSlashOrDot, toPosixPath } from '../path-utils';
+import { normalizeVirtualPath, stripLeadingSlashOrDot, toPosixPath } from '../path-utils';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,
@@ -18,7 +18,11 @@ export class AssetResolver {
    * Resolve a bundler `source` specifier to an absolute physical path or `null` if the specifier is unrecognized.
    */
   resolve(source: string): string | null {
-    const virtualPath = stripLeadingSlashOrDot(toPosixPath(source));
+    // Clamp-normalise so relative specifiers (e.g. the bundler-friendly boot
+    // config's `./../_content/<pkg>/<pkg>.lib.module.js`) collapse to their
+    // canonical manifest route. A lookup hit is definitionally ours; a miss
+    // returns null and the bundler resolves the specifier itself.
+    const virtualPath = normalizeVirtualPath(source);
     if (virtualPath === '') return null;
 
     for (const probe of new ExtensionProbes(virtualPath)) {
