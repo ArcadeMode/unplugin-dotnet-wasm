@@ -74,7 +74,7 @@ describe('AssetResolver probe expansion', () => {
 });
 
 describe('AssetResolver endpoint alias paths', () => {
-  const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js' };
+  const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js', responseHeaders: [] };
   const lookup: EndpointLookup = new Map([['_framework/dotnet.js', fpMatch]]);
 
   it('resolves via vfs.resolve(alias.assetFile) when the asset is in the VFS', () => {

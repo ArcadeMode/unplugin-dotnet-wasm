@@ -12,6 +12,7 @@ import { SourceFileChangeTracker } from '../core/type-shims/source-file-change-t
 import { TsDefinitionEmitter } from '../core/type-shims/ts-definition-emitter';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { isYarnPnp } from '../core/is-yarn-pnp';
+import { createAssetMiddleware, type ConnectMiddleware } from '../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS, BINARY_EXTENSIONS_REGEX, FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../core/constants';
 
 export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, meta: UnpluginContextMeta) => {
@@ -30,6 +31,8 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // Default root path of project, bundler families may override.
   let consumerRoot = process.cwd();
   let packageGenerator: ShimPackageGenerator | null = null;
+  let isServe = false;
+  let assetMiddleware: ConnectMiddleware | null = null;
 
   const base = {
     name: 'unplugin-dotnet-wasm',
@@ -79,16 +82,35 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     return {
       ...base,
       // Vite: capture the resolved consumer root so type-shim packages land in
-      // the right node_modules. `configResolved` fires before `buildStart`, so
-      // `consumerRoot` is set in time. No-op for rollup/rolldown (no root concept).
+      // the right node_modules, and detect serve (dev) mode. `configResolved`
+      // fires before `buildStart`, so both are set in time. No-op for
+      // rollup/rolldown (no dev server / no root concept).
       vite: {
-        configResolved(config: { root: string }): void {
+        configResolved(config: { root: string; command: string }): void {
           consumerRoot = config.root;
+          isServe = config.command === 'serve';
+        },
+        configureServer(server: {
+          middlewares: { use: (fn: ConnectMiddleware) => void };
+        }): void {
+          server.middlewares.use((req, res, next) => {
+            if (!assetResolver) return next();
+            assetMiddleware ??= createAssetMiddleware(assetResolver, logger);
+            assetMiddleware(req, res, next);
+          });
         },
       },
       load: {
         filter: { id: BINARY_EXTENSIONS_REGEX },
         async handler(id: string): Promise<string> {
+          // Dev/serve: return an explicit middleware route so the dotnet runtime
+          // fetches our handler (independent of scriptDirectory) instead of
+          // falling back to Vite's /@fs/ static handler.
+          if (isServe) {
+            return `export default ${JSON.stringify('/_framework/' + basename(id))};`;
+          }
+          // Build: emit via Rollup's asset API; the placeholder is rewritten to
+          // the final hashed URL at bundle time.
           const source = await readFile(id);
           const refId = this.emitFile({ type: 'asset', name: basename(id), source });
           return `export default import.meta.ROLLUP_FILE_URL_${refId};`;

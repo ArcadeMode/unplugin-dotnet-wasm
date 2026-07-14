@@ -1,5 +1,6 @@
 import type { VirtualFileSystem } from './vfs';
 import type { EndpointLookup } from './endpoint-lookup';
+import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
 import { stripLeadingSlashOrDot, toPosixPath } from '../path-utils';
 
@@ -35,6 +36,11 @@ export class AssetResolver {
     }
 
     return null;
+  }
+
+  headersFor(route: string): readonly ResponseHeader[] | undefined {
+    const key = stripLeadingSlashOrDot(toPosixPath(route));
+    return this.endpointLookup.get(key)?.responseHeaders;
   }
 
   /**
