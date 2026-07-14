@@ -1,6 +1,6 @@
 {
   "name": "unplugin-dotnet-wasm",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Mount .NET WebAssembly output as virtual modules for Vite, Webpack, Rollup, esbuild, Rspack, Rsbuild, Rolldown, Farm, and Bun.",
   "license": "MIT",
   "author": "ArcadeMode",

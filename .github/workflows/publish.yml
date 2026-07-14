@@ -1,0 +1,58 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC/Trusted Publishing
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - run: pnpm install
+
+      - name: Set package version
+        working-directory: unplugin-dotnet-wasm
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: tag '${TAG}' is not a valid version (expected e.g. v1.2.3)"
+            exit 1
+          fi
+          npm version "${TAG#v}" --no-git-tag-version
+
+      - name: Build plugin
+        run: pnpm build:plugin
+
+      - name: Build sample
+        run: pnpm build:sample
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Publish to npm
+        run: npm publish --provenance
+        working-directory: unplugin-dotnet-wasm
