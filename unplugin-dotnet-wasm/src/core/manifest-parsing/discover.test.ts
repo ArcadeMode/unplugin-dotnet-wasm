@@ -1,4 +1,5 @@
 import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
 import { discoverManifests } from './discover';
 
@@ -91,7 +92,7 @@ describe('discoverManifests with explicit dotnetOutputDir option', () => {
   });
 });
 
-const NONEXISTENT_ROOT = resolve(__dirname, '../../../.test-tmp/does-not-exist');
+const NONEXISTENT_ROOT = join(tmpdir(), 'unplugin-dotnet-wasm-does-not-exist');
 
 describe('discoverManifests with missing manifest', () => {
   it('throws when no manifest exists in the TFM dir', () => {

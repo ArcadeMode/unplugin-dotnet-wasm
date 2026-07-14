@@ -271,7 +271,7 @@ export default defineConfig({
 Once the plugin is configured, import .NET assets as regular ES modules:
 
 ```ts
-import { dotnet } from './_framework/dotnet';
+import { dotnet } from '_framework/dotnet';
 
 const runtime = await dotnet.create();
 runtime.runMain();
@@ -283,7 +283,7 @@ runtime.runMain();
 When targeting Node with esbuild, the dotnet runtime a resource loader so the runtime can succesfully resolvee WASM URLs:
 
 ```ts
-import { dotnet } from './_framework/dotnet';
+import { dotnet } from '_framework/dotnet';
 
 const runtime = await dotnet
   .withResourceLoader((type, name, defaultUri) => new URL(defaultUri, import.meta.url).href)
@@ -303,10 +303,10 @@ Locates manifests under `<projectRoot>/bin/<configuration>/<targetFramework>[/pu
 
 ```ts
 DotnetAssets({
-  projectName: 'MyLibrary',    // used to find manifest files
-  projectRoot: '../MyLibrary', // path to the directory containing the .csproj
-  configuration: 'Debug',      // MSBuild configuration, e.g. 'Debug' or 'Release'
-  targetFramework: 'net10.0',  // target framework moniker, e.g. 'net10.0'
+  projectName: 'MyLibrary',    // * used to find manifest files
+  projectRoot: '../MyLibrary', // * path to the directory containing the .csproj
+  configuration: 'Debug',      // * MSBuild configuration, e.g. 'Debug' or 'Release'
+  targetFramework: 'net10.0',  // * target framework moniker, e.g. 'net10.0'
   isPublish: false,            // true = read from the dotnet publish output layout
   logLevel: 'warn',            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
 })
@@ -320,8 +320,8 @@ Use `dotnetOutputDir` when the .NET output is at a non-default path like a custo
 
 ```ts
 DotnetAssets({
-  projectName: 'MyLibrary',                    // required — used to find manifest files
-  dotnetOutputDir: '../MyLibrary/my-out-dir',  // path to the .NET build/publish output dir
+  projectName: 'MyLibrary',                    // * used to find manifest files
+  dotnetOutputDir: '../MyLibrary/my-out-dir',  // * path to the .NET build/publish output dir
   logLevel: 'warn',                            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
 })
 ```
@@ -350,17 +350,24 @@ The plugin is build-time only today. Scope so far and what's planned:
   - 9 on browser targets
   - 4 on Node targets 
 - Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
-- Fingerprint-aware resolution (canonical imports → hashed physical files)
-- Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline
-- Node built-ins externalized so the dotnet loader's Node paths don't break browser builds
+- Fingerprint-aware resolution
+- Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
+- Node built-ins externalized so the dotnet loader's Node paths don't break browser builds[^rollup-family-node-externals]
+- IDE / language-server type support: editors and `tsc` are aware of the TypeScript emitted from your .NET WASM project like:
+  - the SDK's own `dotnet.d.ts`
+  - your own `.ts` files under `wwwroot`
+  - generated output like `typeshim.ts` ([TypeShim](https://github.com/ArcadeMode/TypeShim))
 
 **Planned**
 
-1. IDE parity: emit a `tsconfig` + ambient `.d.ts` so editors see the same virtual tree the bundler does
-2. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
-3. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes
-4. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
-5. Preload `<link>` injection from the endpoints manifest's preload metadata
+1. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
+2. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes — including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
+3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
+4. Preload `<link>` injection from the endpoints manifest's preload metadata
+5. Managed .NET builds (opt-in): optionally drive `dotnet build`/`watch` from the plugin, guaranteeing fresh assets and one-command dev
+6. CLI codegen: prime editor type shims outside a build (e.g. in CI or after `npm ci`) for build-free `tsc` jobs
+7. Prune orphaned generated type packages from `node_modules` when their backing .NET route goes away
+8. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included
 
 Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
 
@@ -368,6 +375,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 
 - Node.js >= 24
 - .NET SDK >= 10 (build output must exist before bundling)
+- TypeScript >= 5 (optional — enables editor / `tsc` type support for .NET WASM imports)
 
 [^esbuild-node-partial-support]: esbuild works on Node but the runtime needs an explicit `.withResourceLoader(...)` call to resolve WASM URLs. See [Runtime usage](#runtime-usage).
 
@@ -376,3 +384,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 [^bun-node-no-support]: Bun emits bare strings for asset imports; the dotnet runtime needs URL strings. Rewrite step pending — see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
 
 [^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
+
+[^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
+
+[^rollup-family-node-externals]: Rollup and Rolldown can't be configured from within the plugin to externalize Node built-ins; See the Rollup and Rolldown examples above on how to configure it in the consuming project.

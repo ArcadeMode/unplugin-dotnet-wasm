@@ -16,6 +16,3 @@ node_modules/.dotnet-vfs/
 
 ## Vite
 *.local
-
-# dumping ground for test assets
-**/.tmp-test/**
