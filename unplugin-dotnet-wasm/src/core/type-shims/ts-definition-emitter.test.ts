@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NULL_LOGGER, type Logger } from '../logger';
 import { TsDefinitionEmitter } from './ts-definition-emitter';
@@ -8,14 +8,18 @@ import { TsDefinitionEmitter } from './ts-definition-emitter';
 describe('TsDefinitionEmitter.forwardDTS', () => {
   it('returns export statement with posix path for .d.ts', () => {
     const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
-    const result = emitter.forwardDTS('C:\\path\\to\\pkg\\mod.d.ts');
-    expect(result).toBe("export * from 'C:/path/to/pkg/mod';\n");
+    const inPath = platform() === 'win32' ? 'C:\\path\\to\\pkg\\mod.d.ts' : '/path/to/pkg/mod.d.ts';
+    const outPath = platform() === 'win32' ? 'C:/path/to/pkg/mod' : '/path/to/pkg/mod';
+    const result = emitter.forwardDTS(inPath);
+    expect(result).toBe(`export * from '${outPath}';\n`);
   });
 
   it('normalizes backslashes to forward slashes in posix path', () => {
     const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
-    const result = emitter.forwardDTS('C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts');
-    expect(result).toBe("export * from 'C:/deep/nested/path/pkg/nested/mod';\n");
+    const inPath = platform() === 'win32' ? 'C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts' : '/deep/nested/path/pkg/nested/mod.d.ts';
+    const outPath = platform() === 'win32' ? 'C:/deep/nested/path/pkg/nested/mod' : '/deep/nested/path/pkg/nested/mod';
+    const result = emitter.forwardDTS(inPath);
+    expect(result).toBe(`export * from '${outPath}';\n`);
   });
 });
 
