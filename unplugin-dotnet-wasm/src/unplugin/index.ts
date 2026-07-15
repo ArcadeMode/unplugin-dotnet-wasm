@@ -1,6 +1,6 @@
 import { createUnplugin, type UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, join, parse } from 'node:path';
 import type { DotnetAssetsOptions } from '../types';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
 import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
@@ -247,8 +247,29 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   // preset-env polyfill injection and requires `core-js` to be installed.
   // The dotnet WASM runtime needs modern JS anyway, so warn users pointing at
   // a non-modern target — usually they want `'browser-esnext'`.
+  const FARM_CONTENT_DIR = '__dotnet_content__';
+  const farmContentAliases = new Map<string, string>();
   return {
     ...base,
+    resolveId(source: string): string | null {
+      if (!assetResolver) return null;
+      const resolved = assetResolver.resolve(source);
+      if (resolved === null) return null;
+      if (parse(resolved).root.toLowerCase() !== parse(consumerRoot).root.toLowerCase()) {
+        farmContentAliases.set(basename(resolved), resolved);
+        return join(consumerRoot, FARM_CONTENT_DIR, basename(resolved));
+      }
+      return resolved;
+    },
+    // Gate `load` to our synthetic ids only: Farm's unplugin adapter has no
+    // null-guard and would call getContentValue(null) for every other module.
+    loadInclude(id: string): boolean {
+      return id.includes(FARM_CONTENT_DIR);
+    },
+    async load(id: string): Promise<string | null> {
+      const real = farmContentAliases.get(basename(id));
+      return real === undefined ? null : readFile(real, 'utf-8');
+    },
     farm: {
       config(userConfig: { root?: string; compilation?: { output?: { targetEnv?: string }; presetEnv?: unknown } }) {
         if (userConfig.root) consumerRoot = userConfig.root;
