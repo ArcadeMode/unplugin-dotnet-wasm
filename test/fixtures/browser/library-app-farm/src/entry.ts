@@ -20,6 +20,8 @@ async function initializeWasmRuntime(): Promise<void> {
     delayThenEcho:    (value: string, delayMs: number) => asyncOps.DelayThenEcho(value, delayMs),
     boom:             () => thrower.Boom(),
   };
+  const ai = (window as any).blazorApplicationInsights;
+  (window as any).__contentAssetOk = typeof ai === 'object' && ai !== null;
   (window as any).__libReady = true;
 
   console.log('WASM runtime initialized successfully.');
