@@ -8,6 +8,7 @@
     "build:debug": "webpack --config webpack.config.mjs --mode development",
     "build:release": "webpack --config webpack.config.mjs --mode production",
     "dev": "webpack serve --config webpack.config.mjs --port 5174 --mode development",
+    "dev:release": "webpack serve --config webpack.config.mjs --port 5174 --mode production",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",

@@ -11,13 +11,6 @@ const FIXTURE = resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}`)
 const DIST_DIR = process.env.DIST_DIR ?? resolve(FIXTURE, 'dist');
 const configName = `e2e-playwright-${BUNDLER}-browser-${SERVE_MODE}-${readFingerprint()}-${BUILD_MODE}-${process.platform}`;
 
-const prod = BUILD_MODE === 'publish' ? ' --mode production' : '';
-const DEV_COMMANDS = {
-  vite:    `pnpm --dir "${FIXTURE}" exec vite --port 5174 --strictPort${prod}`,
-  webpack: `pnpm --dir "${FIXTURE}" exec webpack serve --config webpack.config.mjs --port 5174${prod}`,
-  rspack:  `pnpm --dir "${FIXTURE}" exec rspack serve --config rspack.config.mjs --port 5174${prod}`,
-};
-
 export default defineConfig({
   testDir: 'tests',
   testMatch: ['*.spec.ts'],
@@ -36,7 +29,7 @@ export default defineConfig({
   ],
   webServer: SERVE_MODE === 'server'
     ? {
-        command: DEV_COMMANDS[BUNDLER],
+        command: `pnpm --dir "${FIXTURE}" run ${BUILD_MODE === 'publish' ? 'dev:release' : 'dev'}`,
         url: 'http://localhost:5174',
         reuseExistingServer: false,
         timeout: 30_000,

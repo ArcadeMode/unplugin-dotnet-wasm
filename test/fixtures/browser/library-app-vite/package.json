@@ -8,6 +8,7 @@
     "build:debug": "vite build --mode development",
     "build:release": "vite build --mode production",
     "dev": "vite --port 5174 --strictPort",
+    "dev:release": "vite --port 5174 --strictPort --mode production",
     "preview": "vite preview --open",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
