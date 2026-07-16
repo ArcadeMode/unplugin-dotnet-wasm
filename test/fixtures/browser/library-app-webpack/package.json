@@ -7,6 +7,7 @@
     "build": "webpack --config webpack.config.mjs --mode development",
     "build:debug": "webpack --config webpack.config.mjs --mode development",
     "build:release": "webpack --config webpack.config.mjs --mode production",
+    "dev": "webpack serve --config webpack.config.mjs --port 5174 --mode development",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
@@ -18,7 +19,8 @@
     "ts-loader": "^9.0.0",
     "typescript": "^5.5.0",
     "webpack": "^5.0.0",
-    "webpack-cli": "^7.0.0"
+    "webpack-cli": "^7.0.0",
+    "webpack-dev-server": "^5.0.0"
   },
   "dependencies": {
     "unplugin-dotnet-wasm": "workspace:*"

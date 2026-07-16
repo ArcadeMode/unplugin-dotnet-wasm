@@ -333,7 +333,7 @@ DotnetAssets({
 | Vite | ✅ Supported | ✅ Supported | ✅ Supported |
 | Rollup | ✅ Supported | ✅ Supported | — |
 | Rolldown | ✅ Supported | ✅ Supported | — |
-| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | — |
+| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | — |
 | Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | — |
 | esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | — |

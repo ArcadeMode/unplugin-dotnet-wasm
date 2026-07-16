@@ -11,10 +11,7 @@ export type ConnectMiddleware = (
   next: NextFn,
 ) => void;
 
-export function createAssetMiddleware(
-  resolver: AssetResolver,
-  logger: Logger,
-): ConnectMiddleware {
+export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): ConnectMiddleware {
   return function dotnetAssetMiddleware(req: IncomingMessage, res: ServerResponse, next: NextFn) {
     const method = req.method ?? 'GET';
     if (method !== 'GET' && method !== 'HEAD') return next();

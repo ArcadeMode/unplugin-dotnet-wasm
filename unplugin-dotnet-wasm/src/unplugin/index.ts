@@ -1,6 +1,7 @@
 import { createUnplugin, type UnpluginContextMeta } from 'unplugin';
 import { readFile } from 'node:fs/promises';
 import { basename, join, parse } from 'node:path';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { DotnetAssetsOptions } from '../types';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
 import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
@@ -120,9 +121,12 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
   }
 
   // ── Webpack family (webpack / rspack / rsbuild) ─────────────────────────
-  // unplugin `load` is unsuitable for this family, it would mistakenly transform the wasm/dat file content.
-  // `asset/resource` module rule via the compiler hook
+  // In build mode: `asset/resource` module rule via the compiler hook handles binaries.
+  // In serve mode: unplugin `load` hook returns the middleware route, and
+  // setupMiddlewares middleware serves runtime-fetched assets.
   if (isWebpackFamily) {
+    isServe = process.env.WEBPACK_SERVE === 'true';
+
     // Force dotnet's binary assets to emit as static files. Scoped to dotnet SDK
     // files so user .wasm files keep their default bundler handling.
     const webpackBinaryRule = {
@@ -138,8 +142,10 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     };
 
     type WebpackLikeOptions = {
+      context?: string;
       resolve?: { fallback?: Record<string, unknown> };
       module?: { rules?: unknown[] };
+      devServer?: Record<string, unknown>;
     };
 
     function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
@@ -152,30 +158,66 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
       }
     }
 
+    function registerDevServerMiddleware(compiler: { options: WebpackLikeOptions }): void {
+      if (!isServe) return;
+
+      compiler.options.devServer ??= {};
+      const devServerConfig = compiler.options.devServer as Record<string, unknown>;
+      const existingSetup = devServerConfig.setupMiddlewares as ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
+
+      devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
+        const assetMiddlewareEntry = {
+          name: 'unplugin-dotnet-wasm',
+          middleware: (req: unknown, res: unknown, next: (err?: unknown) => void): void => {
+            if (!assetResolver) {
+              next();
+              return;
+            }
+            assetMiddleware ??= createAssetMiddleware(assetResolver, logger);
+            (assetMiddleware as ConnectMiddleware)(req as IncomingMessage, res as ServerResponse,
+              next as (err?: unknown) => void
+            );
+          },
+        };
+        (middlewares as unknown[]).unshift(assetMiddlewareEntry);
+
+        if (existingSetup) {
+          return existingSetup(middlewares, devServer);
+        }
+        return middlewares;
+      };
+    }
+
     return {
       ...base,
       webpack(compiler: { options: { context?: string; module?: { rules?: unknown[] } } }) {
-        if (compiler.options.context) consumerRoot = compiler.options.context;
-        compiler.options.module ??= { rules: [] };
-        compiler.options.module.rules ??= [];
-        compiler.options.module.rules.push(webpackBinaryRule, webpackJsParserRule);
-        externalizeNodeBuiltins(compiler.options as WebpackLikeOptions);
+        const opts = compiler.options as WebpackLikeOptions;
+        if (opts.context) consumerRoot = opts.context;
+        opts.module ??= { rules: [] };
+        opts.module.rules ??= [];
+        opts.module.rules.push(webpackBinaryRule, webpackJsParserRule);
+        externalizeNodeBuiltins(opts);
+        registerDevServerMiddleware(compiler as { options: WebpackLikeOptions });
       },
       rspack(compiler: { options: { context?: string; module?: { rules?: unknown[] } } }) {
-        if (compiler.options.context) consumerRoot = compiler.options.context;
-        compiler.options.module ??= { rules: [] };
-        compiler.options.module.rules ??= [];
-        compiler.options.module.rules.push(webpackBinaryRule, webpackJsParserRule);
-        externalizeNodeBuiltins(compiler.options as WebpackLikeOptions);
+        const opts = compiler.options as WebpackLikeOptions;
+        if (opts.context) consumerRoot = opts.context;
+        opts.module ??= { rules: [] };
+        opts.module.rules ??= [];
+        opts.module.rules.push(webpackBinaryRule, webpackJsParserRule);
+        externalizeNodeBuiltins(opts);
+        registerDevServerMiddleware(compiler as { options: WebpackLikeOptions });
       },
       rsbuild: {
-        setup(api: { modifyRspackConfig: (fn: (config: { context?: string; module?: { rules?: unknown[] } }) => void) => void }) {
-          api.modifyRspackConfig(config => {
-            if (config.context) consumerRoot = config.context;
-            config.module ??= { rules: [] };
-            config.module.rules ??= [];
-            config.module.rules.unshift(webpackBinaryRule, webpackJsParserRule);
-            externalizeNodeBuiltins(config as WebpackLikeOptions);
+        setup(api: { modifyRspackConfig: (fn: (config: unknown) => void) => void }) {
+          api.modifyRspackConfig((config: unknown) => {
+            const opts = config as WebpackLikeOptions;
+            if (opts.context) consumerRoot = opts.context;
+            opts.module ??= { rules: [] };
+            opts.module.rules ??= [];
+            opts.module.rules.unshift(webpackBinaryRule, webpackJsParserRule);
+            externalizeNodeBuiltins(opts);
+            registerDevServerMiddleware({ options: opts });
           });
         },
       },
