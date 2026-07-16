@@ -17,7 +17,8 @@ type WebpackLikeOptions = {
 };
 
 export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
-  ctx.isServe = process.env.WEBPACK_SERVE === 'true';
+  // webpack-cli sets WEBPACK_SERVE; @rspack/cli does not, but its argv contains "serve".
+  ctx.isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
 
   const binaryRule = { test: FRAMEWORK_BINARY_REGEX, type: 'asset/resource' };
   const jsParserRule = { test: FRAMEWORK_JS_REGEX, parser: { url: false } };

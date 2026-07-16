@@ -189,7 +189,7 @@ in Parts 4–7). Runs locally (`pnpm test:dev`) and in GitHub Actions.
 
 ---
 
-## Part 4 — Webpack dev server
+## Part 4 — Webpack dev server — ✅ DONE
 
 **Deliverable:** `webpack serve` boots the app (browser), out-of-tree assets served.
 
@@ -209,13 +209,20 @@ in Parts 4–7). Runs locally (`pnpm test:dev`) and in GitHub Actions.
 
 ## Part 5 — Rspack dev server
 
-**Deliverable:** `rspack serve` boots the app.
+**Deliverable:** `rspack serve` boots the app; out-of-tree assets served via the shared middleware.
 
-**Changes:** same as Part 4 via `@rspack/dev-server` (`setupMiddlewares`, shared API); reuse the
-core. Fixture `library-app-rspack` `dev` script + out-of-tree dev config; append `'rspack'` to
-`DEV_SERVER_BUNDLERS`. README matrix: rspack dev ✅.
+**Changes**
+- `webpack-family.ts` serve detection: `@rspack/cli` does **not** set `WEBPACK_SERVE`, so broaden
+  `ctx.isServe` to also cover rspack (e.g. `|| process.argv.includes('serve')`). The existing
+  `registerDevServerMiddleware` then applies unchanged — `@rspack/dev-server` shares
+  webpack-dev-server's `setupMiddlewares` API.
+- Fixture `library-app-rspack`: add `@rspack/dev-server` devDep (required by `rspack serve`, not
+  currently installed); add a `dev` script + a `devServer` block (port 5174).
+- `DEV_SERVER_BUNDLERS` → add `'rspack'`; `playwright.config.ts` `DEV_COMMANDS` → add the rspack dev
+  command; README matrix: rspack dev ✅.
 
-**Verify:** rspack `server` cells green.
+**Verify:** `pnpm test:matrix --e2e --serve-mode=server` now runs vite+webpack+rspack green (CI
+`matrix-dev` picks it up automatically via the `DEV_SERVER_BUNDLERS` filter).
 
 ---
 
@@ -223,9 +230,11 @@ core. Fixture `library-app-rspack` `dev` script + out-of-tree dev config; append
 
 **Deliverable:** `rsbuild dev` boots the app.
 
-**Changes:** register the core via Rsbuild's `dev.setupMiddlewares` (connect). Fixture
-`library-app-rsbuild` `dev` script + out-of-tree dev config; append `'rsbuild'` to
-`DEV_SERVER_BUNDLERS`. README matrix: rsbuild dev ✅.
+**Changes:** register the core via the Rsbuild plugin API — `dev.setupMiddlewares` is **deprecated**
+(use `server.setup` / `api.onBeforeStartDevServer`), so rsbuild needs its own middleware wiring in the
+`rsbuild` hook (not the rspack `devServer.setupMiddlewares` path). Fixture `library-app-rsbuild`
+`dev` script + `server.port` 5174; append `'rsbuild'` to `DEV_SERVER_BUNDLERS`. README matrix:
+rsbuild dev ✅.
 
 **Verify:** rsbuild `server` cells green.
 

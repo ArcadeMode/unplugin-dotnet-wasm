@@ -44,6 +44,12 @@ export default (env, argv) => {
         logLevel: 'info',
       }),
     ],
+    devServer: {
+      port: 5174,
+      static: false,
+      historyApiFallback: true,
+      hot: false,
+    },
   };
 };
 

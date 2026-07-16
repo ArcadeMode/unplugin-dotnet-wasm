@@ -334,7 +334,7 @@ DotnetAssets({
 | Rollup | ✅ Supported | ✅ Supported | — |
 | Rolldown | ✅ Supported | ✅ Supported | — |
 | Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
-| Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | — |
+| Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | — |
 | esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | — |
 | Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | — |

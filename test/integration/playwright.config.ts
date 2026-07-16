@@ -15,6 +15,7 @@ const prod = BUILD_MODE === 'publish' ? ' --mode production' : '';
 const DEV_COMMANDS = {
   vite:    `pnpm --dir "${FIXTURE}" exec vite --port 5174 --strictPort${prod}`,
   webpack: `pnpm --dir "${FIXTURE}" exec webpack serve --config webpack.config.mjs --port 5174${prod}`,
+  rspack:  `pnpm --dir "${FIXTURE}" exec rspack serve --config rspack.config.mjs --port 5174${prod}`,
 };
 
 export default defineConfig({
