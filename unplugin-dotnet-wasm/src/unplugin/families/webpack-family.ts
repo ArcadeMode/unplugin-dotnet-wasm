@@ -6,7 +6,20 @@ import type { PluginContext } from '../context';
 export interface WebpackFamilyHooks {
   webpack(compiler: { options: { context?: string; module?: { rules?: unknown[] } } }): void;
   rspack(compiler: { options: { context?: string; module?: { rules?: unknown[] } } }): void;
-  rsbuild: { setup(api: { modifyRspackConfig(fn: (config: unknown) => void): void }): void };
+  rsbuild: {
+    setup(api: {
+      modifyRspackConfig(fn: (config: unknown) => void): void;
+      onBeforeStartDevServer(
+        fn: (ctx: {
+          server: {
+            middlewares: {
+              use(handler: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => void): void;
+            };
+          };
+        }) => void
+      ): void;
+    }): void;
+  };
 }
 
 type WebpackLikeOptions = {
@@ -75,6 +88,18 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   return {
     webpack: (compiler: { options: { context?: string; module?: { rules?: unknown[] } } }) => applyBuildConfig(compiler.options),
     rspack:  (compiler: { options: { context?: string; module?: { rules?: unknown[] } } }) => applyBuildConfig(compiler.options),
-    rsbuild: { setup: api => api.modifyRspackConfig(config => applyBuildConfig(config, { prepend: true })) },
+    rsbuild: {
+      setup(api) {
+        api.modifyRspackConfig(config => applyBuildConfig(config, { prepend: true }));
+        // rsbuild runs its own dev server attach the shared middleware to its Connect server.
+        api.onBeforeStartDevServer(({ server }) => {
+          server.middlewares.use((req, res, next) => {
+            if (!ctx.assetResolver) { next(); return; }
+            ctx.assetMiddleware ??= createAssetMiddleware(ctx.assetResolver, ctx.logger);
+            ctx.assetMiddleware(req, res, next);
+          });
+        });
+      },
+    },
   };
 }

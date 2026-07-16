@@ -19,6 +19,9 @@ export default defineConfig(({ envMode }) => {
     filenameHash: true,
     minify: false,
   },
+  server: {
+    port: 5174,
+  },
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),

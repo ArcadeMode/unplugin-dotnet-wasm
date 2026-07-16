@@ -14,7 +14,7 @@ export const BUNDLERS_SUPPORT = {
 
 export const SERVE_MODES = ['dist', 'server'];
 // Bundlers whose dev server + middleware are wired for serve=server. Append per Parts 4–7.
-export const DEV_SERVER_BUNDLERS = ['vite', 'webpack', 'rspack'];
+export const DEV_SERVER_BUNDLERS = ['vite', 'webpack', 'rspack', 'rsbuild'];
 
 const FINGERPRINT_MAP = { true: 'fingerprint', false: 'nofingerprint' };
 
