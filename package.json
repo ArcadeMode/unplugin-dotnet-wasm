@@ -18,6 +18,7 @@
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
     "test:unit": "pnpm --filter unplugin-dotnet-wasm test",
     "test:matrix": "node test/integration/run-test-matrix.mjs",
+    "test:dev": "pnpm build:plugin && pnpm build:library:fingerprint && pnpm test:matrix --e2e --serve-mode=server --bundler=vite --platform=browser --fingerprint=true --build-mode=debug",
     "test:debug-fingerprint": "node scripts/run-tests.mjs debug-fingerprint",
     "test:debug-nofingerprint": "node scripts/run-tests.mjs debug-nofingerprint",
     "test:publish-fingerprint": "node scripts/run-tests.mjs publish-fingerprint",

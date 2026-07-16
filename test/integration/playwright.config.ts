@@ -1,13 +1,15 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { readBundler, readFingerprint, readBuildMode } from './test-matrix-parameters';
+import { readBundler, readFingerprint, readBuildMode, readServeMode } from './test-matrix-parameters';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const BUNDLER = readBundler();
-const DIST_DIR = process.env.DIST_DIR
-  ?? resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}/dist`);
-const configName = `e2e-playwright-${BUNDLER}-browser-${readFingerprint()}-${readBuildMode()}-${process.platform}`;
+const SERVE_MODE = readServeMode();
+const BUILD_MODE = readBuildMode();
+const FIXTURE = resolve(__dirname, `../fixtures/browser/library-app-${BUNDLER}`);
+const DIST_DIR = process.env.DIST_DIR ?? resolve(FIXTURE, 'dist');
+const configName = `e2e-playwright-${BUNDLER}-browser-${SERVE_MODE}-${readFingerprint()}-${BUILD_MODE}-${process.platform}`;
 
 export default defineConfig({
   testDir: 'tests',
@@ -25,10 +27,17 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
-  webServer: {
-    command: `pnpm exec sirv "${DIST_DIR}" --port 5174 --single`,
-    url: 'http://localhost:5174',
-    reuseExistingServer: true,
-    timeout: 30_000,
-  },
+  webServer: SERVE_MODE === 'server'
+    ? {
+        command: `pnpm --dir "${FIXTURE}" exec vite --port 5174 --strictPort${BUILD_MODE === 'publish' ? ' --mode production' : ''}`,
+        url: 'http://localhost:5174',
+        reuseExistingServer: false,
+        timeout: 30_000,
+      }
+    : {
+        command: `pnpm exec sirv "${DIST_DIR}" --port 5174 --single`,
+        url: 'http://localhost:5174',
+        reuseExistingServer: true,
+        timeout: 30_000,
+      },
 });

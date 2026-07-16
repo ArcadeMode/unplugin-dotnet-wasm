@@ -12,6 +12,10 @@ export const BUNDLERS_SUPPORT = {
   browser: ['vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun'],
 };
 
+export const SERVE_MODES = ['dist', 'server'];
+// Bundlers whose dev server + middleware are wired for serve=server. Append per Parts 4–7.
+export const DEV_SERVER_BUNDLERS = ['vite'];
+
 const FINGERPRINT_MAP = { true: 'fingerprint', false: 'nofingerprint' };
 
 export function resolveBin(pkgName, binName = pkgName) {
@@ -30,6 +34,7 @@ export function parseMatrixArgs() {
     'build-mode': { type: 'string' },
     bundler:      { type: 'string' },
     platform:     { type: 'string' },
+    'serve-mode': { type: 'string' },
   };
   const { values } = parseArgs({ options, allowPositionals: true });
 
@@ -47,6 +52,12 @@ export function parseMatrixArgs() {
     process.exit(1);
   }
 
+  const serveMode = values['serve-mode'] ?? 'dist';
+  if (!SERVE_MODES.includes(serveMode)) {
+    console.error(`ERROR: --serve-mode must be one of: ${SERVE_MODES.join(', ')}`);
+    process.exit(1);
+  }
+
   const runIntegration = values.integration || (!values.integration && !values.e2e);
   const runE2e         = values.e2e         || (!values.integration && !values.e2e);
 
@@ -60,16 +71,17 @@ export function parseMatrixArgs() {
     platforms:   values.platform ? [values.platform] : PLATFORMS,
     fingerprint: FINGERPRINT_MAP[values.fingerprint],
     buildMode,
+    serveMode,
     runIntegration,
     runE2e,
   };
 }
 
-/** @returns {Array<{ type, bundler, platform, fingerprint, buildMode }>} */
-export function buildConfigs({ bundlers, platforms, fingerprint, buildMode, runIntegration, runE2e }) {
+/** @returns {Array<{ type, bundler, platform, fingerprint, buildMode, serveMode }>} */
+export function buildConfigs({ bundlers, platforms, fingerprint, buildMode, serveMode, runIntegration, runE2e }) {
   const configs = [];
   const push = type => bundlers.forEach(b => platforms.forEach(p =>
-    configs.push({ type, bundler: b, platform: p, fingerprint, buildMode })
+    configs.push({ type, bundler: b, platform: p, fingerprint, buildMode, serveMode })
   ));
   if (runIntegration) push('integration');
   if (runE2e) push('e2e');
@@ -80,9 +92,13 @@ export function buildConfigs({ bundlers, platforms, fingerprint, buildMode, runI
  * @returns {{ config: string, type: string, status: 'passed'|'failed'|'skipped', exitCode: number|null }}
  */
 export function runConfig(config, { cwd, vitestBin, index, total }) {
-  const configName = `${config.bundler}-${config.platform}-${config.fingerprint}-${config.buildMode}`;
+  const configName = `${config.bundler}-${config.platform}-${config.serveMode}-${config.fingerprint}-${config.buildMode}`;
 
-  if (!BUNDLERS_SUPPORT[config.platform].includes(config.bundler)) {
+  const serverIllegal = config.serveMode === 'server' && (
+    config.type !== 'e2e' || config.platform !== 'browser' ||
+    !DEV_SERVER_BUNDLERS.includes(config.bundler) || config.buildMode === 'none'
+  );
+  if (serverIllegal || !BUNDLERS_SUPPORT[config.platform].includes(config.bundler)) {
     return { config: configName, type: config.type, status: 'skipped', exitCode: null };
   }
 
@@ -94,6 +110,7 @@ export function runConfig(config, { cwd, vitestBin, index, total }) {
     PLATFORM:           config.platform,
     DOTNET_FINGERPRINT: config.fingerprint,
     DOTNET_BUILD_MODE:  config.buildMode,
+    SERVE_MODE:         config.serveMode,
   };
 
   const [cmd, cmdArgs, opts] = config.type === 'integration'

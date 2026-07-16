@@ -86,9 +86,9 @@ out-of-tree statically-imported `_content` modules resolve via clamp-normalisati
 **Verified:** `pnpm build:plugin`, `pnpm test:unit`, plugin `typecheck`/`lint` green; manual in-tree
 `vite dev` boot; out-of-tree `_content` initializer resolves+loads in `vite dev` (Part 2 experiment).
 
-**Still open (deferred):** `config.base` prefixing (default `/` only); an automated e2e for the
-out-of-tree `_framework` middleware path (trigger #1) — currently covered by unit tests + the manual
-`C:\` spike.
+**Still open:** `config.base` prefixing (default `/` only, deferred). The automated e2e for the
+out-of-tree `_framework` middleware path (trigger #1) is **Part 3** (was covered only by unit tests +
+the manual `C:\` spike).
 
 ---
 
@@ -123,7 +123,7 @@ ever preferred.)
   window.blazorApplicationInsights !== null`, before `window.__libReady = true`.
 - `test/integration/tests/runtime.spec.ts` — declare `__contentAssetOk` on the global; add a test
   asserting it is `true` (covered by the existing browser/build-mode `beforeAll` skips).
-- **No dev-server dimension added to the test matrix yet.**
+- **No dev-server dimension added to the test matrix here** — the `serve-mode` axis lands in **Part 3**.
 
 **Verify**
 - `pnpm test:debug-fingerprint` and `pnpm test:debug-nofingerprint` green (clean → build plugin →
@@ -133,13 +133,63 @@ ever preferred.)
 - Watch the integration tests (`build.test.ts`, `publish.test.ts`, `type-shims.test.ts`) for
   assumptions broken by the extra dependency (asset counts / emitted files); adjust if needed.
 
-**Deferred (guards the *middleware*, which this fixture does not exercise):** a dev-server e2e
-(launch `vite`/bundler dev instead of `sirv`) and an automated out-of-tree `_framework` guard
-(trigger #1). Tracked as a later part.
+**Covered elsewhere (guards the *middleware*, which this fixture does not exercise):** the dev-server
+e2e (launch the bundler dev server instead of `sirv`) and the out-of-tree `_framework` guard
+(trigger #1) are **Part 3**.
 
 ---
 
-## Part 3 — Webpack dev server
+## Part 3 — Dev-server test dimension (`serve-mode` axis) + CI
+
+**Deliverable:** an explicit `serve-mode` matrix axis that boots the app through the plugin's **serve**
+branch (bundler dev server + middleware) instead of `sirv`. Vite only to start (extended per bundler
+in Parts 4–7). Runs locally (`pnpm test:dev`) and in GitHub Actions.
+
+**Design**
+- New axis `serve-mode ∈ {dist, server}`, **orthogonal to `build-mode`**. `dist` = today's behaviour
+  (bundle → `dist/` → `sirv`), the default. `server` = launch the bundler dev server; exercises
+  `isServe` / `configureServer` / serve-mode `load` / `createAssetMiddleware`.
+- `server` legal cells: `bundler ∈ DEV_SERVER_BUNDLERS` (`['vite']` now; append per Part 4–7,
+  mirrors `BUNDLERS_SUPPORT`), `platform = browser`, `build-mode ∈ {debug, publish}` (never `none`).
+  Node has no dev server — the serve branch is HTTP/browser-only, so `server × node` is illegal.
+- **Out-of-tree is already covered — no staging needed.** The Part 2 fixture pulls
+  `BlazorApplicationInsights` from the NuGet cache (`%USERPROFILE%\.nuget\…`, outside the bundler's
+  fs-allow root), contributing both an out-of-tree `_content` JS initializer (resolver path) and an
+  out-of-tree `_framework/BlazorApplicationInsights.wasm` the runtime fetches at boot (middleware
+  path). Under `sirv` these were copied into `dist`; under the dev server they stay in the cache, so
+  booting through `server` forces both paths. The change is simply *launch the dev server instead of
+  `sirv`* and reuse the existing assertions.
+- **Deliverable now: 4 cells** — `server × vite × browser × {debug, publish} × {fingerprint,
+  nofingerprint}`.
+
+**Changes**
+- `test/integration/matrix-lib.mjs` — add `SERVE_MODES` + `DEV_SERVER_BUNDLERS`; `--serve-mode` arg;
+  `buildConfigs` fans out serve-mode; `runConfig` skip rule (bundler/platform/build-mode legality) +
+  `SERVE_MODE` env; `configName` includes serve-mode.
+- `test/integration/test-matrix-parameters.ts` — `readServeMode()` + `ServeMode` type (defaults to
+  `dist`, so existing runs are untouched).
+- `test/integration/playwright.config.ts` — `webServer.command` = `sirv` (`dist`) vs the vite dev
+  server (`server`), mode-matched to `build-mode`; `reuseExistingServer:false` and a **30 s** timeout
+  for `server`; `configName` includes serve-mode.
+- `test/integration/global-setup.ts` — skip the `dist/` existence guard for `server`.
+- `test/fixtures/browser/library-app-vite/package.json` — add a `dev` script.
+- `test/integration/tests/runtime.spec.ts` — **reused unchanged**: boot + interop + `__contentAssetOk`
+  already fail if the dev middleware or resolver regress.
+- `package.json` — `test:dev` script.
+- `.github/workflows/validate.yml` — new `matrix-dev` job (vite × browser × {debug,publish} ×
+  {fingerprint,nofingerprint}) on ubuntu + windows; builds the **library** (not fixtures); Playwright
+  chromium; feeds the `results` job.
+
+**Verify**
+- `pnpm test:dev` green: vite boots via its dev server; interop + out-of-tree `__contentAssetOk`
+  pass.
+- Regression: force the serve-mode `load` to emit the build placeholder → runtime falls back to
+  `/@fs/` → the out-of-tree fetch fails → boot / `__contentAssetOk` fail.
+- CI `matrix-dev` green on ubuntu-latest + windows-latest.
+
+---
+
+## Part 4 — Webpack dev server
 
 **Deliverable:** `webpack serve` boots the app (browser), out-of-tree assets served.
 
@@ -148,49 +198,53 @@ ever preferred.)
   via `webpack-dev-server` `devServer.setupMiddlewares` (prepend). Detect serve mode from the
   dev-server invocation. Apply the same serve-mode `load`/asset-URL handling as Vite adapted to the
   webpack `asset/resource` path (the runtime must fetch the middleware route in dev).
-- Fixture `test/fixtures/browser/library-app-webpack`: add `dev` script + dev e2e (reuse Part 2
-  fixture + assertions).
+- Fixture `test/fixtures/browser/library-app-webpack`: add `dev` script + out-of-tree dev config;
+  append `'webpack'` to `DEV_SERVER_BUNDLERS` (the Part 3 harness runs its `server` cells).
 - README matrix: webpack dev ✅.
 
-**Verify:** webpack dev e2e (in-tree boot + out-of-tree `_content` asset). Build path unchanged.
+**Verify:** webpack `server` cells green via the Part 3 harness (in-tree boot + out-of-tree
+`_framework` middleware). Build path unchanged.
 
 ---
 
-## Part 4 — Rspack dev server
+## Part 5 — Rspack dev server
 
 **Deliverable:** `rspack serve` boots the app.
 
-**Changes:** same as Part 3 via `@rspack/dev-server` (`setupMiddlewares`, shared API); reuse the
-core. Fixture `library-app-rspack` `dev` script + dev e2e. README matrix: rspack dev ✅.
+**Changes:** same as Part 4 via `@rspack/dev-server` (`setupMiddlewares`, shared API); reuse the
+core. Fixture `library-app-rspack` `dev` script + out-of-tree dev config; append `'rspack'` to
+`DEV_SERVER_BUNDLERS`. README matrix: rspack dev ✅.
 
-**Verify:** rspack dev e2e green.
+**Verify:** rspack `server` cells green.
 
 ---
 
-## Part 5 — Rsbuild dev server
+## Part 6 — Rsbuild dev server
 
 **Deliverable:** `rsbuild dev` boots the app.
 
 **Changes:** register the core via Rsbuild's `dev.setupMiddlewares` (connect). Fixture
-`library-app-rsbuild` `dev` script + dev e2e. README matrix: rsbuild dev ✅.
+`library-app-rsbuild` `dev` script + out-of-tree dev config; append `'rsbuild'` to
+`DEV_SERVER_BUNDLERS`. README matrix: rsbuild dev ✅.
 
-**Verify:** rsbuild dev e2e green.
+**Verify:** rsbuild `server` cells green.
 
 ---
 
-## Part 6 — Farm dev server
+## Part 7 — Farm dev server
 
 **Deliverable:** `farm dev` boots the app.
 
 **Changes:** add a thin Koa `(ctx, next)` adapter wrapping `createAssetMiddleware` (Farm's dev server
 is Koa-based); register via Farm's dev-server hook (`configureDevServer` / `server.middleware`).
-Fixture `library-app-farm` `dev` script + dev e2e. README matrix: farm dev ✅.
+Fixture `library-app-farm` `dev` script + out-of-tree dev config; append `'farm'` to
+`DEV_SERVER_BUNDLERS`. README matrix: farm dev ✅.
 
-**Verify:** farm dev e2e green.
+**Verify:** farm `server` cells green.
 
 ---
 
-## Part 7 — Docs & matrix finalisation
+## Part 8 — Docs & matrix finalisation
 
 **Deliverable:** documentation reflects dev-server support.
 
@@ -234,7 +288,10 @@ Fixture `library-app-farm` `dev` script + dev e2e. README matrix: farm dev ✅.
 - `unplugin-dotnet-wasm/src/unplugin/index.ts` (per-bundler dev registration)
 - `Directory.Packages.props`, `test/fixtures/Library/Library.csproj` (NuGet dep, Part 2)
 - `test/fixtures/browser/library-app-<bundler>/src/entry.ts` (`__contentAssetOk` assertion; later: `dev` script)
-- `test/integration/tests/runtime.spec.ts` (Part 2 assertion); `test/integration/` (later: dev Playwright config + matrix dev variant)
+- `test/integration/tests/runtime.spec.ts` (Part 2 assertion; reused as-is for Part 3 `server` cells)
+- `test/integration/{matrix-lib.mjs,test-matrix-parameters.ts,playwright.config.ts,global-setup.ts}` (Part 3 `serve-mode` axis)
+- `test/fixtures/browser/library-app-<bundler>/package.json` (`dev` script, Part 3+)
+- `.github/workflows/validate.yml` (Part 3 `matrix-dev` job); `package.json` (`test:dev` script)
 - `unplugin-dotnet-wasm/README.md`, `docs/architecture.md`
 
 ## Limitations & follow-ups
