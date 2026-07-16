@@ -201,7 +201,7 @@ jobs:
           fi
 
       - name: Run dev-server e2e
-        run: pnpm test:matrix --e2e --serve-mode=server --bundler=vite --platform=browser --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+        run: pnpm test:matrix --e2e --serve-mode=server --platform=browser --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
       - uses: actions/upload-artifact@v7
         if: always()
