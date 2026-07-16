@@ -22,7 +22,7 @@ export interface EsbuildFamilyHooks {
 export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
   const setup = (build: EsbuildBuild) => {
     if (build.initialOptions.absWorkingDir) {
-      ctx.consumerRoot = build.initialOptions.absWorkingDir;
+      ctx.setConsumerRoot(build.initialOptions.absWorkingDir);
     }
 
     build.initialOptions.external ??= [];
@@ -40,7 +40,6 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
     }
 
     build.onResolve({ filter: /.*/ }, args => {
-      if (!ctx.assetResolver) return null;
       const resolved = ctx.assetResolver.resolve(args.path);
       return resolved !== null ? { path: resolved } : null;
     });

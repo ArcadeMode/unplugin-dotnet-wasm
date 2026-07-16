@@ -23,7 +23,6 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
 
   return {
     resolveId(source: string): string | null {
-      if (!ctx.assetResolver) return null;
       const resolved = ctx.assetResolver.resolve(source);
       if (resolved === null) return null;
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
@@ -44,7 +43,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
     },
     farm: {
       config(userConfig: FarmConfig): Record<string, never> {
-        if (userConfig.root) ctx.consumerRoot = userConfig.root;
+        if (userConfig.root) ctx.setConsumerRoot(userConfig.root);
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree = targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;

@@ -1,13 +1,12 @@
 import { existsSync } from 'node:fs';
-import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
 import type { SourceFileChangeTracker } from './source-file-change-tracker';
 import type { TsDefinitionEmitter } from './ts-definition-emitter';
 import { IdempotentFileWriter } from './idempotent-file-writer';
-import { NodeModulesLocator } from './node-modules-locator';
+import type { NodeModulesLocator } from './node-modules-locator';
 import { PackageCollisionChecker, type CollisionSentinelFile } from './package-collision-checker';
 import { ShimPackage } from './shim-package';
-import { FileDiscoverer, type DiscoveryGroup } from './file-discoverer';
+import type { FileDiscoverer, DiscoveryGroup } from './file-discoverer';
 
 const TYPESHIM_SENTINEL: CollisionSentinelFile = {
   name: '.dotnet-wasm-typeshim',
@@ -19,23 +18,16 @@ const TYPESHIM_SENTINEL: CollisionSentinelFile = {
  * tsserver/`tsc` resolve the plugin's virtual imports with full types.
  */
 export class ShimPackageGenerator {
-  private locator: NodeModulesLocator;
-  private writer: IdempotentFileWriter;
-  private collisionChecker: PackageCollisionChecker;
-  private discoverer: FileDiscoverer;
+  private readonly writer = new IdempotentFileWriter();
+  private readonly collisionChecker = new PackageCollisionChecker(this.writer, TYPESHIM_SENTINEL);
 
   constructor(
-    root: string,
-    resolver: AssetResolver,
+    private readonly locator: NodeModulesLocator,
+    private readonly discoverer: FileDiscoverer,
     private readonly changeTracker: SourceFileChangeTracker,
     private readonly emitter: TsDefinitionEmitter,
     private readonly logger: Logger,
-  ) {
-    this.locator = new NodeModulesLocator(root);
-    this.writer = new IdempotentFileWriter();
-    this.collisionChecker = new PackageCollisionChecker(this.writer, TYPESHIM_SENTINEL);
-    this.discoverer = new FileDiscoverer(resolver, logger);
-  }
+  ) {}
 
   /** Idempotent: safe to call on every build. */
   async generate(): Promise<void> {
