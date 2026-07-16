@@ -21,15 +21,16 @@ export interface EsbuildFamilyHooks {
 
 export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
   const setup = (build: EsbuildBuild) => {
-    // Capture the consumer root for type-shim generation (buildStart fires after setup).
-    if (build.initialOptions.absWorkingDir) ctx.consumerRoot = build.initialOptions.absWorkingDir;
-    // Register Node built-ins as external so esbuild doesn't try to bundle them.
+    if (build.initialOptions.absWorkingDir) {
+      ctx.consumerRoot = build.initialOptions.absWorkingDir;
+    }
     build.initialOptions.external ??= [];
     for (const mod of DOTNET_NODE_BUILTINS) {
+      // node builtins must be external to build, add whichever the user doesnt have in config
       if (!build.initialOptions.external.includes(mod))
         build.initialOptions.external.push(mod);
     }
-    // Register 'file' loader for binary extensions unless the user already set one.
+
     build.initialOptions.loader ??= {};
     for (const binExt of BINARY_EXTENSIONS) {
       if (!build.initialOptions.loader[binExt]) {

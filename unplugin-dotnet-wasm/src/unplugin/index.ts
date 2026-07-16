@@ -82,40 +82,17 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     },
   };
 
-  // ── Rollup family (rollup / vite / rolldown) ────────────────────────────
-  // Emit binary assets via Rollup's native asset API; the ROLLUP_FILE_URL_*
-  // placeholder is rewritten to the final hashed URL at bundle time.
   if (isRollupFamily) {
     return { ...base, ...createRollupFamily(ctx) };
   }
 
-  // ── Webpack family (webpack / rspack / rsbuild) ─────────────────────────
-  // Build mode: `asset/resource` module rule via the compiler hook handles binaries.
-  // Serve mode: no `load` route rewrite; the connect middleware registered via the dev
-  // server's `setupMiddlewares` serves runtime-fetched out-of-tree assets.
   if (isWebpackFamily) {
     return { ...base, ...createWebpackFamily(ctx) };
   }
 
-  // ── esbuild family (esbuild / bun) ──────────────────────────────────────
-  // Skip unplugin's resolveId bridge on this family — it places the resolved
-  // path in a plugin-scoped namespace, bypassing the bundler's native
-  // extension-loader mapping (.wasm → file). Register onResolve directly
-  // inside the framework hook so files land in the default namespace where
-  // esbuild/bun's loaders take over. Both hooks use the object shape
-  // { setup(build) {} } in unplugin 3.x (not bare functions).
   if (isEsbuildFamily) {
     return { name: base.name, enforce: base.enforce, buildStart: base.buildStart, ...createEsbuildFamily(ctx) };
   }
 
-  // ── Farm ────────────────────────────────────────────────────────────────
-  // resolveId is sufficient; Farm marks binary extensions as emittable assets
-  // via `compilation.assets.include` in the farm config (user responsibility,
-  // not a plugin hook). Example: include: ['wasm', 'dat', 'pdb'].
-  //
-  // Farm defaults `output.targetEnv` to `'browser-es2017'`, which enables SWC
-  // preset-env polyfill injection and requires `core-js` to be installed.
-  // The dotnet WASM runtime needs modern JS anyway, so warn users pointing at
-  // a non-modern target — usually they want `'browser-esnext'`.
   return { ...base, ...createFarmFamily(ctx) };
 });

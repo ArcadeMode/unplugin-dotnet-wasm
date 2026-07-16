@@ -32,8 +32,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       }
       return resolved;
     },
-    // Gate `load` to our synthetic ids only: Farm's unplugin adapter has no
-    // null-guard and would call getContentValue(null) for every other module.
+    // only fire `load` for our content aliases
     loadInclude(id: string): boolean {
       return id.includes(FARM_CONTENT_DIR);
     },

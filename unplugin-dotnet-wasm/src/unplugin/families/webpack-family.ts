@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createAssetMiddleware, type ConnectMiddleware } from '../../core/dev-server/asset-middleware';
+import { createAssetMiddleware } from '../../core/dev-server/asset-middleware';
 import { FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../../core/constants';
 import type { PluginContext } from '../context';
 
@@ -42,18 +42,16 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
       const assetMiddlewareEntry = {
         name: 'unplugin-dotnet-wasm',
-        middleware: (req: unknown, res: unknown, next: (err?: unknown) => void): void => {
+        middleware: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void): void => {
           if (!ctx.assetResolver) {
             next();
             return;
           }
           ctx.assetMiddleware ??= createAssetMiddleware(ctx.assetResolver, ctx.logger);
-          (ctx.assetMiddleware as ConnectMiddleware)(req as IncomingMessage, res as ServerResponse,
-            next as (err?: unknown) => void
-          );
+          ctx.assetMiddleware(req, res, next);
         },
       };
-      (middlewares as unknown[]).unshift(assetMiddlewareEntry);
+      middlewares.unshift(assetMiddlewareEntry);
 
       if (existingSetup) {
         return existingSetup(middlewares, devServer);

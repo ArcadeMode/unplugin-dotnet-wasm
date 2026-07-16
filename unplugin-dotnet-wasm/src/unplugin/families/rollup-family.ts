@@ -38,14 +38,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
     load: {
       filter: { id: BINARY_EXTENSIONS_REGEX },
       async handler(this: { emitFile(options: { type: string; name: string; source: Buffer }): string }, id: string): Promise<string> {
-        // Dev/serve: return an explicit middleware route so the dotnet runtime
-        // fetches our handler (independent of scriptDirectory) instead of
-        // falling back to Vite's /@fs/ static handler.
         if (ctx.isServe) {
+          // serve directly instead of falling back to default /@fs/ 
           return `export default ${JSON.stringify('/_framework/' + basename(id))};`;
         }
-        // Build: emit via Rollup's asset API; the placeholder is rewritten to
-        // the final hashed URL at bundle time.
         const source = await readFile(id);
         const refId = this.emitFile({ type: 'asset', name: basename(id), source });
         return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
