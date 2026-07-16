@@ -71,10 +71,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     const existingSetup = devServerConfig.setupMiddlewares as ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
 
     devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
+      ctx.enableAssetMiddleware();
       const assetMiddlewareEntry = {
         name: 'unplugin-dotnet-wasm',
         middleware: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void): void => {
-          ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
         },
       };
