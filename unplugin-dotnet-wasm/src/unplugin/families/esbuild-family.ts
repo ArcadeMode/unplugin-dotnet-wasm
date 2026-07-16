@@ -24,6 +24,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
     if (build.initialOptions.absWorkingDir) {
       ctx.consumerRoot = build.initialOptions.absWorkingDir;
     }
+
     build.initialOptions.external ??= [];
     for (const mod of DOTNET_NODE_BUILTINS) {
       // node builtins must be external to build, add whichever the user doesnt have in config
@@ -37,13 +38,17 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
         build.initialOptions.loader[binExt] = 'file';
       }
     }
+
     build.onResolve({ filter: /.*/ }, args => {
       if (!ctx.assetResolver) return null;
       const resolved = ctx.assetResolver.resolve(args.path);
       return resolved !== null ? { path: resolved } : null;
     });
+
     build.onLoad({ filter: /\.js$/ }, async args => {
       if (!FRAMEWORK_JS_REGEX.test(args.path)) return null;
+      // dotnet SDK js files contain some warning-producing statements, 
+      // we rewrite them to silence the warnings end users cannot resolve anyway.
       const source = await readFile(args.path, 'utf-8');
       const fixed = ctx.rewriter.rewrite(source);
       if (!fixed) return null;

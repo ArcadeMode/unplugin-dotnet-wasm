@@ -75,6 +75,8 @@ export const dotnetStaticAssets = createUnplugin((options: DotnetAssetsOptions, 
     transform: {
       filter: { id: FRAMEWORK_JS_REGEX },
       handler(code: string): { code: string; map: null } | null {
+        // dotnet SDK js files contain some warning-producing statements, 
+        // we rewrite them to silence the warnings end users cannot resolve anyway.
         const fixed = ctx.rewriter.rewrite(code);
         if (fixed == null) return null;
         return { code: fixed, map: null };

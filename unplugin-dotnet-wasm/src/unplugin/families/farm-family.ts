@@ -27,6 +27,8 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       const resolved = ctx.assetResolver.resolve(source);
       if (resolved === null) return null;
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
+        // files are being served from another root (e.g. C:\ while project is on D:\)
+        // farm no likey, return alias which we will resolve in `load`
         farmContentAliases.set(basename(resolved), resolved);
         return join(ctx.consumerRoot, FARM_CONTENT_DIR, basename(resolved));
       }
