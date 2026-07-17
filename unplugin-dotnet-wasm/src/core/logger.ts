@@ -17,7 +17,7 @@ const LEVEL_RANK: Record<LogLevel, number> = {
 
 export function createConsoleLogger(
   level: LogLevel = 'warn',
-  prefix = '[dotnet-static-assets]',
+  prefix = '[unplugin-dotnet-wasm]',
 ): Logger {
   const rank = LEVEL_RANK[level];
   return {
