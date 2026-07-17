@@ -29,8 +29,8 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       configureServer(server: {
         middlewares: { use: (fn: ConnectMiddleware) => void };
       }): void {
-        ctx.enableAssetMiddleware();
         server.middlewares.use((req, res, next) => {
+          ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
         });
       },
