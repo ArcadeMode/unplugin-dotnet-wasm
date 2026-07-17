@@ -92,7 +92,7 @@ the manual `C:\` spike).
 
 ---
 
-## Part 2 — Out-of-tree NuGet asset regression fixture (BlazorApplicationInsights)
+## Part 2 — Out-of-tree NuGet asset regression fixture (BlazorApplicationInsights) — ✅ DONE
 
 **What the experiment changed:** the NuGet `_content` JS asset is a **static import** baked into
 `dotnet.js` (bundler-friendly boot), so it is handled by the **shared resolver clamp-normalisation**
@@ -139,7 +139,7 @@ e2e (launch the bundler dev server instead of `sirv`) and the out-of-tree `_fram
 
 ---
 
-## Part 3 — Dev-server test dimension (`serve-mode` axis) + CI
+## Part 3 — Dev-server test dimension (`serve-mode` axis) + CI — ✅ DONE
 
 **Deliverable:** an explicit `serve-mode` matrix axis that boots the app through the plugin's **serve**
 branch (bundler dev server + middleware) instead of `sirv`. Vite only to start (extended per bundler
@@ -207,7 +207,7 @@ in Parts 4–7). Runs locally (`pnpm test:dev`) and in GitHub Actions.
 
 ---
 
-## Part 5 — Rspack dev server
+## Part 5 — Rspack dev server — ✅ DONE
 
 **Deliverable:** `rspack serve` boots the app; out-of-tree assets served via the shared middleware.
 
@@ -226,7 +226,7 @@ in Parts 4–7). Runs locally (`pnpm test:dev`) and in GitHub Actions.
 
 ---
 
-## Part 6 — Rsbuild dev server
+## Part 6 — Rsbuild dev server — ✅ DONE
 
 **Deliverable:** `rsbuild dev` boots the app.
 
@@ -276,6 +276,66 @@ Fixture `library-app-farm` `dev` script + out-of-tree dev config; append `'farm'
 
 ---
 
+## Part 9 — Bun dev server (investigation) — 🔬 SPIKE FIRST
+
+**Status of the original exclusion:** the plan first excluded Bun as *"no integrated bundler dev
+server"*. That rationale is **outdated** — Bun 1.3 shipped a full-stack dev server (`Bun.serve()`
+with HTML entrypoints, on-demand bundling, HMR). Bun is therefore a *candidate*, but it does **not**
+fit the Parts 1/4–7 model, so it gets its own investigation part rather than a straight fixture add.
+
+**Why Bun is different from the other five.** Vite/webpack/rspack/rsbuild/Farm are all
+**bundler-owned** dev servers: the bundler drives the server and the unplugin plugin injects a
+`(req,res,next)`/Koa middleware through the bundler's config (`configureServer`,
+`setupMiddlewares`, `onBeforeStartDevServer`, `configureDevServer`). Bun's dev server is
+**application-owned**: the server *is* the user's own `Bun.serve({ … })` call (`bun run server.ts` /
+`bun ./index.html`), configured in app code. Confirmed against Bun docs:
+- **Bundler plugins run in serve** — configured via `bunfig.toml` `[serve.static].plugins`. unplugin's
+  Bun adapter (`getBunPlugin`, Bun ≥ 1.2.22) returns a standard `BunPlugin`, so `onResolve`/`onLoad`/
+  transform hooks (the esbuild-family path) apply in dev.
+- **The only request-interception point is `Bun.serve`'s `fetch` fallback** — which lives in **user
+  code**, not anything a bundler plugin can register. So the plugin has **no auto-injection point**
+  for `createAssetMiddleware`, unlike every other bundler.
+
+**Feasibility by asset path (maps to the Context section's three mechanisms):**
+- **Statically-imported out-of-tree `_content` modules** (resolver clamp-normalisation, Design §1) —
+  ✅ expected to work for free via the bun plugin's `onResolve` in `[serve.static].plugins`; no
+  middleware. Same code path as build.
+- **In-tree `_framework` assets** (runtime `locateFile` fallback) — ⚠️ **unknown**; depends on whether
+  Bun serves the runtime-fetched `_framework/*` at the URLs the dotnet runtime expects (Vite's
+  "happy path" equivalent). **This is what the spike measures.**
+- **Runtime-fetched out-of-tree `_framework/*.{wasm,dat,pdb}`** (middleware, Design §3) — ❌ no
+  auto-injection point; would require the user to hand-wire a fetch handler (Option B below).
+
+**Also:** serve detection has no clean signal inside a bunfig-configured plugin (the other families
+use `WEBPACK_SERVE`/argv/`command === 'serve'`); would need an env var or explicit opt-in for the
+serve-mode `load` branch.
+
+**Step 1 — spike (do first, ~1h).** A `library-app-bun` `Bun.serve()` dev script + minimal HTML
+entry. Boot the in-tree fixture through Bun's dev server and observe whether `_framework/*` load
+without any middleware. Outcome decides between:
+
+- **Option A — in-tree-only (zero-config).** If in-tree assets serve correctly, mark Bun dev ✅ for
+  the in-tree case, document out-of-tree as unsupported on Bun dev. Small, but leaves out-of-tree
+  (the whole point of the middleware) uncovered.
+- **Option B — exported fetch-handler helper (full support, not zero-config).** Ship a helper (e.g.
+  `createDotnetFetchHandler(resolver)`) the user adds to their `Bun.serve({ fetch })`. Reuses the
+  resolver core but adapts the Node `(req,res,next)` middleware to a Web `Request`→`Response` handler
+  (Bun is fetch-API, not node http — a heavier adapter than Farm's Koa shim). Breaks the
+  "works out of the box" promise the other five keep, and needs a bespoke Bun fixture (a `Bun.serve`
+  app, not just a `dev` script) plus Part 3 `webServer` handling for the app-owned server.
+
+**Step 2 — implement the chosen option** (scope set by the spike). Then, only if it lands:
+- `DEV_SERVER_BUNDLERS` → add `'bun'`; `library-app-bun` `dev`/`dev:release` scripts; README matrix
+  Bun dev cell; Part 8 docs note the app-owned-server caveat.
+
+**Verify:** spike documents the in-tree result either way (`log()` what is/ isn't served). If an option
+ships, Bun `server` cells green via the Part 3 harness (adapted for the app-owned server).
+
+**Recommendation:** finish Parts 7–8 first (they fit the existing pattern); run the Bun spike before
+committing to A or B.
+
+---
+
 ## Support matrix (target)
 
 | Bundler | Browser | Node | Dev server |
@@ -288,7 +348,7 @@ Fixture `library-app-farm` `dev` script + out-of-tree dev config; append `'farm'
 | Rsbuild | ✅ | ❌ | ✅ |
 | esbuild | ✅ | ⚠️ | ❌ (no middleware API) |
 | Farm | ✅ | ❌ | ✅ |
-| Bun | ✅ | ❌ | ❌ (no bundler dev server) |
+| Bun | ✅ | ❌ | 🔬 investigation (Part 9 — app-owned `Bun.serve`, no plugin middleware hook) |
 
 ## Files touched (recurring)
 - `unplugin-dotnet-wasm/src/core/path-utils.ts` (`normalizeVirtualPath`)
@@ -305,5 +365,7 @@ Fixture `library-app-farm` `dev` script + out-of-tree dev config; append `'farm'
 
 ## Limitations & follow-ups
 - No watch/HMR (README #2) — restart after a `dotnet build` that changes the asset set.
-- esbuild/bun/standalone rollup/rolldown have no dev-server injection point — out of scope.
+- esbuild/standalone rollup/rolldown have no dev-server injection point — out of scope.
+- Bun has a dev server (1.3+) but it is app-owned (`Bun.serve`) with no plugin middleware hook — see
+  Part 9 (investigation), not the standard middleware model.
 - Node dev targets follow the existing browser/Node support constraints (unchanged here).
