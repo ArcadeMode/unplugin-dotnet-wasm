@@ -3,6 +3,7 @@ import { basename, parse, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { PluginContext } from '../context';
 
+// https://www.farmfe.org/docs/api/js-plugin-api#configuredevserver
 interface FarmConfig {
   root?: string;
   compilation?: {
@@ -11,12 +12,15 @@ interface FarmConfig {
   };
 }
 
+// farm's dev server is Koa-like, but not exactly Koa. It has a `respond` property on the context
+// https://raw.githubusercontent.com/koajs/koa/master/docs/api/context.md
 interface KoaLikeContext {
   req: IncomingMessage;
   res: ServerResponse;
   respond: boolean;
 }
 
+// https://www.farmfe.org/docs/features/dev-server
 interface FarmDevServer {
   app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
 }
@@ -73,7 +77,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       },
       // Farm fires this before compilation (buildStart/initialize)
       configureDevServer(server: FarmDevServer): void {
-        server.app().use((koaCtx, next) => // farm's dev server is Koa
+        server.app().use((koaCtx, next) =>
           new Promise<void>((resolve, reject) => {
             ctx.enableAssetMiddleware();
             let handled = true;
@@ -81,9 +85,9 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
               handled = false; // unhandled by middleware
               next().then(resolve, reject);
             });
-            if (handled){
-              koaCtx.respond = true; // indicate we have handled the request
-              resolve();
+            if (handled) {
+              koaCtx.res.once('finish', resolve);
+              koaCtx.res.once('close', resolve);
             }
           }),
         );
