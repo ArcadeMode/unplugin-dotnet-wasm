@@ -337,14 +337,14 @@ DotnetAssets({
 | Bundler | Browser | Node | Dev server |
 |---|---|---|---|
 | Vite | ✅ Supported | ✅ Supported | ✅ Supported |
-| Rollup | ✅ Supported | ✅ Supported | —[^rollup-family-no-dev-server] |
-| Rolldown | ✅ Supported | ✅ Supported | —[^rollup-family-no-dev-server] |
+| Rollup | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
+| Rolldown | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
 | Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
-| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | —[^esbuild-no-dev-server] |
+| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | -[^esbuild-no-dev-server] |
 | Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | ✅ Supported |
-| Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] | 🔬 Investigation[^bun-no-dev-server] |
+| Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] | -[^bun-no-dev-server] |
 
 ## Status & roadmap
 
@@ -396,4 +396,4 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 
 [^esbuild-no-dev-server]: esbuild's serve mode exposes no middleware API, so out-of-tree assets can't be served through the plugin.
 
-[^bun-no-dev-server]: Bun's dev server (1.3+) is app-owned (`Bun.serve`) with no plugin middleware hook, so it doesn't fit the standard model; under investigation.
+[^bun-no-dev-server]: Bun's dev server (1.3+) is app-owned (`Bun.serve`) and exposes no plugin middleware hook, so the plugin can't serve out-of-tree assets through it. Middleware support is tracked upstream in [oven-sh/bun#17608](https://github.com/oven-sh/bun/issues/17608).
