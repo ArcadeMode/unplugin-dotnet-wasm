@@ -240,7 +240,7 @@ rsbuild dev ✅.
 
 ---
 
-## Part 7 — Farm dev server
+## Part 7 — Farm dev server — ✅ DONE
 
 **Deliverable:** `farm dev` boots the app.
 
@@ -253,7 +253,7 @@ Fixture `library-app-farm` `dev` script + out-of-tree dev config; append `'farm'
 
 ---
 
-## Part 8 — Docs & matrix finalisation
+## Part 8 — Docs & matrix finalisation — ✅ DONE
 
 **Deliverable:** documentation reflects dev-server support.
 

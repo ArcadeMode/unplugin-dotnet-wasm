@@ -51,6 +51,12 @@ The StaticWebAssets SDK enables fingerprinting by default, but it is not require
 - **esbuild family** (`esbuild`, `bun`): `resolveId` is dropped in favour of `onResolve` directly inside `setup(build)` so files stay in the default namespace.
 - **Farm**: Rollup-shaped `resolveId`; binary emission is opted in by the consumer via `compilation.assets.include: ['wasm']` (Farm exposes no plugin hook for it).
 
+## Dev server
+
+The `resolveId` hook and VFS-backed resolution described above are not build-only — they run identically under a bundler's dev server, so out-of-tree assets that travel the module graph (e.g. the bundler-friendly boot config's statically-imported `./../_content/<pkg>/…` NuGet JS initializers, collapsed to their canonical manifest route by the resolver's clamp-normalisation) resolve the same way in `dev` as in `build`, on every bundler. No dev-specific code involved.
+
+What dev servers add is delivery of **runtime-fetched** out-of-tree assets: the runtime fetches `_framework/*.{wasm,dat,pdb}` (and URL-referenced files) at boot, which no bundler serves for an out-of-tree output. In serve mode the binary `load` hook returns an explicit route (`/_framework/<hashedName>`) and `createAssetMiddleware` streams the physical file with the manifest's headers. The middleware *core* is one uniform bundler-agnostic connect handler; each family only supplies the glue to register it — Vite `configureServer`, webpack/rspack `setupMiddlewares`, rsbuild `server.setup`, and a Koa shim for Farm's Koa-based server.
+
 ## Cross-target output contract (why Node support is a subset)
 
 With `WasmBundlerFriendlyBootConfig=true`, `dotnet.js` contains a real `import "./<asset>"` per asset, each expected to resolve to a **URL string**. For output to work under both browser and Node without a consumer-side shim, every asset import must be rewritten to `new URL("./<file>", import.meta.url).href`: a relative, `import.meta.url`-based, plain-string value, emitted as ESM. The dotnet runtime's built-in `fetch_like` already handles the resulting scheme (`http(s):` in the browser, `file:` in Node).
