@@ -4,7 +4,7 @@ import type { AssetResolver } from '../asset-resolution/asset-resolver';
 import type { Logger } from '../logger';
 import { FRAMEWORK_JS_REGEX } from '../constants';
 
-export type NextFn = (err?: unknown) => void;
+export type NextFn = () => void;
 export type ConnectMiddleware = (
   req: IncomingMessage,
   res: ServerResponse,

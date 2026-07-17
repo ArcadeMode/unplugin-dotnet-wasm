@@ -6,7 +6,9 @@
   "scripts": {
     "build": "farm build --mode development",
     "build:debug": "farm build --mode development",
-    "build:release": "farm build --mode production",
+    "build:release": "cross-env DOTNET_RELEASE=1 farm build --mode production",
+    "dev": "farm dev --port 5174",
+    "dev:release": "cross-env DOTNET_RELEASE=1 farm dev --port 5174",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
@@ -15,6 +17,7 @@
   "devDependencies": {
     "@farmfe/cli": "^1.0.5",
     "@farmfe/core": "^1.7.0",
+    "cross-env": "^7.0.3",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"
   },

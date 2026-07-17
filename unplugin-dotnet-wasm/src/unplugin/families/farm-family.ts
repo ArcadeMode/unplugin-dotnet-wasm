@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { basename, parse, join } from 'node:path';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { PluginContext } from '../context';
 
 interface FarmConfig {
@@ -10,11 +11,24 @@ interface FarmConfig {
   };
 }
 
+interface KoaLikeContext {
+  req: IncomingMessage;
+  res: ServerResponse;
+  respond: boolean;
+}
+
+interface FarmDevServer {
+  app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
+}
+
 export interface FarmFamilyHooks {
   resolveId(source: string): string | null;
   loadInclude(id: string): boolean;
   load(id: string): Promise<string | null>;
-  farm: { config(userConfig: FarmConfig): Record<string, never> };
+  farm: {
+    config(userConfig: FarmConfig): Record<string, never>;
+    configureDevServer(server: FarmDevServer): void;
+  };
 }
 
 export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
@@ -55,6 +69,21 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
           );
         }
         return {};
+      },
+      // Farm fires this before compilation (buildStart/initialize)
+      configureDevServer(server: FarmDevServer): void {
+        server.app().use((koaCtx, next) => // farm's dev server is Koa
+          new Promise<void>((resolve, reject) => {
+            ctx.enableAssetMiddleware();
+            koaCtx.respond = false; // indicate we are handling the request
+            ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
+              koaCtx.respond = true; // on err/miss, indicate we are not handling the request
+              next().then(resolve, reject);
+            });
+
+            if (koaCtx.res.writableEnded) resolve();
+          }),
+        );
       },
     },
   };

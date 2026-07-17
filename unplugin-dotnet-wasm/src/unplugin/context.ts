@@ -43,9 +43,6 @@ export class PluginContext {
     return this.#assetResolver;
   }
 
-  // Memoized: loads the asset resolver and generates type shims exactly once per process,
-  // no matter how many hooks invoke it (buildStart, and webpack/rspack pre-compile hooks
-  // that fire before unplugin's buildStart is awaited).
   initialize(): Promise<void> {
     return (this.#initPromise ??= this.#doInitialize());
   }

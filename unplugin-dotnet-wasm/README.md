@@ -337,7 +337,7 @@ DotnetAssets({
 | Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | — |
-| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | — |
+| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | ✅ Supported |
 | Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] | — |
 
 ## Status & roadmap
