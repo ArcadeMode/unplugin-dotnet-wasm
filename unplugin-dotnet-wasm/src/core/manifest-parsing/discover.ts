@@ -4,7 +4,7 @@ import { resolve, join } from 'node:path';
 export type DiscoverOptions = DiscoverByProjectOptions | DiscoverByPathOptions;
 
 interface DiscoverByProjectOptions {
-  /** The .NET project name — used to construct manifest filenames. */
+  /** The .NET project name - used to construct manifest filenames. */
   projectName: string;
   /** Absolute or workspace-relative path to the directory containing the .csproj. */
   projectRoot: string;
@@ -17,7 +17,7 @@ interface DiscoverByProjectOptions {
 }
 
 interface DiscoverByPathOptions {
-  /** The .NET project name — used to construct manifest filenames. */
+  /** The .NET project name - used to construct manifest filenames. */
   projectName: string;
   /** Absolute or workspace-relative path to the .NET build/publish output directory containing the static-web-assets manifests. */
   dotnetOutputDir: string;

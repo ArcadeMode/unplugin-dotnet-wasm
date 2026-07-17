@@ -8,7 +8,7 @@ export type DotnetAssetsOptions =
   & (DotnetAssetsDiscoveryOptions | DotnetAssetsExplicitOptions);
 
 export interface DotnetAssetsBaseOptions {
-  /** The .NET project name — used to construct manifest filenames. */
+  /** The .NET project name - used to construct manifest filenames. */
   projectName: string;
   /** Verbosity. Default: `'warn'`. */
   logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug';

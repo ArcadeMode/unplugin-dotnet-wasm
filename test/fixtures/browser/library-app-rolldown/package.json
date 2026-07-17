@@ -8,7 +8,7 @@
     "build:debug": "rolldown -c rolldown.config.mjs --environment BUILD:development",
     "build:release": "rolldown -c rolldown.config.mjs --environment BUILD:production",
     "preview": "npx serve dist",
-    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "test": "echo \"No tests in fixture - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },

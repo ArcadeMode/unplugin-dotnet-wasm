@@ -12,7 +12,7 @@ const FIXTURE_MANIFEST = resolve(
 );
 
 describe('parseEndpointsManifest', () => {
-  // Happy path — real manifest from the SampleLibrary fixture
+  // Happy path - real manifest from the SampleLibrary fixture
   it('parses the real SampleLibrary manifest without errors', () => {
     const raw = readFileSync(FIXTURE_MANIFEST, 'utf8');
     expect(() => parseEndpointsManifest(raw)).not.toThrow();

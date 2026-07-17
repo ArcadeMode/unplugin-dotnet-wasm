@@ -10,7 +10,7 @@
     "dev": "farm dev --port 5174",
     "dev:release": "cross-env DOTNET_RELEASE=1 farm dev --port 5174",
     "preview": "npx serve dist",
-    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "test": "echo \"No tests in fixture - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },

@@ -4,12 +4,12 @@ Build and test guide for AI coding agents working in this repository.
 Monorepo: pnpm workspace, ESM-only, Node 20+, TypeScript strict.
 Run all commands from repo root unless noted.
 
-## Plugin — `unplugin-dotnet-wasm`
+## Plugin - `unplugin-dotnet-wasm`
 
 - Build: `pnpm build:plugin`
 - Unit test: `pnpm test:unit` (auto-builds `SampleLibrary` first)
 
-## .NET Library fixture — `test/fixtures/Library`
+## .NET Library fixture - `test/fixtures/Library`
 
 - Build debug (fingerprint on):   `pnpm build:library:fingerprint`
 - Build debug (fingerprint off):  `pnpm build:library:nofingerprint`
@@ -17,7 +17,7 @@ Run all commands from repo root unless noted.
 - Publish release (fingerprint off):  `pnpm publish:library:nofingerprint`
 - Clean: `pnpm clean:library`
 
-## Fixture apps — `test/fixtures/{browser,node}/library-app-<bundler>`
+## Fixture apps - `test/fixtures/{browser,node}/library-app-<bundler>`
 
 - Build all: `pnpm build:fixtures --mode=<debug|release>` (`--mode` is required)
 - Optional filters: `--bundler=<name>`, `--platform=<node|browser>`
@@ -46,7 +46,7 @@ Bundler support:
 
 Env vars set per run: `BUNDLER`, `DOTNET_FINGERPRINT` (`fingerprint` | `nofingerprint`), `DOTNET_BUILD_MODE` (`debug` | `publish` | `none`), `PLATFORM` (`node` | `browser`).
 
-## E2E dispatch — `test/integration`
+## E2E dispatch - `test/integration`
 
 The matrix runner dispatches directly based on `config.platform`:
 

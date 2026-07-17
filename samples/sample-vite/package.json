@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "preview": "vite preview --open",
-    "test": "echo \"No tests in sample — build-only package\" && exit 0",
+    "test": "echo \"No tests in sample - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },

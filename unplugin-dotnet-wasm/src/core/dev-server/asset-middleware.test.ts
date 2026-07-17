@@ -61,7 +61,7 @@ const nullLogger: Logger = {
 
 /**
  * A response backed by a real writable stream so `stream.pipe(res)` actually
- * flows — lets us assert the streamed body bytes, not just the headers.
+ * flows - lets us assert the streamed body bytes, not just the headers.
  */
 function createStreamingRes(): {
   res: FakeRes & PassThrough;
@@ -168,7 +168,7 @@ describe('createAssetMiddleware', () => {
       headersFor: vi.fn(() => [
         { Name: 'Content-Type', Value: 'application/wasm' },
         { Name: 'Cache-Control', Value: 'immutable' },
-        // Stale/compressed value from the manifest — must be ignored.
+        // Stale/compressed value from the manifest - must be ignored.
         { Name: 'Content-Length', Value: '999' },
       ]),
     };

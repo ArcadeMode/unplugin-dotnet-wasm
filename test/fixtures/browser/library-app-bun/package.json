@@ -8,7 +8,7 @@
     "build:debug": "bun bun.debug.ts",
     "build:release": "bun bun.release.ts",
     "preview": "npx serve dist",
-    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "test": "echo \"No tests in fixture - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },

@@ -39,7 +39,7 @@ describe('dotnetStaticAssets', () => {
   });
 });
 
-describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
+describe('dotnetStaticAssets - buildStart with isPublish: true', () => {
   it('initialises without throwing when pointing at a Release publish output', async () => {
     const plugin = dotnetStaticAssets.rollup({
       projectRoot: SAMPLE_ROOT,
@@ -52,7 +52,7 @@ describe('dotnetStaticAssets — buildStart with isPublish: true', () => {
   });
 });
 
-describe('dotnetStaticAssets — buildStart with explicit dotnetOutputDir', () => {
+describe('dotnetStaticAssets - buildStart with explicit dotnetOutputDir', () => {
   it('initialises without throwing when dotnetOutputDir points at the publish dir (no runtime.json)', async () => {
     const plugin = dotnetStaticAssets.rollup({
       projectName: 'SampleLibrary',
@@ -62,7 +62,7 @@ describe('dotnetStaticAssets — buildStart with explicit dotnetOutputDir', () =
   });
 });
 
-describe('dotnetStaticAssets — resolveId (real SampleLibrary fixture)', () => {
+describe('dotnetStaticAssets - resolveId (real SampleLibrary fixture)', () => {
   let plugin: DotnetStaticAssetsPlugin;
 
   beforeAll(async () => {
@@ -119,7 +119,7 @@ describe('dotnetStaticAssets — resolveId (real SampleLibrary fixture)', () => 
   });
 });
 
-describe('dotnetStaticAssets — load', () => {
+describe('dotnetStaticAssets - load', () => {
   let plugin: DotnetStaticAssetsPlugin;
   let dotnetNativeWasm: string;
   let icudtDat: string;
@@ -181,7 +181,7 @@ describe('dotnetStaticAssets — load', () => {
   });
 });
 
-describe('dotnetStaticAssets — transform (FRAMEWORK_JS_REGEX scoping)', () => {
+describe('dotnetStaticAssets - transform (FRAMEWORK_JS_REGEX scoping)', () => {
   let plugin: DotnetStaticAssetsPlugin;
 
   beforeAll(async () => {

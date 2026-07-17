@@ -122,7 +122,7 @@ await esbuild.build({
 });
 ```
 
-When targeting Node, the runtime needs an explicit resource loader — see [Runtime usage](#runtime-usage) below.
+When targeting Node, the runtime needs an explicit resource loader - see [Runtime usage](#runtime-usage) below.
 
 </details>
 
@@ -295,7 +295,7 @@ runtime.runMain();
 
 ### Dev server
 
-The plugin works with the bundler's dev server out of the box — start it as usual (`vite`, `webpack serve`, `rspack serve`, `rsbuild dev`, `farm dev`) and the .NET WASM app boots with no extra config. Assets are served with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects.
+The plugin works with the bundler's dev server out of the box - start it as usual (`vite`, `webpack serve`, `rspack serve`, `rsbuild dev`, `farm dev`) and the .NET WASM app boots with no extra config. Assets are served with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects.
 
 > There is no dotnet output watch/HMR _yet_. After a `dotnet build` you should restart the dev server (see [Planned #1](#status--roadmap)).
 
@@ -318,7 +318,7 @@ DotnetAssets({
 })
 ```
 
-All fields above are required except `logLevel`. `configuration` and `isPublish` typically pair as `(Debug, false)` for development and `(Release, true)` for production — set them to match your project's build pipeline.
+All fields above are required except `logLevel`. `configuration` and `isPublish` typically pair as `(Debug, false)` for development and `(Release, true)` for production - set them to match your project's build pipeline.
 
 ### Explicit output dir mode
 
@@ -367,7 +367,7 @@ The plugin is build-time only today. Scope so far and what's planned:
 
 **Planned**
 
-1. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes — including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
+1. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes - including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
 2. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
 3. Preload `<link>` injection from the endpoints manifest's preload metadata
 4. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included (requires some .NET 11 SDK testing)
@@ -378,13 +378,13 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 
 - Node.js >= 24
 - .NET SDK >= 10 (build output must exist before bundling)
-- TypeScript >= 5 (optional — enables editor / `tsc` type support for .NET WASM imports)
+- TypeScript >= 5 (optional - enables editor / `tsc` type support for .NET WASM imports)
 
 [^esbuild-node-partial-support]: esbuild works on Node but the runtime needs an explicit `.withResourceLoader(...)` call to resolve WASM URLs. See [Runtime usage](#runtime-usage).
 
-[^webpack-family-node-no-support]: Webpack/Rspack/Rsbuild emit `URL` instances for asset imports; the dotnet runtime needs URL strings. Rewrite step pending — see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+[^webpack-family-node-no-support]: Webpack/Rspack/Rsbuild emit `URL` instances for asset imports; the dotnet runtime needs URL strings. Rewrite step pending - see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
 
-[^bun-node-no-support]: Bun emits bare strings for asset imports; the dotnet runtime needs URL strings. Rewrite step pending — see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+[^bun-node-no-support]: Bun emits bare strings for asset imports; the dotnet runtime needs URL strings. Rewrite step pending - see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
 
 [^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
 

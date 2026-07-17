@@ -59,7 +59,7 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
     root0 = mkdtempSync(join(tmpdir(), 'vfs-pat-'));
     writeFileSync(join(root0, 'unlisted.css'), 'body {}');
 
-    // Manifest with no explicit Asset entries — only the `**` fallthrough rule.
+    // Manifest with no explicit Asset entries - only the `**` fallthrough rule.
     vfs = buildVfs(
       parseRuntimeManifest(
         JSON.stringify({
@@ -88,7 +88,7 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
   it('caches pattern hits into lookup for O(1) follow-up calls', () => {
     const a1 = vfs.resolve('unlisted.css');
     const a2 = vfs.resolve('unlisted.css');
-    expect(a1).toBe(a2); // same object reference — second call hits the map
+    expect(a1).toBe(a2); // same object reference - second call hits the map
   });
 
   it('returns undefined for a path that does not exist on disk', () => {

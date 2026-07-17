@@ -34,7 +34,7 @@ if (-not $node) {
 $nodeVersion = (node --version) -replace '^v'
 $nodeMajor = [int]($nodeVersion -split '\.')[0]
 if ($nodeMajor -lt 24) {
-    Write-Fail "Node $nodeVersion found — this repo requires >= 24."
+    Write-Fail "Node $nodeVersion found - this repo requires >= 24."
     exit 1
 }
 Write-Ok "Node $nodeVersion"
@@ -45,7 +45,7 @@ Write-Ok "Node $nodeVersion"
 Write-Step "Enabling corepack & activating pnpm"
 corepack enable
 if ($LASTEXITCODE -ne 0) {
-    Write-Warn "corepack enable failed — falling back to npm global install"
+    Write-Warn "corepack enable failed - falling back to npm global install"
     npm install -g pnpm
 }
 
@@ -56,7 +56,7 @@ if (-not $pnpmVersion) {
 }
 $pnpmMajor = [int]($pnpmVersion -split '\.')[0]
 if ($pnpmMajor -lt 9) {
-    Write-Warn "pnpm $pnpmVersion found — upgrading to latest"
+    Write-Warn "pnpm $pnpmVersion found - upgrading to latest"
     corepack prepare pnpm@latest --activate
 }
 Write-Ok "pnpm $(pnpm --version)"
@@ -98,19 +98,19 @@ if (-not $hasWasm) {
 Write-Ok "wasm-tools workload installed"
 
 # ---------------------------------------------------------------------------
-# Bun (optional — needed for bun bundler integration tests)
+# Bun (optional - needed for bun bundler integration tests)
 # ---------------------------------------------------------------------------
 Write-Step "Checking Bun (optional)"
 $bun = Get-Command bun -ErrorAction SilentlyContinue
 if (-not $bun) {
-    Write-Warn "Bun is not installed — bun bundler integration tests will be skipped"
+    Write-Warn "Bun is not installed - bun bundler integration tests will be skipped"
     Write-Warn "Install from https://bun.sh or run: powershell -c 'irm bun.sh/install.ps1 | iex'"
 } else {
     $bunVersion = (bun --version)
     $bunParts = $bunVersion -split '\.'
     $bunMinor = [int]$bunParts[1]
     if ([int]$bunParts[0] -lt 1 -or ([int]$bunParts[0] -eq 1 -and $bunMinor -lt 3)) {
-        Write-Warn "Bun $bunVersion found — >= 1.3 recommended"
+        Write-Warn "Bun $bunVersion found - >= 1.3 recommended"
     } else {
         Write-Ok "Bun $bunVersion"
     }
@@ -133,7 +133,7 @@ Write-Ok "Dependencies installed"
 Write-Step "Installing Playwright browsers (Chromium)"
 pnpm --filter @dotnet-wasm-bundler/integration-tests exec playwright install chromium --with-deps
 if ($LASTEXITCODE -ne 0) {
-    Write-Warn "Playwright browser install failed — browser E2E tests won't work"
+    Write-Warn "Playwright browser install failed - browser E2E tests won't work"
 } else {
     Write-Ok "Playwright Chromium installed"
 }

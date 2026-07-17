@@ -22,14 +22,14 @@ const ResponseHeaderSchema = z.object({
  * Non-header metadata attached to an endpoint.
  *
  * Observed Name values:
- *   - fingerprint        — the hash segment embedded in a fingerprinted route
- *   - label              — canonical alias for a fingerprinted-route entry
- *   - PreloadAs          — value for <link rel="preload" as="…">
- *   - PreloadCrossorigin — crossorigin attribute value
- *   - PreloadGroup       — logical group (e.g. "webassembly")
- *   - PreloadOrder       — integer sort key within the group
- *   - PreloadPriority    — fetchpriority hint (e.g. "high")
- *   - PreloadRel         — rel value (e.g. "preload")
+ *   - fingerprint        - the hash segment embedded in a fingerprinted route
+ *   - label              - canonical alias for a fingerprinted-route entry
+ *   - PreloadAs          - value for <link rel="preload" as="…">
+ *   - PreloadCrossorigin - crossorigin attribute value
+ *   - PreloadGroup       - logical group (e.g. "webassembly")
+ *   - PreloadOrder       - integer sort key within the group
+ *   - PreloadPriority    - fetchpriority hint (e.g. "high")
+ *   - PreloadRel         - rel value (e.g. "preload")
  *
  * Unknown names are accepted and passed through unchanged.
  */
@@ -74,7 +74,7 @@ export function parseEndpointsManifest(input: string | Buffer): EndpointsManifes
   const result = EndpointsManifestSchema.safeParse(raw);
   if (!result.success) {
     const issues = result.error.issues.map(
-      (i) => `  • ${i.path.join('.')} — ${i.message}`,
+      (i) => `  • ${i.path.join('.')} - ${i.message}`,
     );
     throw new EndpointsManifestParseError(
       `staticwebassets.endpoints.json failed schema validation:\n${issues.join('\n')}`,

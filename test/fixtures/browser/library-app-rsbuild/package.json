@@ -10,7 +10,7 @@
     "dev": "rsbuild dev",
     "dev:release": "rsbuild dev --env-mode production",
     "preview": "rsbuild preview",
-    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "test": "echo \"No tests in fixture - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },

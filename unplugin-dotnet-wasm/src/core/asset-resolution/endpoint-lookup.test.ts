@@ -77,7 +77,7 @@ describe('buildEndpointLookup', () => {
 
   it('the fingerprinted route for SampleLibrary.wasm carries a label back to canonical', () => {
     const manifest = loadFixture();
-    // Find the fingerprinted Route row — absent when WasmFingerprintAssets=false.
+    // Find the fingerprinted Route row - absent when WasmFingerprintAssets=false.
     const fpEndpoint = manifest.Endpoints.find(e =>
       /^_framework\/SampleLibrary\.[a-z0-9]+\.wasm$/.test(e.Route),
     );

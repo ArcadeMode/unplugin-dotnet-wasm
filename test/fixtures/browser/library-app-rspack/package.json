@@ -10,7 +10,7 @@
     "dev": "rspack serve --config rspack.config.mjs --port 5174 --mode development",
     "dev:release": "rspack serve --config rspack.config.mjs --port 5174 --mode production",
     "preview": "npx serve dist",
-    "test": "echo \"No tests in fixture — build-only package\" && exit 0",
+    "test": "echo \"No tests in fixture - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },

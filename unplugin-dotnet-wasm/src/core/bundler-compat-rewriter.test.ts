@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BundlerCompatRewriter, type BundlerFramework } from './bundler-compat-rewriter';
 
-describe('BundlerCompatRewriter — vite', () => {
+describe('BundlerCompatRewriter - vite', () => {
   const rewriter = new BundlerCompatRewriter('vite');
 
   it('inserts /* @vite-ignore */ before import() argument', () => {
@@ -30,7 +30,7 @@ describe('BundlerCompatRewriter — vite', () => {
   });
 });
 
-describe('BundlerCompatRewriter — webpack / rspack / rsbuild', () => {
+describe('BundlerCompatRewriter - webpack / rspack / rsbuild', () => {
   for (const fw of ['webpack', 'rspack', 'rsbuild'] as BundlerFramework[]) {
     describe(fw, () => {
       const rewriter = new BundlerCompatRewriter(fw);
@@ -52,7 +52,7 @@ describe('BundlerCompatRewriter — webpack / rspack / rsbuild', () => {
   }
 });
 
-describe('BundlerCompatRewriter — farm', () => {
+describe('BundlerCompatRewriter - farm', () => {
   const rewriter = new BundlerCompatRewriter('farm');
 
   it('inserts /* $farm-ignore */ on import()', () => {
@@ -71,7 +71,7 @@ describe('BundlerCompatRewriter — farm', () => {
   });
 });
 
-describe('BundlerCompatRewriter — rollup / rolldown / esbuild', () => {
+describe('BundlerCompatRewriter - rollup / rolldown / esbuild', () => {
   for (const fw of ['rollup', 'rolldown', 'esbuild'] as BundlerFramework[]) {
     it(`${fw}: returns null (no pragma, no transforms apply)`, () => {
       const rewriter = new BundlerCompatRewriter(fw);
@@ -81,7 +81,7 @@ describe('BundlerCompatRewriter — rollup / rolldown / esbuild', () => {
   }
 });
 
-describe('BundlerCompatRewriter — bun', () => {
+describe('BundlerCompatRewriter - bun', () => {
   const rewriter = new BundlerCompatRewriter('bun');
 
   it('wraps double-quoted Node built-in in comma expression', () => {
@@ -104,7 +104,7 @@ describe('BundlerCompatRewriter — bun', () => {
   });
 });
 
-describe('BundlerCompatRewriter — idempotency', () => {
+describe('BundlerCompatRewriter - idempotency', () => {
   for (const fw of ['vite', 'webpack', 'farm'] as BundlerFramework[]) {
     it(`${fw}: second rewrite() on the output returns null`, () => {
       const rewriter = new BundlerCompatRewriter(fw);

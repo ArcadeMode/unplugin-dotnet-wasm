@@ -30,14 +30,14 @@ export interface VirtualFileSystem {
    * 2. For each `**` pattern: a single `statSync` at the verbatim path under
    *    the pattern's content root, with hits cached into the map.
    *
-   * No extension or index probing here — callers expand specifiers upstream.
+   * No extension or index probing here - callers expand specifiers upstream.
    * Returns `undefined` when nothing matches.
    */
   resolve(virtualPath: string): ResolvedAsset | undefined;
 
   /**
    * Locate an exact asset filename across all content roots via a targeted
-   * `statSync` probe — no extension or index probing.
+   * `statSync` probe - no extension or index probing.
    *
    * Returns `undefined` when the file is absent from all roots.
    */
