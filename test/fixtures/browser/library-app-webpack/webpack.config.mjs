@@ -32,6 +32,12 @@ export default (env, argv) => {
       ],
     },
     optimization: { minimize: false },
+    devServer: {
+      port: 5174,
+      static: false,
+      historyApiFallback: true,
+      hot: false,
+    },
     plugins: [
       new HtmlWebpackPlugin({ template: './src/index.html' }),
       DotnetAssets({

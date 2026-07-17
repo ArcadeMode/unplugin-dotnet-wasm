@@ -13,6 +13,7 @@ interface DotnetLib {
 declare global {
   var __lib: DotnetLib;
   var __libReady: boolean;
+  var __contentAssetOk: boolean;
 }
 
 import { readBundler, readFingerprint, readBuildMode, readPlatform } from '../test-matrix-parameters';
@@ -83,5 +84,10 @@ test.describe(`[${currentBundler}][${currentFingerprint}][${currentBuildMode}][$
       }
     });
     expect(caught).toBeTruthy();
+  });
+
+  test('out-of-tree NuGet _content initializer loaded (window.blazorApplicationInsights)', async () => {
+    const ok = await page.evaluate(() => globalThis.__contentAssetOk);
+    expect(ok).toBe(true);
   });
 });

@@ -1,3 +1,4 @@
+import './polyfill';
 import { dotnet } from '_framework/dotnet';
 import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
 

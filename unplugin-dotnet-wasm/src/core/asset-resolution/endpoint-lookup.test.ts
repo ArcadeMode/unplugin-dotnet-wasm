@@ -185,4 +185,13 @@ describe('buildEndpointLookup', () => {
   it('returns an empty map for a manifest with no endpoints', () => {
     expect(buildEndpointLookup(makeManifest([])).size).toBe(0);
   });
+
+  it('populates responseHeaders from the endpoint', () => {
+    const lookup = buildEndpointLookup(
+      makeManifest([makeEndpoint('_framework/foo.wasm', '_framework/foo.abc.wasm')]),
+    );
+    expect(lookup.get('_framework/foo.wasm')?.responseHeaders).toEqual([
+      { Name: 'Content-Type', Value: 'application/octet-stream' },
+    ]);
+  });
 });

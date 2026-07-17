@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-export default defineConfig(({ mode }) => {
-  const isRelease = mode === 'production';
+export default defineConfig(() => {
+  const isRelease = process.env.DOTNET_RELEASE === '1';
   return {
   compilation: {
     input: { index: resolve(__dirname, 'index.html') },
@@ -15,10 +15,8 @@ export default defineConfig(({ mode }) => {
       filename: 'assets/[name].[hash].[ext]',
       assetsFilename: 'assets/[resourceName].[hash].[ext]',
       publicPath: '/',
-      // The dotnet WASM runtime requires modern browsers; targeting
-      // `browser-esnext` disables Farm's polyfill injection (which
-      // otherwise requires `core-js` to be installed).
-      targetEnv: 'browser-esnext',
+      // `browser-esnext` disables Farm's polyfill injection
+      targetEnv: 'browser-esnext' as const,
     },
     assets: {
       // Binary .NET assets (.wasm, .dat, .pdb) must be declared here so Farm
@@ -30,7 +28,7 @@ export default defineConfig(({ mode }) => {
     persistentCache: false,
     progress: false,
   },
-  server: { hmr: false },
+  server: { port: 5174, strictPort: true },
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),

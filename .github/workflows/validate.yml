@@ -154,9 +154,64 @@ jobs:
           name: test-results-${{ matrix.os }}-none
           path: test/integration/test-results/
 
+  matrix-dev:
+    name: Run dev-server tests
+    needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        fingerprint: ['true', 'false']
+        build_mode: [debug, publish]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - run: pnpm install
+
+      - name: Build plugin
+        run: pnpm build:plugin
+
+      - name: Build library
+        run: |
+          if [ "${{ matrix.build_mode }}" = "publish" ]; then
+            pnpm publish:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
+          else
+            pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
+          fi
+
+      - name: Install Playwright chromium
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            pnpm --dir test/integration exec playwright install --with-deps chromium
+          else
+            pnpm --dir test/integration exec playwright install chromium
+          fi
+
+      - name: Run dev-server e2e
+        run: pnpm test:matrix --e2e --serve-mode=server --platform=browser --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-dev-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
+          path: test/integration/test-results/
+
   results:
     name: Publish test results
-    needs: [unit, matrix, matrix-none]
+    needs: [unit, matrix, matrix-none, matrix-dev]
     if: always()
     runs-on: ubuntu-latest
     permissions:

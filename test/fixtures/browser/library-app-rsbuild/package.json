@@ -7,6 +7,8 @@
     "build": "rsbuild build --env-mode development",
     "build:debug": "rsbuild build --env-mode development",
     "build:release": "rsbuild build --env-mode production",
+    "dev": "rsbuild dev",
+    "dev:release": "rsbuild dev --env-mode production",
     "preview": "rsbuild preview",
     "test": "echo \"No tests in fixture — build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",

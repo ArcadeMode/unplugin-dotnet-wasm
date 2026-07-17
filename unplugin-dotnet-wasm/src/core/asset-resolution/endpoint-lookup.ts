@@ -1,4 +1,4 @@
-import type { Endpoint, EndpointsManifest } from '../manifest-parsing/manifest-endpoints';
+import type { Endpoint, EndpointsManifest, ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { stripLeadingSlash, toPosixPath } from '../path-utils';
 
 export interface EndpointMatch {
@@ -10,6 +10,7 @@ export interface EndpointMatch {
    * If present, this is a fingerprinted endpoint and the label points back to the canonical route.
    */
   readonly label?: string;
+  readonly responseHeaders: readonly ResponseHeader[];
 }
 
 /** Immutable route → EndpointMatch lookup table. */
@@ -66,7 +67,7 @@ function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
     }
   }
 
-  const result: EndpointMatch = { assetFile };
+  const result: EndpointMatch = { assetFile, responseHeaders: endpoint.ResponseHeaders };
   if (fingerprint !== undefined) (result as { fingerprint?: string }).fingerprint = fingerprint;
   if (label !== undefined) (result as { label?: string }).label = label;
   return result;

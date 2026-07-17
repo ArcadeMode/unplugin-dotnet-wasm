@@ -74,7 +74,7 @@ describe('AssetResolver probe expansion', () => {
 });
 
 describe('AssetResolver endpoint alias paths', () => {
-  const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js' };
+  const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js', responseHeaders: [] };
   const lookup: EndpointLookup = new Map([['_framework/dotnet.js', fpMatch]]);
 
   it('resolves via vfs.resolve(alias.assetFile) when the asset is in the VFS', () => {
@@ -102,6 +102,35 @@ describe('AssetResolver endpoint alias paths', () => {
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), lookupWithSpy);
     expect(r.resolve('foo.ts')).toBe('/abs/foo.ts');
     expect(getSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('AssetResolver relative specifier clamping', () => {
+  it('collapses the bundler-friendly `./../_content/…` initializer specifier to its canonical route', () => {
+    // dotnet.js (virtually at _framework/) statically imports the initializer as
+    // `./../_content/<pkg>/<pkg>.lib.module.js`; it must resolve to `_content/…`.
+    const resolveFn = vi.fn().mockImplementation((vp: string) =>
+      vp === '_content/Pkg/Pkg.lib.module.js'
+        ? vfsAsset('/nuget/pkg/staticwebassets/Pkg.lib.module.js')
+        : undefined,
+    );
+    const r = new AssetResolver(stubVfs({ resolve: resolveFn }), new Map());
+    expect(r.resolve('./../_content/Pkg/Pkg.lib.module.js')).toBe(
+      '/nuget/pkg/staticwebassets/Pkg.lib.module.js',
+    );
+    expect(resolveFn).toHaveBeenCalledWith('_content/Pkg/Pkg.lib.module.js');
+  });
+
+  it('clamps `..` segments that would escape above the root', () => {
+    const resolveFn = vi.fn().mockReturnValue(undefined);
+    new AssetResolver(stubVfs({ resolve: resolveFn }), new Map()).resolve('../../foo.js');
+    expect(resolveFn).toHaveBeenCalledWith('foo.js');
+  });
+
+  it('collapses interior `.`/`..` segments', () => {
+    const resolveFn = vi.fn().mockReturnValue(undefined);
+    new AssetResolver(stubVfs({ resolve: resolveFn }), new Map()).resolve('_framework/./sub/../dotnet.js');
+    expect(resolveFn).toHaveBeenCalledWith('_framework/dotnet.js');
   });
 });
 

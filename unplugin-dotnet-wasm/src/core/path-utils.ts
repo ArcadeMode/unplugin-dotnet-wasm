@@ -13,6 +13,16 @@ export function stripLeadingSlashOrDot(p: string): string {
   return stripLeadingSlash(p.replace(/^\.\//u, ''));
 }
 
+export function normalizeVirtualPath(p: string): string {
+  const out: string[] = [];
+  for (const seg of toPosixPath(p).split('/')) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') { out.pop(); continue; }
+    out.push(seg);
+  }
+  return out.join('/');
+}
+
 /**
  * True when the last path segment contains a `.` after its first character.
  * `dotnet.js` → true, `wasm-bootstrap` → false, `.gitignore` → false.

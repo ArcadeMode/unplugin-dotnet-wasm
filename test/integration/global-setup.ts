@@ -1,11 +1,13 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBundler, readFingerprint, readBuildMode } from './test-matrix-parameters';
+import { readBundler, readFingerprint, readBuildMode, readServeMode } from './test-matrix-parameters';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default async function globalSetup(): Promise<void> {
+  if (readServeMode() === 'server') return; // dev server builds on demand; no dist/ to check
+
   const bundler = readBundler();
   const fingerprint = readFingerprint();
   const buildMode = readBuildMode();

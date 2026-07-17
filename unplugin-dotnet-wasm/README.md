@@ -293,6 +293,12 @@ runtime.runMain();
 
 </details>
 
+### Dev server
+
+The plugin works with the bundler's dev server out of the box — start it as usual (`vite`, `webpack serve`, `rspack serve`, `rsbuild dev`, `farm dev`) and the .NET WASM app boots with no extra config. Assets are served with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects.
+
+> There is no dotnet output watch/HMR _yet_. After a `dotnet build` you should restart the dev server (see [Planned #1](#status--roadmap)).
+
 ## Configuration
 
 Pass either a **project-discovery** config or an **explicit output dir** config.
@@ -328,17 +334,17 @@ DotnetAssets({
 
 ## Bundler support
 
-| Bundler | Browser | Node |
-|---|---|---|
-| Vite | ✅ Supported | ✅ Supported |
-| Rollup | ✅ Supported | ✅ Supported |
-| Rolldown | ✅ Supported | ✅ Supported |
-| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] |
-| Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] |
-| Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] |
-| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] |
-| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] |
-| Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] |
+| Bundler | Browser | Node | Dev server |
+|---|---|---|---|
+| Vite | ✅ Supported | ✅ Supported | ✅ Supported |
+| Rollup | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
+| Rolldown | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
+| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
+| Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
+| Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
+| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | -[^esbuild-no-dev-server] |
+| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | ✅ Supported |
+| Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] | -[^bun-no-dev-server] |
 
 ## Status & roadmap
 
@@ -350,7 +356,8 @@ The plugin is build-time only today. Scope so far and what's planned:
   - 9 on browser targets
   - 4 on Node targets 
 - Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
-- Fingerprint-aware resolution
+- Dev-server support for Vite, Webpack, Rspack, Rsbuild, and Farm ([table above](#bundler-support))
+- Fingerprint-agnostic and multi-content-root asset resolution
 - Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
 - Node built-ins externalized so the dotnet loader's Node paths don't break browser builds[^rollup-family-node-externals]
 - IDE / language-server type support: editors and `tsc` are aware of the TypeScript emitted from your .NET WASM project like:
@@ -360,14 +367,10 @@ The plugin is build-time only today. Scope so far and what's planned:
 
 **Planned**
 
-1. Dev-server middleware: serve assets with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects
-2. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes — including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
-3. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
-4. Preload `<link>` injection from the endpoints manifest's preload metadata
-5. Managed .NET builds (opt-in): optionally drive `dotnet build`/`watch` from the plugin, guaranteeing fresh assets and one-command dev
-6. CLI codegen: prime editor type shims outside a build (e.g. in CI or after `npm ci`) for build-free `tsc` jobs
-7. Prune orphaned generated type packages from `node_modules` when their backing .NET route goes away
-8. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included
+1. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes — including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
+2. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
+3. Preload `<link>` injection from the endpoints manifest's preload metadata
+4. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included (requires some .NET 11 SDK testing)
 
 Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
 
@@ -388,3 +391,9 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 [^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
 
 [^rollup-family-node-externals]: Rollup and Rolldown can't be configured from within the plugin to externalize Node built-ins; See the Rollup and Rolldown examples above on how to configure it in the consuming project.
+
+[^rollup-family-no-dev-server]: Rollup and Rolldown have no standalone dev server; use Vite (same Rollup-family code path) for a dev-server workflow.
+
+[^esbuild-no-dev-server]: esbuild's serve mode exposes no middleware API, so out-of-tree assets can't be served through the plugin.
+
+[^bun-no-dev-server]: Bun's dev server (1.3+) is app-owned (`Bun.serve`) and exposes no plugin middleware hook, so the plugin can't serve out-of-tree assets through it. Middleware support is tracked upstream in [oven-sh/bun#17608](https://github.com/oven-sh/bun/issues/17608).

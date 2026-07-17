@@ -54,3 +54,13 @@ export function readBundler(): Bundler {
   }
   return raw as Bundler;
 }
+
+export type ServeMode = 'dist' | 'server';
+const VALID_SERVE_MODES: readonly ServeMode[] = ['dist', 'server'];
+export function readServeMode(): ServeMode {
+  const raw = (process.env.SERVE_MODE ?? 'dist') as ServeMode;
+  if (!VALID_SERVE_MODES.includes(raw)) {
+    throw new Error(`SERVE_MODE='${raw}' is not one of: ${VALID_SERVE_MODES.join(', ')}.`);
+  }
+  return raw;
+}
