@@ -23,16 +23,18 @@ interface FarmDevServer {
 
 export interface FarmFamilyHooks {
   resolveId(source: string): string | null;
-  loadInclude(id: string): boolean;
-  load(id: string): Promise<string | null>;
-  farm: {
+  load: {
+    filter: { id: RegExp };
+    handler(id: string): Promise<string | null>;
+  };
+    farm: {
     config(userConfig: FarmConfig): Record<string, never>;
     configureDevServer(server: FarmDevServer): void;
   };
 }
 
 export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
-  const FARM_CONTENT_DIR = '__dotnet_content__';
+  const FARM_CONTENT_DIR = '__dotnet_wasm__';
   const farmContentAliases = new Map<string, string>();
 
   return {
@@ -47,13 +49,12 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       }
       return resolved;
     },
-    // only fire `load` for our content aliases
-    loadInclude(id: string): boolean {
-      return id.includes(FARM_CONTENT_DIR);
-    },
-    async load(id: string): Promise<string | null> {
-      const real = farmContentAliases.get(basename(id));
-      return real === undefined ? null : readFile(real, 'utf-8');
+    load: {
+      filter: { id: new RegExp(FARM_CONTENT_DIR) },
+      async handler(id: string): Promise<string | null> {
+        const real = farmContentAliases.get(basename(id));
+        return real === undefined ? null : readFile(real, 'utf-8');
+      },
     },
     farm: {
       config(userConfig: FarmConfig): Record<string, never> {
@@ -75,13 +76,15 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         server.app().use((koaCtx, next) => // farm's dev server is Koa
           new Promise<void>((resolve, reject) => {
             ctx.enableAssetMiddleware();
-            koaCtx.respond = false; // indicate we are handling the request
+            let handled = true;
             ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
-              koaCtx.respond = true; // on err/miss, indicate we are not handling the request
+              handled = false; // unhandled by middleware
               next().then(resolve, reject);
             });
-
-            if (koaCtx.res.writableEnded) resolve();
+            if (handled){
+              koaCtx.respond = true; // indicate we have handled the request
+              resolve();
+            }
           }),
         );
       },
