@@ -114,3 +114,19 @@ describe('BundlerCompatRewriter - idempotency', () => {
     });
   }
 });
+
+describe('BundlerCompatRewriter - pins the .NET SDK JS shapes the rewriter depends on', () => {
+  const rewriter = new BundlerCompatRewriter('vite');
+
+  it('rewrites import() dynamic imports', () => {
+    const code = `import("./foo.js")`;
+    const result = rewriter.rewrite(code);
+    expect(result).toContain(`import(/* @vite-ignore */ "./foo.js")`);
+  });
+
+  it('rewrites new URL() with single space between new and URL', () => {
+    const code = `new URL("x", import.meta.url)`;
+    const result = rewriter.rewrite(code);
+    expect(result).toContain(`new URL(/* @vite-ignore */ "x", import.meta.url)`);
+  });
+});

@@ -139,3 +139,35 @@ describe('AssetResolver full miss', () => {
     expect(new AssetResolver(stubVfs(), new Map()).resolve('nonexistent.wasm')).toBeNull();
   });
 });
+
+describe('AssetResolver case-insensitive endpoint lookup', () => {
+  it('resolves and retrieves headers with mixed-case specifier against lowercase manifest route', () => {
+    const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js', responseHeaders: [{ Name: 'Content-Type', Value: 'text/javascript' }] };
+    const lookup: EndpointLookup = new Map([['_framework/dotnet.js', fpMatch]]);
+    const resolveFn = vi.fn().mockImplementation((vp: string) =>
+      vp === '_framework/dotnet.abc123.js'
+        ? vfsAsset('/abs/_framework/dotnet.abc123.js')
+        : undefined,
+    );
+    const r = new AssetResolver(stubVfs({ resolve: resolveFn }), lookup);
+    // Query with mixed case
+    expect(r.resolve('/_Framework/Dotnet.JS')).toBe('/abs/_framework/dotnet.abc123.js');
+    // Headers should also be found with mixed case
+    expect(r.headersFor('/_Framework/Dotnet.JS')).toEqual([{ Name: 'Content-Type', Value: 'text/javascript' }]);
+  });
+
+  it('resolves and retrieves headers for non-canonical path with dot segments', () => {
+    const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js', responseHeaders: [{ Name: 'Content-Type', Value: 'text/javascript' }] };
+    const lookup: EndpointLookup = new Map([['_framework/dotnet.js', fpMatch]]);
+    const resolveFn = vi.fn().mockImplementation((vp: string) =>
+      vp === '_framework/dotnet.abc123.js'
+        ? vfsAsset('/abs/_framework/dotnet.abc123.js')
+        : undefined,
+    );
+    const r = new AssetResolver(stubVfs({ resolve: resolveFn }), lookup);
+    // Query with ./ segments
+    expect(r.resolve('/_framework/./dotnet.js')).toBe('/abs/_framework/dotnet.abc123.js');
+    // Headers should also be found
+    expect(r.headersFor('/_framework/./dotnet.js')).toEqual([{ Name: 'Content-Type', Value: 'text/javascript' }]);
+  });
+});

@@ -2,7 +2,7 @@ import type { VirtualFileSystem } from './vfs';
 import type { EndpointLookup } from './endpoint-lookup';
 import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
-import { normalizeVirtualPath, stripLeadingSlashOrDot, toPosixPath } from '../path-utils';
+import { collapseDotSegments, normalizeRoute, toPosixPath } from '../path-utils';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,
@@ -18,18 +18,19 @@ export class AssetResolver {
    * Resolve a bundler `source` specifier to an absolute physical path or `null` if the specifier is unrecognized.
    */
   resolve(source: string): string | null {
-    // Clamp-normalise so relative specifiers (e.g. the bundler-friendly boot
-    // config's `./../_content/<pkg>/<pkg>.lib.module.js`) collapse to their
-    // canonical manifest route. A lookup hit is definitionally ours; a miss
-    // returns null and the bundler resolves the specifier itself.
-    const virtualPath = normalizeVirtualPath(source);
+    // Collapse relative specifiers (e.g. the bundler-friendly boot config's
+    // `./../_content/<pkg>/<pkg>.lib.module.js`) to their canonical manifest
+    // route. Case is PRESERVED here: the probe also drives the VFS physical-file
+    // lookup, which must match on-disk casing on case-sensitive filesystems.
+    // Case-folding happens only on the endpoint-map lookup below.
+    const virtualPath = collapseDotSegments(toPosixPath(source));
     if (virtualPath === '') return null;
 
     for (const probe of new ExtensionProbes(virtualPath)) {
       const vfsHit = this.vfs.resolve(probe);
       if (vfsHit !== undefined) return vfsHit.physicalPath;
 
-      const alias = this.endpointLookup.get(probe);
+      const alias = this.endpointLookup.get(normalizeRoute(probe));
       if (alias !== undefined) {
         const resolved = this.vfs.resolve(alias.assetFile);
         if (resolved !== undefined) return resolved.physicalPath;
@@ -43,7 +44,7 @@ export class AssetResolver {
   }
 
   headersFor(route: string): readonly ResponseHeader[] | undefined {
-    const key = stripLeadingSlashOrDot(toPosixPath(route));
+    const key = normalizeRoute(route);
     return this.endpointLookup.get(key)?.responseHeaders;
   }
 

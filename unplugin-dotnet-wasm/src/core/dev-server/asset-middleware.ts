@@ -44,6 +44,7 @@ export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): 
     const etag = res.getHeader('ETag');
     const ifNoneMatch = req.headers['if-none-match'];
     if (typeof etag === 'string' && ifNoneMatch === etag) {
+      res.removeHeader('Content-Length');
       res.statusCode = 304;
       res.end();
       return;

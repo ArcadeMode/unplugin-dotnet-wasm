@@ -20,6 +20,7 @@ interface FakeRes {
   headersSent: boolean;
   setHeader(name: string, value: string): void;
   getHeader(name: string): string | string[] | number | undefined;
+  removeHeader(name: string): void;
   end(): void;
 }
 
@@ -36,6 +37,9 @@ function createFakeRes(): FakeRes {
     },
     getHeader(name: string): string | string[] | number | undefined {
       return headers[name];
+    },
+    removeHeader(name: string): void {
+      delete headers[name];
     },
     end(): void {
       headersSent = true;
@@ -80,6 +84,9 @@ function createStreamingRes(): {
     },
     getHeader(name: string): string | string[] | number | undefined {
       return headers[name];
+    },
+    removeHeader(name: string): void {
+      delete headers[name];
     },
   }) as FakeRes & PassThrough;
   const body = () =>
@@ -155,6 +162,7 @@ describe('createAssetMiddleware', () => {
     middleware(req as unknown as IncomingMessage, res as unknown as ServerResponse, next);
 
     expect(res.statusCode).toBe(304);
+    expect(res.getHeader('Content-Length')).toBeUndefined();
     expect(endSpy).toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });

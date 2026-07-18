@@ -13,14 +13,23 @@ export function stripLeadingSlashOrDot(p: string): string {
   return stripLeadingSlash(p.replace(/^\.\//u, ''));
 }
 
-export function normalizeVirtualPath(p: string): string {
+/**
+ * Collapse a POSIX path to canonical form: drop empty and `.` segments,
+ * resolve `..`. Assumes POSIX input — run toPosixPath first if unsure.
+ */
+export function collapseDotSegments(posixPath: string): string {
   const out: string[] = [];
-  for (const seg of toPosixPath(p).split('/')) {
+  for (const seg of posixPath.split('/')) {
     if (seg === '' || seg === '.') continue;
     if (seg === '..') { out.pop(); continue; }
     out.push(seg);
   }
   return out.join('/');
+}
+
+/** Canonical key for endpoint-route lookups: POSIX, dot-segments collapsed, case-folded. */
+export function normalizeRoute(p: string): string {
+  return collapseDotSegments(toPosixPath(p)).toLowerCase();
 }
 
 /**
