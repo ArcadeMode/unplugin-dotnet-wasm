@@ -44,6 +44,16 @@ describeWhen({ buildModes: ['debug'] })('Build non-publish (Debug config + scatt
     expect(wasmFiles.length).toBeGreaterThanOrEqual(20);
   });
 
+  it('emits at least one .dat asset (ICU data)', () => {
+    const files = readdirSync(vb.assets);
+    expect(files.some(f => /^icudt[^/]*\.dat$/.test(f))).toBe(true);
+  });
+
+  it('emits at least one .pdb asset (debug symbols)', () => {
+    const files = readdirSync(vb.assets);
+    expect(files.some(f => /\.pdb$/.test(f))).toBe(true);
+  });
+
   it('Library*.wasm is present (user assembly emitted)', () => {
     const files = readdirSync(vb.assets);
     expect(files.some(f => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
