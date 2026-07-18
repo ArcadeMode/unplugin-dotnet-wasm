@@ -13,7 +13,7 @@ export class NodeModulesLocator {
 
   private findNodeModulesDir(): string {
     let dir = this.root;
-    while (true){
+    while (true) {
       const candidate = join(dir, 'node_modules');
       if (existsSync(candidate)) return (this.cache = candidate);
       const parent = dirname(dir);

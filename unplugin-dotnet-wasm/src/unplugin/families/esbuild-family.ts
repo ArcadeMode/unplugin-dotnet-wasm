@@ -28,8 +28,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
     build.initialOptions.external ??= [];
     for (const mod of DOTNET_NODE_BUILTINS) {
       // node builtins must be external to build, add whichever the user doesnt have in config
-      if (!build.initialOptions.external.includes(mod))
-        build.initialOptions.external.push(mod);
+      if (!build.initialOptions.external.includes(mod)) build.initialOptions.external.push(mod);
     }
 
     build.initialOptions.loader ??= {};
@@ -39,14 +38,14 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       }
     }
 
-    build.onResolve({ filter: /.*/ }, args => {
+    build.onResolve({ filter: /.*/ }, (args) => {
       const resolved = ctx.assetResolver.resolve(args.path);
       return resolved !== null ? { path: resolved } : null;
     });
 
-    build.onLoad({ filter: /\.js$/ }, async args => {
+    build.onLoad({ filter: /\.js$/ }, async (args) => {
       if (!FRAMEWORK_JS_REGEX.test(args.path)) return null;
-      // dotnet SDK js files contain some warning-producing statements, 
+      // dotnet SDK js files contain some warning-producing statements,
       // we rewrite them to silence the warnings end users cannot resolve anyway.
       const source = await readFile(args.path, 'utf-8');
       const fixed = ctx.rewriter.rewrite(source);

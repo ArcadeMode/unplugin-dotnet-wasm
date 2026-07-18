@@ -19,5 +19,14 @@ export default defineConfig({
   clean: true,
   splitting: false,
   target: 'node20',
-  external: ['vite', 'webpack', 'rollup', 'rolldown', 'esbuild', '@rspack/core', '@rsbuild/core', '@farmfe/core'],
+  external: [
+    'vite',
+    'webpack',
+    'rollup',
+    'rolldown',
+    'esbuild',
+    '@rspack/core',
+    '@rsbuild/core',
+    '@farmfe/core',
+  ],
 });

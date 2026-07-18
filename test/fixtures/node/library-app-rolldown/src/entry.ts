@@ -4,7 +4,7 @@ import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
 
 async function runTests(): Promise<void> {
   console.log('[Node] Initializing .NET WASM runtime...');
-  
+
   const runtimeInfo = await dotnet.create();
   await TypeShimInitializer.initialize(runtimeInfo);
   runtimeInfo.runMain();
@@ -36,7 +36,9 @@ async function runTests(): Promise<void> {
     const notTrue = echo.BoolNot(true);
     const notFalse = echo.BoolNot(false);
     if (notTrue !== false || notFalse !== true) {
-      throw new Error(`Echo.BoolNot returned unexpected values: true→${notTrue}, false→${notFalse}`);
+      throw new Error(
+        `Echo.BoolNot returned unexpected values: true→${notTrue}, false→${notFalse}`,
+      );
     }
     console.log('[Echo.BoolNot] ✓ Passed');
 

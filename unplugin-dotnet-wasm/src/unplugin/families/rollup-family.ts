@@ -7,9 +7,7 @@ import type { PluginContext } from '../context';
 export interface RollupFamilyHooks {
   vite: {
     configResolved(config: { root: string; command: string }): void;
-    configureServer(server: {
-      middlewares: { use: (fn: ConnectMiddleware) => void };
-    }): void;
+    configureServer(server: { middlewares: { use: (fn: ConnectMiddleware) => void } }): void;
   };
   load: {
     filter: { id: RegExp };
@@ -26,9 +24,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         ctx.setConsumerRoot(config.root);
         isServe = config.command === 'serve';
       },
-      configureServer(server: {
-        middlewares: { use: (fn: ConnectMiddleware) => void };
-      }): void {
+      configureServer(server: { middlewares: { use: (fn: ConnectMiddleware) => void } }): void {
         server.middlewares.use((req, res, next) => {
           ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
@@ -37,7 +33,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
     },
     load: {
       filter: { id: BINARY_EXTENSIONS_REGEX },
-      async handler(this: { emitFile(options: { type: string; name: string; source: Buffer }): string }, id: string): Promise<string> {
+      async handler(
+        this: { emitFile(options: { type: string; name: string; source: Buffer }): string },
+        id: string,
+      ): Promise<string> {
         if (isServe) {
           // serve directly instead of falling back to default /@fs/
           return `export default ${JSON.stringify('/_framework/' + basename(id))};`;

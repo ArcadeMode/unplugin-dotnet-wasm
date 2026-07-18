@@ -11,7 +11,9 @@ export class IsolatedBunBuild extends IsolatedBundlerBuild {
     }
     super('bun', fixtureDir, platform, label);
   }
-  get entryChunk(): string { return join(this.assets, 'entry.js'); }
+  get entryChunk(): string {
+    return join(this.assets, 'entry.js');
+  }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
     this.warnings.length = 0;
@@ -55,11 +57,11 @@ try {
   process.exit(1);
 }
 `;
-    
+
     // stderr is piped (not inherited) so we can extract the real DiscoveryError message
     // from the output and rethrow it, allowing callers to assert on the message.
     try {
-      execSync(`bun run -`, { 
+      execSync(`bun run -`, {
         input: buildScript,
         stdio: ['pipe', 'inherit', 'pipe'],
         cwd: this.fixtureDir,
@@ -82,5 +84,3 @@ try {
     }
   }
 }
-
-

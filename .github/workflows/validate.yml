@@ -47,9 +47,28 @@ jobs:
           name: test-results-unit-${{ matrix.os }}
           path: unplugin-dotnet-wasm/test-results/
 
+  format:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - run: pnpm install
+
+      - name: Check formatting
+        run: pnpm format:check
+
   matrix:
     name: Run integration tests
-    needs: unit
+    needs: [unit, format]
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +133,7 @@ jobs:
 
   matrix-none:
     name: Run integration tests (no build)
-    needs: unit
+    needs: [unit, format]
     strategy:
       fail-fast: false
       matrix:
@@ -156,7 +175,7 @@ jobs:
 
   matrix-dev:
     name: Run dev-server tests
-    needs: unit
+    needs: [unit, format]
     strategy:
       fail-fast: false
       matrix:
@@ -211,7 +230,7 @@ jobs:
 
   results:
     name: Publish test results
-    needs: [unit, matrix, matrix-none, matrix-dev]
+    needs: [unit, format, matrix, matrix-none, matrix-dev]
     if: always()
     runs-on: ubuntu-latest
     permissions:

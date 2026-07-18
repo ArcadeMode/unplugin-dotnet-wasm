@@ -12,12 +12,6 @@ const PUBLISH_DIR = resolve(SAMPLE_ROOT, 'bin/Release/net10.0/publish');
 
 describe('discoverManifests with real fixture', () => {
   it('finds both manifests with explicit TFM', () => {
-    const result = discoverManifests({ projectRoot: SAMPLE_ROOT, projectName: 'SampleLibrary', configuration: 'Debug', targetFramework: 'net10.0' });
-    expect(result.runtimeManifestPath).toBe(EXPECTED_MANIFEST);
-    expect(result.endpointsManifestPath).toMatch(/SampleLibrary\.staticwebassets\.endpoints\.json$/);
-  });
-
-  it('finds the manifest with all axes explicit', () => {
     const result = discoverManifests({
       projectRoot: SAMPLE_ROOT,
       projectName: 'SampleLibrary',
@@ -25,14 +19,31 @@ describe('discoverManifests with real fixture', () => {
       targetFramework: 'net10.0',
     });
     expect(result.runtimeManifestPath).toBe(EXPECTED_MANIFEST);
+    expect(result.endpointsManifestPath).toMatch(
+      /SampleLibrary\.staticwebassets\.endpoints\.json$/,
+    );
   });
 
   it('throws for an unbuilt configuration', () => {
-    expect(() => discoverManifests({ projectRoot: SAMPLE_ROOT, projectName: 'SampleLibrary', configuration: 'Bonkers', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
+    expect(() =>
+      discoverManifests({
+        projectRoot: SAMPLE_ROOT,
+        projectName: 'SampleLibrary',
+        configuration: 'Bonkers',
+        targetFramework: 'net10.0',
+      }),
+    ).toThrowError(/Endpoints manifest not found/);
   });
 
   it('throws for an unknown targetFramework', () => {
-    expect(() => discoverManifests({ projectRoot: SAMPLE_ROOT, projectName: 'SampleLibrary', configuration: 'Debug', targetFramework: 'net8.0' })).toThrowError(/Endpoints manifest not found/);
+    expect(() =>
+      discoverManifests({
+        projectRoot: SAMPLE_ROOT,
+        projectName: 'SampleLibrary',
+        configuration: 'Debug',
+        targetFramework: 'net8.0',
+      }),
+    ).toThrowError(/Endpoints manifest not found/);
   });
 });
 
@@ -45,7 +56,9 @@ describe('discoverManifests with real publish fixture', () => {
       targetFramework: 'net10.0',
       isPublish: true,
     });
-    expect(result.endpointsManifestPath).toBe(join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.endpoints.json'));
+    expect(result.endpointsManifestPath).toBe(
+      join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.endpoints.json'),
+    );
   });
 
   it('returns runtimeManifestPath as null (publish does not emit runtime.json)', () => {
@@ -79,7 +92,9 @@ describe('discoverManifests with explicit dotnetOutputDir option', () => {
       dotnetOutputDir: PUBLISH_DIR,
     });
     expect(result.runtimeManifestPath).toBeNull();
-    expect(result.endpointsManifestPath).toBe(join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.endpoints.json'));
+    expect(result.endpointsManifestPath).toBe(
+      join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.endpoints.json'),
+    );
   });
 
   it('throws when given a file path instead of a directory (regression: old manifestPath shape)', () => {
@@ -96,10 +111,24 @@ const NONEXISTENT_ROOT = join(tmpdir(), 'unplugin-dotnet-wasm-does-not-exist');
 
 describe('discoverManifests with missing manifest', () => {
   it('throws when no manifest exists in the TFM dir', () => {
-    expect(() => discoverManifests({ projectRoot: NONEXISTENT_ROOT, projectName: 'SomeProj', configuration: 'Debug', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
+    expect(() =>
+      discoverManifests({
+        projectRoot: NONEXISTENT_ROOT,
+        projectName: 'SomeProj',
+        configuration: 'Debug',
+        targetFramework: 'net10.0',
+      }),
+    ).toThrowError(/Endpoints manifest not found/);
   });
 
   it('throws when the configuration directory does not exist', () => {
-    expect(() => discoverManifests({ projectRoot: NONEXISTENT_ROOT, projectName: 'Proj', configuration: 'Release', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
+    expect(() =>
+      discoverManifests({
+        projectRoot: NONEXISTENT_ROOT,
+        projectName: 'Proj',
+        configuration: 'Release',
+        targetFramework: 'net10.0',
+      }),
+    ).toThrowError(/Endpoints manifest not found/);
   });
 });

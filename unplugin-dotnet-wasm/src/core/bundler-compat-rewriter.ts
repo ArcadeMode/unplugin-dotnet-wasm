@@ -1,15 +1,7 @@
 import { DOTNET_NODE_BUILTINS } from './constants';
 
 export type BundlerFramework =
-  | 'vite'
-  | 'rollup'
-  | 'rolldown'
-  | 'webpack'
-  | 'rspack'
-  | 'rsbuild'
-  | 'esbuild'
-  | 'bun'
-  | 'farm';
+  'vite' | 'rollup' | 'rolldown' | 'webpack' | 'rspack' | 'rsbuild' | 'esbuild' | 'bun' | 'farm';
 
 /**
  * Rewrites dotnet framework JS source to be compatible with a specific bundler
@@ -32,10 +24,7 @@ export class BundlerCompatRewriter {
     let result = code;
 
     if (this.pragma) {
-      result = result.replace(
-        /\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
-        `import(${this.pragma} `,
-      );
+      result = result.replace(/\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g, `import(${this.pragma} `);
       if (this.rewritesNewUrl) {
         result = result.replace(
           /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
@@ -64,6 +53,6 @@ export class BundlerCompatRewriter {
   }
 
   private isWebpackFamily(framework: BundlerFramework): boolean {
-  return framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
-}
+    return framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
+  }
 }

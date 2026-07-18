@@ -17,7 +17,7 @@ describe('NodeModulesLocator', () => {
     expect(resolved).toBe(nodeModulesDir);
   });
 
-  it('walks up to an ancestor\'s node_modules', async () => {
+  it("walks up to an ancestor's node_modules", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'locator-'));
     const ancestorDir = tempDir;
     const nodeModulesDir = join(ancestorDir, 'node_modules');

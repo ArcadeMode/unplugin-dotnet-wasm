@@ -2,7 +2,7 @@ import type { DotnetAssetsOptions } from '../types';
 import { createConsoleLogger, type Logger } from '../core/logger';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
-import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
+import { EndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
 import { ShimPackageGenerator } from '../core/type-shims/shim-package-generator';
@@ -31,12 +31,22 @@ export class PluginContext {
     this.#rewriter = new BundlerCompatRewriter(framework);
   }
 
-  get options(): DotnetAssetsOptions { return this.#options; }
-  get logger(): Logger { return this.#logger; }
-  get rewriter(): BundlerCompatRewriter { return this.#rewriter; }
+  get options(): DotnetAssetsOptions {
+    return this.#options;
+  }
+  get logger(): Logger {
+    return this.#logger;
+  }
+  get rewriter(): BundlerCompatRewriter {
+    return this.#rewriter;
+  }
 
-  get consumerRoot(): string { return this.#consumerRoot; }
-  setConsumerRoot(root: string): void { this.#consumerRoot = root; }
+  get consumerRoot(): string {
+    return this.#consumerRoot;
+  }
+  setConsumerRoot(root: string): void {
+    this.#consumerRoot = root;
+  }
 
   get assetResolver(): AssetResolver {
     if (!this.#assetResolver) throw new Error('assetResolver accessed before initialize()');
@@ -50,25 +60,34 @@ export class PluginContext {
   async #doInitialize(): Promise<void> {
     const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
       await new ManifestLoader().load(this.#options);
-    const endpointLookup = buildEndpointLookup(endpointsManifest);
+    const endpointLookup = new EndpointLookup(endpointsManifest);
     const vfs = runtimeManifest
       ? buildVfs(runtimeManifest, { logger: this.#logger })
       : buildEmptyVfs(endpointsManifestPath, { logger: this.#logger });
     this.#assetResolver = new AssetResolver(vfs, endpointLookup);
 
     if (isYarnPnp()) {
-      this.#logger.warn(`Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${this.#options.projectName}' will most likely not be available.`);
+      this.#logger.warn(
+        `Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${this.#options.projectName}' will most likely not be available.`,
+      );
       return;
     }
     const locator = new NodeModulesLocator(this.#consumerRoot);
-    const discoverer = new FileDiscoverer(this.#assetResolver, this.#logger);
+    const discoverer = new FileDiscoverer(this.#assetResolver);
     const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.#logger);
-    const generator = new ShimPackageGenerator(locator, discoverer, this.#changeTracker, emitter, this.#logger);
+    const generator = new ShimPackageGenerator(
+      locator,
+      discoverer,
+      this.#changeTracker,
+      emitter,
+      this.#logger,
+    );
     await generator.generate();
   }
 
   get assetMiddleware(): ConnectMiddleware {
-    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before enableAssetMiddleware()');
+    if (!this.#assetMiddleware)
+      throw new Error('assetMiddleware accessed before enableAssetMiddleware()');
     return this.#assetMiddleware;
   }
 

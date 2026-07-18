@@ -6,11 +6,13 @@ import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
 export class IsolatedFarmBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, platform: Platform, label: string) { super('farm', fixtureDir, platform, label); }
+  constructor(fixtureDir: string, platform: Platform, label: string) {
+    super('farm', fixtureDir, platform, label);
+  }
   get entryChunk(): string {
     // Both platforms use hashed output; find index chunk.
     const files = readdirSync(this.assets);
-    const entry = files.find(f => /^index[._-].+\.js$/.test(f));
+    const entry = files.find((f) => /^index[._-].+\.js$/.test(f));
     if (!entry) throw new Error(`Farm entry chunk not found under ${this.assets}`);
     return join(this.assets, entry);
   }
@@ -82,4 +84,3 @@ await build({
     }
   }
 }
-

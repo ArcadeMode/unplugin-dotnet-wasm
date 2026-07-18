@@ -28,7 +28,7 @@ describe('IdempotentFileWriter', () => {
     const firstStat = await stat(filePath);
 
     // Wait a bit to ensure mtime would change if rewritten
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Write the same content again
     const written = await writer.write(filePath, 'content');
@@ -48,7 +48,7 @@ describe('IdempotentFileWriter', () => {
     const firstStat = await stat(filePath);
 
     // Wait a bit to ensure mtime changes
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Write different content
     const written = await writer.write(filePath, 'updated');

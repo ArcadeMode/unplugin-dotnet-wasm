@@ -13,7 +13,7 @@ export default {
     format: 'es',
     entryFileNames: 'entry.js',
   },
-  external: [...builtinModules, ...builtinModules.map(m => `node:${m}`)],
+  external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),
@@ -25,4 +25,3 @@ export default {
     }),
   ],
 };
-

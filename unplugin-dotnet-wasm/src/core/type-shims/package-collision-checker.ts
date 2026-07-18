@@ -21,7 +21,7 @@ export class PackageCollisionChecker {
     const sentinelPath = join(dir, this.sentinel.name);
     if (existsSync(sentinelPath)) return true; // already ours
     if (existsSync(dir) && readdirSync(dir).length > 0) return false; // foreign
-    
+
     await this.writer.write(sentinelPath, this.sentinel.content);
     return true;
   }

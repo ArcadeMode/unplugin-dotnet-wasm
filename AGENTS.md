@@ -83,8 +83,11 @@ pnpm test:matrix --e2e --fingerprint=false --build-mode=debug --bundler=vite --p
 
 - Typecheck all: `pnpm typecheck`
 - Lint all: `pnpm lint`
+- Format all ts/js: `pnpm format`
+- Check formatting: `pnpm format:check`
 - Clean all: `pnpm clean`
 
 ## Gotchas
 
+- **Post-edit formatting:** after editing any `.ts`/`.tsx`/`.js`/`.mjs`/`.cjs` file, run `pnpm format` before finishing the task. CI's `format` job blocks the integration matrix if `pnpm format:check` fails. Prettier config lives at repo root (`.prettierrc`, `.prettierignore`). ESLint in `unplugin-dotnet-wasm` also surfaces Prettier violations via `eslint-plugin-prettier`, so `pnpm lint` fails on unformatted plugin source too.
 - **Windows PowerShell:** use `;` (not `&&`) to chain; use `Select-Object -Last N` (not `tail`).

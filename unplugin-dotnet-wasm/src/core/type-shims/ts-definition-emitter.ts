@@ -10,16 +10,21 @@ export class TsDefinitionEmitter {
   private ts?: typeof typescript;
   private unavailable = false;
 
-  constructor(private readonly root: string, private readonly logger: Logger) {}
+  constructor(
+    private readonly root: string,
+    private readonly logger: Logger,
+  ) {}
 
   /**
-   * Generates .d.ts content that re-exports definitionFile 
+   * Generates .d.ts content that re-exports definitionFile.
+   * @throws {Error} if the file does not have a .d.ts extension or is not an absolute path.
    */
   public forwardDTS(definitionFile: string): string {
     if (!definitionFile.endsWith(DECL_EXT)) {
       throw new Error(`Expected a .d.ts file path, got "${definitionFile}"`);
     }
     if (!path.isAbsolute(definitionFile)) {
+      // non-absolute paths wont resolve correctly in the consumer's node_modules
       throw new Error(`Expected an absolute path, got "${definitionFile}"`);
     }
     const pathClean = definitionFile.slice(0, -DECL_EXT.length);
@@ -28,6 +33,7 @@ export class TsDefinitionEmitter {
 
   /**
    * Compiles .ts to .d.ts, returns null if compilation failed.
+   * @throws {Error} if the file does not have a .ts extension.
    */
   public compileToDTS(sourceFile: string): string | null {
     if (!sourceFile.endsWith('.ts')) {

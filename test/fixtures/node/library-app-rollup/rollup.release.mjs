@@ -11,7 +11,7 @@ const outdir = resolve(__dirname, 'dist');
 const bundle = await rollup.rollup({
   input: resolve(__dirname, 'src/entry.ts'),
   preserveEntrySignatures: 'strict',
-  external: [...builtinModules, ...builtinModules.map(m => `node:${m}`)],
+  external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
   plugins: [
     DotnetAssets({
       projectRoot: resolve(__dirname, '../../Library'),

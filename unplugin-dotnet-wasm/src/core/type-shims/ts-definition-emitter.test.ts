@@ -16,8 +16,14 @@ describe('TsDefinitionEmitter.forwardDTS', () => {
 
   it('normalizes backslashes to forward slashes in posix path', () => {
     const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
-    const inPath = platform() === 'win32' ? 'C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts' : '/deep/nested/path/pkg/nested/mod.d.ts';
-    const outPath = platform() === 'win32' ? 'C:/deep/nested/path/pkg/nested/mod' : '/deep/nested/path/pkg/nested/mod';
+    const inPath =
+      platform() === 'win32'
+        ? 'C:\\deep\\nested\\path\\pkg\\nested\\mod.d.ts'
+        : '/deep/nested/path/pkg/nested/mod.d.ts';
+    const outPath =
+      platform() === 'win32'
+        ? 'C:/deep/nested/path/pkg/nested/mod'
+        : '/deep/nested/path/pkg/nested/mod';
     const result = emitter.forwardDTS(inPath);
     expect(result).toBe(`export * from '${outPath}';\n`);
   });

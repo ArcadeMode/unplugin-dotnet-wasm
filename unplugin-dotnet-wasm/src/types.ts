@@ -3,9 +3,8 @@
  * ({@link DotnetAssetsDiscoveryOptions}) or an explicit `dotnetOutputDir`
  * ({@link DotnetAssetsExplicitOptions}).
  */
-export type DotnetAssetsOptions =
-  & DotnetAssetsBaseOptions
-  & (DotnetAssetsDiscoveryOptions | DotnetAssetsExplicitOptions);
+export type DotnetAssetsOptions = DotnetAssetsBaseOptions &
+  (DotnetAssetsDiscoveryOptions | DotnetAssetsExplicitOptions);
 
 export interface DotnetAssetsBaseOptions {
   /** The .NET project name - used to construct manifest filenames. */

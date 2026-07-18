@@ -10,7 +10,9 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
     }
     super('rsbuild', fixtureDir, platform, label);
   }
-  get entryChunk(): string { return join(this.assets, 'entry.js'); }
+  get entryChunk(): string {
+    return join(this.assets, 'entry.js');
+  }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
     this.warnings.length = 0;
@@ -36,4 +38,3 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
     await rsbuild.build();
   }
 }
-

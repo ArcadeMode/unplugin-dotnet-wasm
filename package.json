@@ -27,6 +27,8 @@
     "test": "node scripts/run-tests.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs}\"",
     "clean": "pnpm -r clean"
   },
   "engines": {
@@ -35,6 +37,7 @@
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
+    "prettier": "^3.3.0",
     "typescript": "^5.5.0"
   }
 }

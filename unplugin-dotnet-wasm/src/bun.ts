@@ -1,3 +1,5 @@
 import { dotnetStaticAssets } from './unplugin/index';
 
-export default dotnetStaticAssets.bun;
+const DotnetAssets = dotnetStaticAssets.bun;
+export default DotnetAssets;
+export { DotnetAssets as 'module.exports' };

@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import {
-  parseEndpointsManifest,
-  EndpointsManifestParseError,
-} from './manifest-endpoints';
+import { parseEndpointsManifest, EndpointsManifestParseError } from './manifest-endpoints';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
@@ -31,49 +28,49 @@ describe('parseEndpointsManifest', () => {
 
   it('contains a canonical _framework/SampleLibrary.wasm endpoint with a resolved AssetFile', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const ep = manifest.Endpoints.find(e => e.Route === '_framework/SampleLibrary.wasm');
+    const ep = manifest.Endpoints.find((e) => e.Route === '_framework/SampleLibrary.wasm');
     expect(ep).toBeDefined();
     expect(ep!.AssetFile).toMatch(/^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/);
   });
 
   it('contains a canonical _framework/dotnet.js endpoint with a resolved AssetFile', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const ep = manifest.Endpoints.find(e => e.Route === '_framework/dotnet.js');
+    const ep = manifest.Endpoints.find((e) => e.Route === '_framework/dotnet.js');
     expect(ep).toBeDefined();
     expect(ep!.AssetFile).toMatch(/^_framework\/dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('contains a canonical _framework/dotnet.native.wasm endpoint', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const ep = manifest.Endpoints.find(e => e.Route === '_framework/dotnet.native.wasm');
+    const ep = manifest.Endpoints.find((e) => e.Route === '_framework/dotnet.native.wasm');
     expect(ep).toBeDefined();
     expect(ep!.AssetFile).toMatch(/^_framework\/dotnet\.native(\.[a-z0-9]+)?\.wasm$/);
   });
 
   it('at least one endpoint has a "fingerprint" EndpointProperty', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const hasFp = manifest.Endpoints.some(e =>
-      e.EndpointProperties.some(p => p.Name === 'fingerprint'),
+    const hasFp = manifest.Endpoints.some((e) =>
+      e.EndpointProperties.some((p) => p.Name === 'fingerprint'),
     );
     expect(hasFp).toBe(true);
   });
 
   it('at least one endpoint has a "label" EndpointProperty', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    const hasLabel = manifest.Endpoints.some(e =>
-      e.EndpointProperties.some(p => p.Name === 'label'),
+    const hasLabel = manifest.Endpoints.some((e) =>
+      e.EndpointProperties.some((p) => p.Name === 'label'),
     );
     expect(hasLabel).toBe(true);
   });
 
   it('all endpoints have Selectors as an array (even if empty)', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.Endpoints.every(e => Array.isArray(e.Selectors))).toBe(true);
+    expect(manifest.Endpoints.every((e) => Array.isArray(e.Selectors))).toBe(true);
   });
 
   it('all endpoints have at least one ResponseHeader', () => {
     const manifest = parseEndpointsManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.Endpoints.every(e => e.ResponseHeaders.length > 0)).toBe(true);
+    expect(manifest.Endpoints.every((e) => e.ResponseHeaders.length > 0)).toBe(true);
   });
 
   it('accepts a Buffer input', () => {
@@ -106,7 +103,9 @@ describe('parseEndpointsManifest', () => {
         JSON.stringify({
           Version: 1,
           ManifestType: 'Build',
-          Endpoints: [{ AssetFile: 'a.wasm', Selectors: [], ResponseHeaders: [], EndpointProperties: [] }],
+          Endpoints: [
+            { AssetFile: 'a.wasm', Selectors: [], ResponseHeaders: [], EndpointProperties: [] },
+          ],
         }),
       ),
     ).toThrow(EndpointsManifestParseError);

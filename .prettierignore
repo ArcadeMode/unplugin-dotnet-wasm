@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/wwwroot/_framework
+**/test-results
+**/coverage
+**/.turbo
+pnpm-lock.yaml

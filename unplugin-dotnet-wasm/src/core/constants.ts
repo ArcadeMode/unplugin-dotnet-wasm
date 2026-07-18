@@ -8,4 +8,11 @@ export const FRAMEWORK_JS_REGEX = /[\\/]_framework[\\/]dotnet(?:\.[^\\/]+)?\.js$
 
 // Node.js built-ins referenced in dotnet.native.js - guarded by ENVIRONMENT_IS_NODE
 // so never executed in browsers, but cause build errors in bundlers, defined here to help deal with them.
-export const DOTNET_NODE_BUILTINS = ['module', 'process', 'fs', 'path', 'url', 'worker_threads'] as const;
+export const DOTNET_NODE_BUILTINS = [
+  'module',
+  'process',
+  'fs',
+  'path',
+  'url',
+  'worker_threads',
+] as const;

@@ -35,27 +35,32 @@ export interface Manifests {
  * Throws {@link DiscoveryError} when the endpoints manifest is missing.
  */
 export function discoverManifests(opts: DiscoverOptions): Manifests {
-  const manifestDir = 'dotnetOutputDir' in opts
-    ? resolve(opts.dotnetOutputDir)
-    : join(
-        resolve(opts.projectRoot),
-        'bin',
-        opts.configuration,
-        opts.targetFramework,
-        opts.isPublish ? 'publish' : '',
-      );
+  const manifestDir =
+    'dotnetOutputDir' in opts
+      ? resolve(opts.dotnetOutputDir)
+      : join(
+          resolve(opts.projectRoot),
+          'bin',
+          opts.configuration,
+          opts.targetFramework,
+          opts.isPublish ? 'publish' : '',
+        );
 
   const runtimeManifestPath = join(manifestDir, `${opts.projectName}.staticwebassets.runtime.json`);
-  const endpointsManifestPath = join(manifestDir, `${opts.projectName}.staticwebassets.endpoints.json`);
+  const endpointsManifestPath = join(
+    manifestDir,
+    `${opts.projectName}.staticwebassets.endpoints.json`,
+  );
 
   if (!existsSync(endpointsManifestPath)) {
-    const context: DiscoveryContext = 'projectRoot' in opts
-      ? {
-          projectRoot: opts.projectRoot,
-          configuration: opts.configuration,
-          targetFramework: opts.targetFramework,
-        }
-      : {};
+    const context: DiscoveryContext =
+      'projectRoot' in opts
+        ? {
+            projectRoot: opts.projectRoot,
+            configuration: opts.configuration,
+            targetFramework: opts.targetFramework,
+          }
+        : {};
     throw new DiscoveryError(`Endpoints manifest not found at ${manifestDir}`, context);
   }
 

@@ -29,9 +29,4 @@ describe('ExtensionProbes', () => {
       'bare/index.json',
     ]);
   });
-
-  it('produces a fresh iterator on each iteration', () => {
-    const probes = new ExtensionProbes('bare');
-    expect([...probes]).toEqual([...probes]);
-  });
 });

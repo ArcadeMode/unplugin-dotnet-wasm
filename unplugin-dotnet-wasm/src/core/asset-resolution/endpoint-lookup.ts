@@ -1,5 +1,12 @@
-import type { Endpoint, EndpointsManifest, ResponseHeader } from '../manifest-parsing/manifest-endpoints';
-import { stripLeadingSlash, toPosixPath } from '../path-utils';
+import type {
+  Endpoint,
+  EndpointsManifest,
+  ResponseHeader,
+} from '../manifest-parsing/manifest-endpoints';
+import { normalizePath } from '../path-utils';
+import { PathLookup, DuplicatePathError } from './path-lookup';
+
+export { DuplicatePathError };
 
 export interface EndpointMatch {
   /** Physical file path relative to the .NET application root */
@@ -13,43 +20,24 @@ export interface EndpointMatch {
   readonly responseHeaders: readonly ResponseHeader[];
 }
 
-/** Immutable route → EndpointMatch lookup table. */
-export type EndpointLookup = ReadonlyMap<string, EndpointMatch>;
-
-/**
- * Derive an {@link EndpointLookup} from a parsed endpoints manifest.
- *
- * - Compressed endpoints are ignored
- * - All routes and assetFile paths are POSIX-normalised and any leading `/` stripped
- *
- * @throws {EndpointLookupBuildError} if two uncompressed endpoints share the same
- *   normalised route.
- */
-export function buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup {
-  const map = new Map<string, EndpointMatch>();
-
-  for (const endpoint of manifest.Endpoints) {
-    if (isCompressed(endpoint)) continue;
-
-    const route = stripLeadingSlash(toPosixPath(endpoint.Route));
-    const assetFile = stripLeadingSlash(toPosixPath(endpoint.AssetFile));
-    const match = extractMatch(assetFile, endpoint);
-
-    if (map.has(route)) {
-      throw new EndpointLookupBuildError(
-        `Duplicate endpoint route after normalisation: "${route}"`,
-        route,
-      );
-    }
-
-    map.set(route, match);
+export class EndpointLookup extends PathLookup<EndpointMatch> {
+  constructor(manifest?: EndpointsManifest) {
+    super();
+    if (manifest) this.#build(manifest);
   }
 
-  return map;
+  #build(manifest: EndpointsManifest): void {
+    for (const endpoint of manifest.Endpoints) {
+      if (isCompressed(endpoint)) continue;
+      const route = normalizePath(endpoint.Route);
+      const assetFile = normalizePath(endpoint.AssetFile).path;
+      this.set(route, extractMatch(assetFile, endpoint));
+    }
+  }
 }
 
 function isCompressed(endpoint: Endpoint): boolean {
-  return endpoint.Selectors.some(s => s.Name === 'Content-Encoding');
+  return endpoint.Selectors.some((s) => s.Name === 'Content-Encoding');
 }
 
 function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
@@ -67,19 +55,8 @@ function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
     }
   }
 
-  const result: EndpointMatch = { assetFile, responseHeaders: endpoint.ResponseHeaders };
-  if (fingerprint !== undefined) (result as { fingerprint?: string }).fingerprint = fingerprint;
-  if (label !== undefined) (result as { label?: string }).label = label;
+  let result: EndpointMatch = { assetFile, responseHeaders: endpoint.ResponseHeaders };
+  if (fingerprint !== undefined) result = { ...result, fingerprint };
+  if (label !== undefined) result = { ...result, label };
   return result;
-}
-
-export class EndpointLookupBuildError extends Error {
-  /** The route that appeared more than once. */
-  readonly route: string;
-
-  constructor(message: string, route: string) {
-    super(message);
-    this.name = 'EndpointLookupBuildError';
-    this.route = route;
-  }
 }

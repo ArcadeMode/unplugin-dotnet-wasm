@@ -2,7 +2,7 @@ import type { VirtualFileSystem } from './vfs';
 import type { EndpointLookup } from './endpoint-lookup';
 import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
-import { normalizeVirtualPath, stripLeadingSlashOrDot, toPosixPath } from '../path-utils';
+import { normalizePath } from '../path-utils';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,
@@ -18,18 +18,18 @@ export class AssetResolver {
    * Resolve a bundler `source` specifier to an absolute physical path or `null` if the specifier is unrecognized.
    */
   resolve(source: string): string | null {
-    // Clamp-normalise so relative specifiers (e.g. the bundler-friendly boot
-    // config's `./../_content/<pkg>/<pkg>.lib.module.js`) collapse to their
-    // canonical manifest route. A lookup hit is definitionally ours; a miss
-    // returns null and the bundler resolves the specifier itself.
-    const virtualPath = normalizeVirtualPath(source);
+    // Collapse relative specifiers (e.g. the bundler-friendly boot config's
+    // `./../_content/<pkg>/<pkg>.lib.module.js`) to their canonical manifest
+    // route. normalizePath preserves case for the VFS physical-file probe;
+    // only the endpoint-map lookup below case-folds via the lookupKey.
+    const { path: virtualPath } = normalizePath(source);
     if (virtualPath === '') return null;
 
     for (const probe of new ExtensionProbes(virtualPath)) {
       const vfsHit = this.vfs.resolve(probe);
       if (vfsHit !== undefined) return vfsHit.physicalPath;
 
-      const alias = this.endpointLookup.get(probe);
+      const alias = this.endpointLookup.get(normalizePath(probe));
       if (alias !== undefined) {
         const resolved = this.vfs.resolve(alias.assetFile);
         if (resolved !== undefined) return resolved.physicalPath;
@@ -43,8 +43,7 @@ export class AssetResolver {
   }
 
   headersFor(route: string): readonly ResponseHeader[] | undefined {
-    const key = stripLeadingSlashOrDot(toPosixPath(route));
-    return this.endpointLookup.get(key)?.responseHeaders;
+    return this.endpointLookup.get(normalizePath(route))?.responseHeaders;
   }
 
   /**

@@ -2,7 +2,8 @@ import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { type Logger, NULL_LOGGER } from '../logger';
-import { stripLeadingSlash, toPosixPath } from '../path-utils';
+import { normalizePath, type NormalizedPath } from '../path-utils';
+import { PathLookup } from './path-lookup';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -51,6 +52,8 @@ interface NodePattern {
   pattern: string;
 }
 
+class AssetLookup extends PathLookup<ResolvedAsset> {}
+
 /**
  * statSync that returns true iff the path exists and is a regular file.
  */
@@ -70,14 +73,14 @@ function collectManifestAssets(
   node: ManifestNode,
   rawRoots: string[],
   segments: string[],
-  out: Map<string, ResolvedAsset>,
+  out: AssetLookup,
 ): void {
   if (node.Asset !== null) {
     const rootDir = rawRoots[node.Asset.ContentRootIndex];
     if (rootDir !== undefined) {
-      const virtualPath = segments.join('/');
-      out.set(virtualPath.toLowerCase(), {
-        virtualPath,
+      const normalized = normalizePath(segments.join('/'));
+      out.set(normalized, {
+        virtualPath: normalized.path,
         physicalPath: join(rootDir, node.Asset.SubPath),
       });
     }
@@ -112,28 +115,27 @@ function collectPatterns(node: ManifestNode, segments: string[]): NodePattern[] 
 /**
  * Build an in-memory virtual filesystem from a parsed runtime manifest.
  *
- * The VFS describes *only* what the manifest declares. Physical files can still be read from disk via `resolveFile()`, 
+ * The VFS describes *only* what the manifest declares. Physical files can still be read from disk via `resolveFile()`,
  * but they are not part of the VFS unless they are enumerated or fall under a matching pattern.
  */
 export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }): VirtualFileSystem {
   const logger = opts?.logger ?? NULL_LOGGER;
 
   // ── Step 1: ingest every explicit `Asset` node from the manifest. ──
-  const lookup = new Map<string, ResolvedAsset>();
+  const lookup = new AssetLookup();
   collectManifestAssets(manifest.Root, manifest.ContentRoots, [], lookup);
 
   // ── Step 2: pre-compile manifest patterns for lazy fallthrough. ──
   const patterns = collectPatterns(manifest.Root, []);
 
-  const patternCount = patterns.filter(p => p.pattern === '**').length;
+  const patternCount = patterns.filter((p) => p.pattern === '**').length;
   logger.info(
     `VFS constructed: ${lookup.size} manifest assets, ${manifest.ContentRoots.length} content root(s), ${patternCount} fallthrough pattern(s)`,
   );
 
   function list(virtualDir: string): string[] {
-    const norm = stripLeadingSlash(toPosixPath(virtualDir)).replace(/\/$/, '');
-    const prefix = norm === '' ? '' : `${norm}/`;
-    const prefixKey = prefix.toLowerCase();
+    const { lookupKey: normKey } = normalizePath(virtualDir);
+    const prefixKey = normKey === '' ? '' : `${normKey}/`;
     const found: string[] = [];
 
     for (const [key, asset] of lookup) {
@@ -152,46 +154,44 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
    * result into `lookup` and return it.  Returns `undefined` on miss.
    */
   function tryStatCandidate(
-    candidateVirtualPath: string,
+    candidate: NormalizedPath,
     candidatePhysicalPath: string,
   ): ResolvedAsset | undefined {
     if (!isFile(candidatePhysicalPath)) return undefined;
     const asset: ResolvedAsset = {
-      virtualPath: candidateVirtualPath,
+      virtualPath: candidate.path,
       physicalPath: candidatePhysicalPath,
     };
-    lookup.set(candidateVirtualPath.toLowerCase(), asset);
+    lookup.set(candidate, asset);
     return asset;
   }
 
   function resolve(virtualPath: string): ResolvedAsset | undefined {
-    const vp = stripLeadingSlash(toPosixPath(virtualPath));
-    const key = vp.toLowerCase();
-
-    const exact = lookup.get(key);
+    const normalizedVP = normalizePath(virtualPath);
+    const exact = lookup.get(normalizedVP);
     if (exact !== undefined) return exact;
 
     for (const pat of patterns) {
       const rawRoot = manifest.ContentRoots[pat.contentRootIndex];
       if (rawRoot === undefined) continue;
-      if (pat.nodePrefix !== '' && !vp.startsWith(`${pat.nodePrefix}/`)) continue;
+      if (pat.nodePrefix !== '' && !normalizedVP.path.startsWith(`${pat.nodePrefix}/`)) continue;
       // Only `**` is honoured today; richer glob shapes can land when needed.
       if (pat.pattern !== '**') continue;
 
-      const candidatePhysicalPath = join(rawRoot, vp);
-      const hit = tryStatCandidate(vp, candidatePhysicalPath);
+      const candidatePhysicalPath = join(rawRoot, normalizedVP.path);
+      const hit = tryStatCandidate(normalizedVP, candidatePhysicalPath);
       if (hit !== undefined) {
-        logger.debug(`resolved via pattern: "${vp}" → "${candidatePhysicalPath}"`);
+        logger.debug(`resolved via pattern: "${normalizedVP.path}" → "${candidatePhysicalPath}"`);
         return hit;
       }
     }
 
-    logger.debug(`could not resolve: "${vp}"`);
+    logger.debug(`could not resolve: "${normalizedVP.path}"`);
     return undefined;
   }
 
   function resolveFile(assetFile: string): ResolvedFile | undefined {
-    const posixFile = stripLeadingSlash(toPosixPath(assetFile));
+    const { path: posixFile } = normalizePath(assetFile);
     for (const rawRoot of manifest.ContentRoots) {
       const absPath = join(rawRoot, posixFile);
       if (isFile(absPath)) return { physicalPath: absPath };
@@ -202,7 +202,10 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   return { list, resolve, resolveFile };
 }
 
-export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: Logger }): VirtualFileSystem {
+export function buildEmptyVfs(
+  endpointsManifestPath?: string,
+  opts?: { logger?: Logger },
+): VirtualFileSystem {
   const logger = opts?.logger ?? NULL_LOGGER;
 
   if (!endpointsManifestPath) {
@@ -222,8 +225,9 @@ export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: 
 
   const manifestDir = dirname(endpointsManifestPath);
   const wwwroot = join(manifestDir, 'wwwroot');
-  const contentRoot = existsSync(wwwroot) ? wwwroot : manifestDir;
-  const rootLabel = existsSync(wwwroot) ? 'wwwroot' : 'manifest dir';
+  const wwwrootExists = existsSync(wwwroot) && statSync(wwwroot).isDirectory();
+  const contentRoot = wwwrootExists ? wwwroot : manifestDir;
+  const rootLabel = wwwrootExists ? 'wwwroot' : 'manifest dir';
 
   logger.debug(`building single-root VFS from endpoints manifest using ${rootLabel}`);
 

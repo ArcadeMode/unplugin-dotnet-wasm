@@ -1,5 +1,4 @@
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import type { Logger } from '../logger';
 
 const SOURCE_EXT = '.ts';
 const DECL_EXT = '.d.ts';
@@ -18,10 +17,7 @@ export interface DiscoveryGroup {
 type EntryData = { entry: DiscoveryEntry; packageName: string };
 
 export class FileDiscoverer {
-  constructor(
-    private readonly resolver: AssetResolver,
-    private readonly logger: Logger,
-  ) {}
+  constructor(private readonly resolver: AssetResolver) {}
 
   /**
    * Discover all ts exports grouped by root path segment (or file name if no segment).
