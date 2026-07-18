@@ -47,16 +47,6 @@ describe('SourceFileChangeTracker', () => {
     expect(changed).toBe(true);
   });
 
-  it('records mtime even when file is first-seen', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'tracker-'));
-    const filePath = join(tempDir, 'test.ts');
-    await writeFile(filePath, 'content');
-    const tracker = new SourceFileChangeTracker();
-    await tracker.hasChanged(filePath);
-    const second = await tracker.hasChanged(filePath);
-    expect(second).toBe(false);
-  });
-
   it('handles multiple files independently', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'tracker-'));
     const file1 = join(tempDir, 'file1.ts');

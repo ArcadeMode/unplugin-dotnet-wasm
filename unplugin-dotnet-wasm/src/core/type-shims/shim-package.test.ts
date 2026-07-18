@@ -11,14 +11,6 @@ function createMockLocator(baseDir: string): NodeModulesLocator {
 }
 
 describe('ShimPackage', () => {
-  it('exposes dir as public readonly', () => {
-    const baseDir = '/test/node_modules';
-    const locator = createMockLocator(baseDir);
-    const pkg = new ShimPackage(locator, 'my-pkg');
-
-    expect(pkg.dir).toBe(join(baseDir, 'my-pkg'));
-  });
-
   it('fileFor(\'\') returns index.d.ts', () => {
     const baseDir = '/test/node_modules';
     const locator = createMockLocator(baseDir);

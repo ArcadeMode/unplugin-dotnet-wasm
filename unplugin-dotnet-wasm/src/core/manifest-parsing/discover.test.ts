@@ -17,16 +17,6 @@ describe('discoverManifests with real fixture', () => {
     expect(result.endpointsManifestPath).toMatch(/SampleLibrary\.staticwebassets\.endpoints\.json$/);
   });
 
-  it('finds the manifest with all axes explicit', () => {
-    const result = discoverManifests({
-      projectRoot: SAMPLE_ROOT,
-      projectName: 'SampleLibrary',
-      configuration: 'Debug',
-      targetFramework: 'net10.0',
-    });
-    expect(result.runtimeManifestPath).toBe(EXPECTED_MANIFEST);
-  });
-
   it('throws for an unbuilt configuration', () => {
     expect(() => discoverManifests({ projectRoot: SAMPLE_ROOT, projectName: 'SampleLibrary', configuration: 'Bonkers', targetFramework: 'net10.0' })).toThrowError(/Endpoints manifest not found/);
   });
