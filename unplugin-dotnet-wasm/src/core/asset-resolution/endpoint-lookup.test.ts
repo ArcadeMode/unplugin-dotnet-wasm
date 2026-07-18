@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { parseEndpointsManifest, type EndpointsManifest } from '../manifest-parsing/manifest-endpoints';
+import { normalizePath } from '../path-utils';
 import {
   buildEndpointLookup,
   EndpointLookupBuildError,
@@ -49,7 +50,8 @@ describe('buildEndpointLookup', () => {
 
   it('canonical route _framework/SampleLibrary.wasm is present', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    expect(lookup.has('_framework/SampleLibrary.wasm')).toBe(true);
+    // The map is keyed by the case-folded lookupKey; query the way consumers do.
+    expect(lookup.has(normalizePath('_framework/SampleLibrary.wasm').lookupKey)).toBe(true);
   });
 
   it('canonical route _framework/dotnet.js is present', () => {
@@ -65,7 +67,7 @@ describe('buildEndpointLookup', () => {
 
   it('_framework/SampleLibrary.wasm assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    const match = lookup.get('_framework/SampleLibrary.wasm') as EndpointMatch;
+    const match = lookup.get(normalizePath('_framework/SampleLibrary.wasm').lookupKey) as EndpointMatch;
     expect(match.assetFile).toMatch(/^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/);
   });
 
@@ -85,7 +87,7 @@ describe('buildEndpointLookup', () => {
     if (!fpEndpoint) return; // no separate fingerprinted route when fingerprinting is disabled
     const lookup = buildEndpointLookup(manifest);
     const fpRoute = fpEndpoint!.Route;
-    const match = lookup.get(fpRoute) as EndpointMatch;
+    const match = lookup.get(normalizePath(fpRoute).lookupKey) as EndpointMatch;
     expect(match.label).toBe('_framework/SampleLibrary.wasm');
   });
 

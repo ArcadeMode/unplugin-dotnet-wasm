@@ -2,7 +2,7 @@ import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { type Logger, NULL_LOGGER } from '../logger';
-import { normalizePath } from '../path-utils';
+import { normalizePath, type NormalizedPath } from '../path-utils';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -151,41 +151,39 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
    * result into `lookup` and return it.  Returns `undefined` on miss.
    */
   function tryStatCandidate(
-    candidateVirtualPath: string,
+    candidate: NormalizedPath,
     candidatePhysicalPath: string,
-    lookupKey: string,
   ): ResolvedAsset | undefined {
     if (!isFile(candidatePhysicalPath)) return undefined;
     const asset: ResolvedAsset = {
-      virtualPath: candidateVirtualPath,
+      virtualPath: candidate.path,
       physicalPath: candidatePhysicalPath,
     };
-    lookup.set(lookupKey, asset);
+    lookup.set(candidate.lookupKey, asset);
     return asset;
   }
 
   function resolve(virtualPath: string): ResolvedAsset | undefined {
-    const { path: vp, lookupKey: key } = normalizePath(virtualPath);
-
-    const exact = lookup.get(key);
+    const normalizedVP = normalizePath(virtualPath);
+    const exact = lookup.get(normalizedVP.lookupKey);
     if (exact !== undefined) return exact;
 
     for (const pat of patterns) {
       const rawRoot = manifest.ContentRoots[pat.contentRootIndex];
       if (rawRoot === undefined) continue;
-      if (pat.nodePrefix !== '' && !vp.startsWith(`${pat.nodePrefix}/`)) continue;
+      if (pat.nodePrefix !== '' && !normalizedVP.path.startsWith(`${pat.nodePrefix}/`)) continue;
       // Only `**` is honoured today; richer glob shapes can land when needed.
       if (pat.pattern !== '**') continue;
 
-      const candidatePhysicalPath = join(rawRoot, vp);
-      const hit = tryStatCandidate(vp, candidatePhysicalPath, key);
+      const candidatePhysicalPath = join(rawRoot, normalizedVP.path);
+      const hit = tryStatCandidate(normalizedVP, candidatePhysicalPath);
       if (hit !== undefined) {
-        logger.debug(`resolved via pattern: "${vp}" → "${candidatePhysicalPath}"`);
+        logger.debug(`resolved via pattern: "${normalizedVP.path}" → "${candidatePhysicalPath}"`);
         return hit;
       }
     }
 
-    logger.debug(`could not resolve: "${vp}"`);
+    logger.debug(`could not resolve: "${normalizedVP.path}"`);
     return undefined;
   }
 
