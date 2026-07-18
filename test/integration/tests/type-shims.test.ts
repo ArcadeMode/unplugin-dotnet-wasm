@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { describeWhen, getFixtureDir } from '../test-matrix';
 
-// Verify the plugin has generated its "magic" type packages on-disk 
+// Verify the plugin has generated its "magic" type packages on-disk
 // + runs the fixture's tsc to prove the bare virtual imports actually resolve.
 const FIXTURE_DIR = getFixtureDir();
 const NODE_MODULES = join(FIXTURE_DIR, 'node_modules');

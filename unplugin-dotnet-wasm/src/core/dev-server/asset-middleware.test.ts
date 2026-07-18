@@ -50,7 +50,10 @@ function createFakeRes(): FakeRes {
 }
 
 function createTempFile(content: Buffer | string): string {
-  const filename = join(tmpdir(), `dotnet-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const filename = join(
+    tmpdir(),
+    `dotnet-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  );
   const data = typeof content === 'string' ? Buffer.from(content, 'utf-8') : content;
   writeFileSync(filename, data);
   return filename;
@@ -73,7 +76,7 @@ function createStreamingRes(): {
 } {
   const sink = new PassThrough();
   const chunks: Buffer[] = [];
-  sink.on('data', c => chunks.push(Buffer.from(c)));
+  sink.on('data', (c) => chunks.push(Buffer.from(c)));
   const headers: Record<string, string> = {};
   const res = Object.assign(sink, {
     statusCode: 200,
@@ -90,7 +93,7 @@ function createStreamingRes(): {
     },
   }) as FakeRes & PassThrough;
   const body = () =>
-    new Promise<Buffer>(resolve => sink.on('end', () => resolve(Buffer.concat(chunks))));
+    new Promise<Buffer>((resolve) => sink.on('end', () => resolve(Buffer.concat(chunks))));
   return { res, body };
 }
 
@@ -145,9 +148,7 @@ describe('createAssetMiddleware', () => {
 
     const resolver: Partial<AssetResolver> = {
       resolve: vi.fn(() => tempFile),
-      headersFor: vi.fn(() => [
-        { Name: 'ETag', Value: '"abc123"' },
-      ]),
+      headersFor: vi.fn(() => [{ Name: 'ETag', Value: '"abc123"' }]),
     };
     const middleware = createAssetMiddleware(resolver as AssetResolver, nullLogger);
     const next = vi.fn();
@@ -201,9 +202,7 @@ describe('createAssetMiddleware', () => {
 
     const resolver: Partial<AssetResolver> = {
       resolve: vi.fn(() => tempFile),
-      headersFor: vi.fn(() => [
-        { Name: 'Content-Type', Value: 'application/wasm' },
-      ]),
+      headersFor: vi.fn(() => [{ Name: 'Content-Type', Value: 'application/wasm' }]),
     };
     const middleware = createAssetMiddleware(resolver as AssetResolver, nullLogger);
     const next = vi.fn();

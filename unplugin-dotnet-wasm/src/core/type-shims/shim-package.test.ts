@@ -11,7 +11,7 @@ function createMockLocator(baseDir: string): NodeModulesLocator {
 }
 
 describe('ShimPackage', () => {
-  it('fileFor(\'\') returns index.d.ts', () => {
+  it("fileFor('') returns index.d.ts", () => {
     const baseDir = '/test/node_modules';
     const locator = createMockLocator(baseDir);
     const pkg = new ShimPackage(locator, 'my-pkg');
@@ -22,7 +22,7 @@ describe('ShimPackage', () => {
     expect(absFile).toBe(join(baseDir, 'my-pkg', 'index.d.ts'));
   });
 
-  it('fileFor(\'sub\') returns sub/index.d.ts', () => {
+  it("fileFor('sub') returns sub/index.d.ts", () => {
     const baseDir = '/test/node_modules';
     const locator = createMockLocator(baseDir);
     const pkg = new ShimPackage(locator, 'my-pkg');
@@ -33,7 +33,7 @@ describe('ShimPackage', () => {
     expect(absFile).toBe(join(baseDir, 'my-pkg', 'sub/index.d.ts'));
   });
 
-  it('fileFor(\'sub/path\') returns sub/path/index.d.ts', () => {
+  it("fileFor('sub/path') returns sub/path/index.d.ts", () => {
     const baseDir = '/test/node_modules';
     const locator = createMockLocator(baseDir);
     const pkg = new ShimPackage(locator, 'my-pkg');

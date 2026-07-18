@@ -115,7 +115,7 @@ function collectPatterns(node: ManifestNode, segments: string[]): NodePattern[] 
 /**
  * Build an in-memory virtual filesystem from a parsed runtime manifest.
  *
- * The VFS describes *only* what the manifest declares. Physical files can still be read from disk via `resolveFile()`, 
+ * The VFS describes *only* what the manifest declares. Physical files can still be read from disk via `resolveFile()`,
  * but they are not part of the VFS unless they are enumerated or fall under a matching pattern.
  */
 export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }): VirtualFileSystem {
@@ -128,7 +128,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   // ── Step 2: pre-compile manifest patterns for lazy fallthrough. ──
   const patterns = collectPatterns(manifest.Root, []);
 
-  const patternCount = patterns.filter(p => p.pattern === '**').length;
+  const patternCount = patterns.filter((p) => p.pattern === '**').length;
   logger.info(
     `VFS constructed: ${lookup.size} manifest assets, ${manifest.ContentRoots.length} content root(s), ${patternCount} fallthrough pattern(s)`,
   );
@@ -202,7 +202,10 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   return { list, resolve, resolveFile };
 }
 
-export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: Logger }): VirtualFileSystem {
+export function buildEmptyVfs(
+  endpointsManifestPath?: string,
+  opts?: { logger?: Logger },
+): VirtualFileSystem {
   const logger = opts?.logger ?? NULL_LOGGER;
 
   if (!endpointsManifestPath) {

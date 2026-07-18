@@ -12,13 +12,16 @@ async function initializeWasmRuntime(): Promise<void> {
   const thrower = new Throws();
 
   (window as any).__lib = {
-    greet:            (name: string) => echo.Greet(name),
-    add:              (a: number, b: number) => echo.Add(a, b),
-    boolNot:          (value: boolean) => echo.BoolNot(value),
-    pi:               () => echo.Pi(),
-    incrementCounter: () => { counter.Increment(); return counter.Value; },
-    delayThenEcho:    (value: string, delayMs: number) => asyncOps.DelayThenEcho(value, delayMs),
-    boom:             () => thrower.Boom(),
+    greet: (name: string) => echo.Greet(name),
+    add: (a: number, b: number) => echo.Add(a, b),
+    boolNot: (value: boolean) => echo.BoolNot(value),
+    pi: () => echo.Pi(),
+    incrementCounter: () => {
+      counter.Increment();
+      return counter.Value;
+    },
+    delayThenEcho: (value: string, delayMs: number) => asyncOps.DelayThenEcho(value, delayMs),
+    boom: () => thrower.Boom(),
   };
   const ai = (globalThis as any).blazorApplicationInsights;
   (globalThis as any).__contentAssetOk = typeof ai === 'object' && ai !== null;

@@ -34,7 +34,7 @@ describe('SourceFileChangeTracker', () => {
     const first = await tracker.hasChanged(filePath);
     expect(first).toBe(true);
     // Rewrite the file with a slight delay to ensure mtime changes.
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
     await writeFile(filePath, 'updated content');
     const second = await tracker.hasChanged(filePath);
     expect(second).toBe(true);

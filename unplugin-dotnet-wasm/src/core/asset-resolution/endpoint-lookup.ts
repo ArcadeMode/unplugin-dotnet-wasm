@@ -1,4 +1,8 @@
-import type { Endpoint, EndpointsManifest, ResponseHeader } from '../manifest-parsing/manifest-endpoints';
+import type {
+  Endpoint,
+  EndpointsManifest,
+  ResponseHeader,
+} from '../manifest-parsing/manifest-endpoints';
 import { normalizePath } from '../path-utils';
 import { PathLookup, DuplicatePathError } from './path-lookup';
 
@@ -33,7 +37,7 @@ export class EndpointLookup extends PathLookup<EndpointMatch> {
 }
 
 function isCompressed(endpoint: Endpoint): boolean {
-  return endpoint.Selectors.some(s => s.Name === 'Content-Encoding');
+  return endpoint.Selectors.some((s) => s.Name === 'Content-Encoding');
 }
 
 function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
@@ -56,4 +60,3 @@ function extractMatch(assetFile: string, endpoint: Endpoint): EndpointMatch {
   if (label !== undefined) result = { ...result, label };
   return result;
 }
-

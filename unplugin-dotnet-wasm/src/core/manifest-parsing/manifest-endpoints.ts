@@ -73,9 +73,7 @@ export function parseEndpointsManifest(input: string | Buffer): EndpointsManifes
 
   const result = EndpointsManifestSchema.safeParse(raw);
   if (!result.success) {
-    const issues = result.error.issues.map(
-      (i) => `  • ${i.path.join('.')} - ${i.message}`,
-    );
+    const issues = result.error.issues.map((i) => `  • ${i.path.join('.')} - ${i.message}`);
     throw new EndpointsManifestParseError(
       `staticwebassets.endpoints.json failed schema validation:\n${issues.join('\n')}`,
       result.error.issues,

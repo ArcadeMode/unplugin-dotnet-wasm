@@ -5,14 +5,15 @@ export class ShimPackage {
   public readonly dir: string;
   private readonly exports: Record<string, { types: string }> = {};
 
-  constructor(locator: NodeModulesLocator, private readonly pkgName: string) {
+  constructor(
+    locator: NodeModulesLocator,
+    private readonly pkgName: string,
+  ) {
     this.dir = join(locator.resolve(), pkgName);
   }
 
   /** Absolute and package-relative output path for a subpath. */
-  fileFor(
-    subpath: string,
-  ): { relFile: string; absFile: string } {
+  fileFor(subpath: string): { relFile: string; absFile: string } {
     const relFile = subpath ? `${subpath}/index.d.ts` : `index.d.ts`;
     const absFile = join(this.dir, relFile);
     return { relFile, absFile };

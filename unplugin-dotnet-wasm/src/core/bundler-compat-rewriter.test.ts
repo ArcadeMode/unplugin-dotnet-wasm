@@ -5,18 +5,19 @@ describe('BundlerCompatRewriter - vite', () => {
   const rewriter = new BundlerCompatRewriter('vite');
 
   it('inserts /* @vite-ignore */ before import() argument', () => {
-    expect(rewriter.rewrite(`import("./foo.js")`))
-      .toBe(`import(/* @vite-ignore */ "./foo.js")`);
+    expect(rewriter.rewrite(`import("./foo.js")`)).toBe(`import(/* @vite-ignore */ "./foo.js")`);
   });
 
   it('replaces existing comments on import()', () => {
-    expect(rewriter.rewrite(`import(/* webpackIgnore: true */ "./foo.js")`))
-      .toBe(`import(/* @vite-ignore */ "./foo.js")`);
+    expect(rewriter.rewrite(`import(/* webpackIgnore: true */ "./foo.js")`)).toBe(
+      `import(/* @vite-ignore */ "./foo.js")`,
+    );
   });
 
   it('inserts /* @vite-ignore */ before new URL() argument', () => {
-    expect(rewriter.rewrite(`new URL("./foo.wasm", import.meta.url)`))
-      .toBe(`new URL(/* @vite-ignore */ "./foo.wasm", import.meta.url)`);
+    expect(rewriter.rewrite(`new URL("./foo.wasm", import.meta.url)`)).toBe(
+      `new URL(/* @vite-ignore */ "./foo.wasm", import.meta.url)`,
+    );
   });
 
   it('rewrites all import() calls in a single source', () => {
@@ -36,8 +37,9 @@ describe('BundlerCompatRewriter - webpack / rspack / rsbuild', () => {
       const rewriter = new BundlerCompatRewriter(fw);
 
       it('inserts /* webpackIgnore: true */ on import()', () => {
-        expect(rewriter.rewrite(`import("./foo.js")`))
-          .toBe(`import(/* webpackIgnore: true */ "./foo.js")`);
+        expect(rewriter.rewrite(`import("./foo.js")`)).toBe(
+          `import(/* webpackIgnore: true */ "./foo.js")`,
+        );
       });
 
       it('does NOT rewrite new URL() (handled by webpackJsParserRule instead)', () => {
@@ -45,8 +47,9 @@ describe('BundlerCompatRewriter - webpack / rspack / rsbuild', () => {
       });
 
       it('replaces existing comments on import()', () => {
-        expect(rewriter.rewrite(`import(/* @vite-ignore */ "./foo.js")`))
-          .toBe(`import(/* webpackIgnore: true */ "./foo.js")`);
+        expect(rewriter.rewrite(`import(/* @vite-ignore */ "./foo.js")`)).toBe(
+          `import(/* webpackIgnore: true */ "./foo.js")`,
+        );
       });
     });
   }
@@ -56,18 +59,19 @@ describe('BundlerCompatRewriter - farm', () => {
   const rewriter = new BundlerCompatRewriter('farm');
 
   it('inserts /* $farm-ignore */ on import()', () => {
-    expect(rewriter.rewrite(`import("./foo.js")`))
-      .toBe(`import(/* $farm-ignore */ "./foo.js")`);
+    expect(rewriter.rewrite(`import("./foo.js")`)).toBe(`import(/* $farm-ignore */ "./foo.js")`);
   });
 
   it('inserts /* $farm-ignore */ on new URL()', () => {
-    expect(rewriter.rewrite(`new URL("./foo.wasm", import.meta.url)`))
-      .toBe(`new URL(/* $farm-ignore */ "./foo.wasm", import.meta.url)`);
+    expect(rewriter.rewrite(`new URL("./foo.wasm", import.meta.url)`)).toBe(
+      `new URL(/* $farm-ignore */ "./foo.wasm", import.meta.url)`,
+    );
   });
 
   it('replaces existing comments on import()', () => {
-    expect(rewriter.rewrite(`import(/* webpackIgnore: true */ "./foo.js")`))
-      .toBe(`import(/* $farm-ignore */ "./foo.js")`);
+    expect(rewriter.rewrite(`import(/* webpackIgnore: true */ "./foo.js")`)).toBe(
+      `import(/* $farm-ignore */ "./foo.js")`,
+    );
   });
 });
 

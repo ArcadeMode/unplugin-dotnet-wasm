@@ -21,7 +21,7 @@ describe('buildVfs with real fixture', () => {
   });
 
   it('resolves fingerprinted dotnet.*.js to the bin output', () => {
-    const fpPath = vfs.list('_framework').find(p => /\/dotnet\.[a-z0-9]+\.js$/.test(p));
+    const fpPath = vfs.list('_framework').find((p) => /\/dotnet\.[a-z0-9]+\.js$/.test(p));
     expect(fpPath, 'expected a fingerprinted dotnet.*.js in the VFS listing').toBeDefined();
     const asset = vfs.resolve(fpPath!);
     expect(asset).toBeDefined();
@@ -31,8 +31,10 @@ describe('buildVfs with real fixture', () => {
 
   it('list _framework returns direct children with full virtual paths', () => {
     const children = vfs.list('_framework');
-    expect(children.some(c => /^_framework\/dotnet(\.[a-z0-9]+)?\.js$/.test(c))).toBe(true);
-    expect(children.some(c => /^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(true);
+    expect(children.some((c) => /^_framework\/dotnet(\.[a-z0-9]+)?\.js$/.test(c))).toBe(true);
+    expect(children.some((c) => /^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(
+      true,
+    );
     for (const c of children) {
       expect(c.split('/'), `"${c}" should have exactly 2 segments`).toHaveLength(2);
     }
@@ -48,7 +50,6 @@ describe('buildVfs with real fixture', () => {
     expect(vfs.resolve('does-not-exist.ts')).toBeUndefined();
     expect(vfs.resolve('_framework/nonexistent.wasm')).toBeUndefined();
   });
-
 });
 
 describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
@@ -112,8 +113,12 @@ describe('buildVfs with synthetic manifest: logging', () => {
     messages = [];
     const logger: Logger = {
       ...NULL_LOGGER,
-      debug: msg => { messages.push(msg); },
-      info: msg => { messages.push(msg); },
+      debug: (msg) => {
+        messages.push(msg);
+      },
+      info: (msg) => {
+        messages.push(msg);
+      },
     };
 
     vfs = buildVfs(
@@ -122,7 +127,11 @@ describe('buildVfs with synthetic manifest: logging', () => {
           ContentRoots: ['/virt/'],
           Root: {
             Children: {
-              'app.js': { Children: null, Asset: { ContentRootIndex: 0, SubPath: 'app.js' }, Patterns: null },
+              'app.js': {
+                Children: null,
+                Asset: { ContentRootIndex: 0, SubPath: 'app.js' },
+                Patterns: null,
+              },
             },
             Asset: null,
             Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
@@ -134,12 +143,14 @@ describe('buildVfs with synthetic manifest: logging', () => {
   });
 
   it('emits an info line summarizing VFS construction', () => {
-    expect(messages.some(m => m.includes('VFS constructed:'))).toBe(true);
-    expect(messages.some(m => m.includes('manifest assets'))).toBe(true);
+    expect(messages.some((m) => m.includes('VFS constructed:'))).toBe(true);
+    expect(messages.some((m) => m.includes('manifest assets'))).toBe(true);
   });
 
   it('emits a debug line when resolve misses', () => {
     vfs.resolve('does-not-exist.js');
-    expect(messages.some(m => m.includes('could not resolve:') && m.includes('does-not-exist.js'))).toBe(true);
+    expect(
+      messages.some((m) => m.includes('could not resolve:') && m.includes('does-not-exist.js')),
+    ).toBe(true);
   });
 });

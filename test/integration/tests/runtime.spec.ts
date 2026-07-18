@@ -16,7 +16,12 @@ declare global {
   var __contentAssetOk: boolean;
 }
 
-import { readBundler, readFingerprint, readBuildMode, readPlatform } from '../test-matrix-parameters';
+import {
+  readBundler,
+  readFingerprint,
+  readBuildMode,
+  readPlatform,
+} from '../test-matrix-parameters';
 
 const currentBundler = readBundler();
 const currentFingerprint = readFingerprint();
@@ -68,9 +73,7 @@ test.describe(`[${currentBundler}][${currentFingerprint}][${currentBuildMode}][$
   });
 
   test('AsyncOps.DelayThenEcho round-trips a string', async () => {
-    const result = await page.evaluate(() =>
-      globalThis.__lib.delayThenEcho('hello', 10)
-    );
+    const result = await page.evaluate(() => globalThis.__lib.delayThenEcho('hello', 10));
     expect(result).toBe('hello');
   });
 

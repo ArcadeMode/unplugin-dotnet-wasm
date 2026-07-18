@@ -5,11 +5,7 @@ import type { Logger } from '../logger';
 import { FRAMEWORK_JS_REGEX } from '../constants';
 
 export type NextFn = () => void;
-export type ConnectMiddleware = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  next: NextFn,
-) => void;
+export type ConnectMiddleware = (req: IncomingMessage, res: ServerResponse, next: NextFn) => void;
 
 export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): ConnectMiddleware {
   return function dotnetAssetMiddleware(req: IncomingMessage, res: ServerResponse, next: NextFn) {
@@ -58,7 +54,7 @@ export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): 
 
     logger.debug(`serving ${pathname} from ${physicalPath}`);
     const stream = createReadStream(physicalPath);
-    stream.on('error', err => {
+    stream.on('error', (err) => {
       logger.error(`failed streaming ${physicalPath}: ${(err as Error).message}`);
       if (!res.headersSent) res.statusCode = 500;
       res.end();

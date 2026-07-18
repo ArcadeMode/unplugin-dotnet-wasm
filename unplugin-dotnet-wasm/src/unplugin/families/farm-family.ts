@@ -31,7 +31,7 @@ export interface FarmFamilyHooks {
     filter: { id: RegExp };
     handler(id: string): Promise<string | null>;
   };
-    farm: {
+  farm: {
     config(userConfig: FarmConfig): Record<string, never>;
     configureDevServer(server: FarmDevServer): void;
   };
@@ -65,31 +65,33 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         if (userConfig.root) ctx.setConsumerRoot(userConfig.root);
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         const presetEnv = userConfig.compilation?.presetEnv;
-        const polyfillFree = targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;
+        const polyfillFree =
+          targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;
         if (!polyfillFree) {
           ctx.logger.warn(
             `The configured compilation.output.targetEnv (${targetEnv ?? 'browser-es2017'}) enables preset-env polyfill injection, ` +
-            `which requires 'core-js' to be installed. Alternatively set compilation.output.targetEnv: 'browser-esnext' | 'node-next' ` +
-            `to skip polyfills.`,
+              `which requires 'core-js' to be installed. Alternatively set compilation.output.targetEnv: 'browser-esnext' | 'node-next' ` +
+              `to skip polyfills.`,
           );
         }
         return {};
       },
       // Farm fires this before compilation (buildStart/initialize)
       configureDevServer(server: FarmDevServer): void {
-        server.app().use((koaCtx, next) =>
-          new Promise<void>((resolve, reject) => {
-            ctx.enableAssetMiddleware();
-            let handled = true;
-            ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
-              handled = false; // unhandled by middleware
-              next().then(resolve, reject);
-            });
-            if (handled) {
-              koaCtx.res.once('finish', resolve);
-              koaCtx.res.once('close', resolve);
-            }
-          }),
+        server.app().use(
+          (koaCtx, next) =>
+            new Promise<void>((resolve, reject) => {
+              ctx.enableAssetMiddleware();
+              let handled = true;
+              ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
+                handled = false; // unhandled by middleware
+                next().then(resolve, reject);
+              });
+              if (handled) {
+                koaCtx.res.once('finish', resolve);
+                koaCtx.res.once('close', resolve);
+              }
+            }),
         );
       },
     },

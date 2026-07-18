@@ -52,9 +52,7 @@ export function parseRuntimeManifest(input: string | Buffer): RuntimeManifest {
 
   const result = RuntimeManifestSchema.safeParse(raw);
   if (!result.success) {
-    const issues = result.error.issues.map(
-      (i) => `  • ${i.path.join('.')} - ${i.message}`,
-    );
+    const issues = result.error.issues.map((i) => `  • ${i.path.join('.')} - ${i.message}`);
     throw new ManifestParseError(
       `staticwebassets.runtime.json failed schema validation:\n${issues.join('\n')}`,
       result.error.issues,

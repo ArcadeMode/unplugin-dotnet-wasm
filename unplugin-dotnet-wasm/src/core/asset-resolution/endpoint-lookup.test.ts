@@ -1,13 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { parseEndpointsManifest, type EndpointsManifest } from '../manifest-parsing/manifest-endpoints';
-import { normalizePath } from '../path-utils';
 import {
-  EndpointLookup,
-  DuplicatePathError,
-  type EndpointMatch,
-} from './endpoint-lookup';
+  parseEndpointsManifest,
+  type EndpointsManifest,
+} from '../manifest-parsing/manifest-endpoints';
+import { normalizePath } from '../path-utils';
+import { EndpointLookup, DuplicatePathError, type EndpointMatch } from './endpoint-lookup';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
@@ -38,7 +37,6 @@ function makeEndpoint(
 }
 
 describe('EndpointLookup', () => {
-
   it('builds without errors from the real SampleLibrary fixture', () => {
     expect(() => new EndpointLookup(loadFixture())).not.toThrow();
   });
@@ -74,12 +72,12 @@ describe('EndpointLookup', () => {
   it('at least one entry has a fingerprint value', () => {
     const lookup = new EndpointLookup(loadFixture());
     const entries = [...lookup.values()];
-    expect(entries.some(m => m.fingerprint !== undefined)).toBe(true);
+    expect(entries.some((m) => m.fingerprint !== undefined)).toBe(true);
   });
 
   it('the fingerprinted route for SampleLibrary.wasm carries a label back to canonical', () => {
     const manifest = loadFixture();
-    const fpEndpoint = manifest.Endpoints.find(e =>
+    const fpEndpoint = manifest.Endpoints.find((e) =>
       /^_framework\/SampleLibrary\.[a-z0-9]+\.wasm$/.test(e.Route),
     );
     expect(
@@ -110,7 +108,9 @@ describe('EndpointLookup', () => {
     const lookup = new EndpointLookup(
       makeManifest([makeEndpoint('_framework/foo.js', '_framework\\foo.abc123.js')]),
     );
-    expect(lookup.get(normalizePath('_framework/foo.js'))?.assetFile).toBe('_framework/foo.abc123.js');
+    expect(lookup.get(normalizePath('_framework/foo.js'))?.assetFile).toBe(
+      '_framework/foo.abc123.js',
+    );
   });
 
   it('skips endpoints with a Content-Encoding selector', () => {
@@ -131,12 +131,18 @@ describe('EndpointLookup', () => {
   it('two compressed variants for the same route are both skipped, leaving the canonical', () => {
     const manifest = makeManifest([
       makeEndpoint('_framework/foo.js', '_framework/foo.abc.js'),
-      makeEndpoint('_framework/foo.js', '_framework/foo.abc.js.br', [], [
-        { Name: 'Content-Encoding', Value: 'br' },
-      ]),
-      makeEndpoint('_framework/foo.js', '_framework/foo.abc.js.gz', [], [
-        { Name: 'Content-Encoding', Value: 'gzip' },
-      ]),
+      makeEndpoint(
+        '_framework/foo.js',
+        '_framework/foo.abc.js.br',
+        [],
+        [{ Name: 'Content-Encoding', Value: 'br' }],
+      ),
+      makeEndpoint(
+        '_framework/foo.js',
+        '_framework/foo.abc.js.gz',
+        [],
+        [{ Name: 'Content-Encoding', Value: 'gzip' }],
+      ),
     ]);
     expect(new EndpointLookup(manifest).size).toBe(1);
   });

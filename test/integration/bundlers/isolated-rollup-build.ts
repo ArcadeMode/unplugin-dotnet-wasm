@@ -4,12 +4,21 @@ import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
 export class IsolatedRollupBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, platform: Platform, label: string) { super('rollup', fixtureDir, platform, label); }
-  get entryChunk(): string { return join(this.assets, 'entry.js'); }
+  constructor(fixtureDir: string, platform: Platform, label: string) {
+    super('rollup', fixtureDir, platform, label);
+  }
+  get entryChunk(): string {
+    return join(this.assets, 'entry.js');
+  }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
     this.warnings.length = 0;
-    const [{ rollup }, { default: nodeResolve }, { default: esbuildPlugin }, { default: DotnetAssets }] = await Promise.all([
+    const [
+      { rollup },
+      { default: nodeResolve },
+      { default: esbuildPlugin },
+      { default: DotnetAssets },
+    ] = await Promise.all([
       import('rollup'),
       import('@rollup/plugin-node-resolve'),
       import('rollup-plugin-esbuild'),
@@ -38,4 +47,3 @@ export class IsolatedRollupBuild extends IsolatedBundlerBuild {
     await bundle.close();
   }
 }
-

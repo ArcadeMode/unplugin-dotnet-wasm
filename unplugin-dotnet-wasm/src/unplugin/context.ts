@@ -31,12 +31,22 @@ export class PluginContext {
     this.#rewriter = new BundlerCompatRewriter(framework);
   }
 
-  get options(): DotnetAssetsOptions { return this.#options; }
-  get logger(): Logger { return this.#logger; }
-  get rewriter(): BundlerCompatRewriter { return this.#rewriter; }
+  get options(): DotnetAssetsOptions {
+    return this.#options;
+  }
+  get logger(): Logger {
+    return this.#logger;
+  }
+  get rewriter(): BundlerCompatRewriter {
+    return this.#rewriter;
+  }
 
-  get consumerRoot(): string { return this.#consumerRoot; }
-  setConsumerRoot(root: string): void { this.#consumerRoot = root; }
+  get consumerRoot(): string {
+    return this.#consumerRoot;
+  }
+  setConsumerRoot(root: string): void {
+    this.#consumerRoot = root;
+  }
 
   get assetResolver(): AssetResolver {
     if (!this.#assetResolver) throw new Error('assetResolver accessed before initialize()');
@@ -57,18 +67,27 @@ export class PluginContext {
     this.#assetResolver = new AssetResolver(vfs, endpointLookup);
 
     if (isYarnPnp()) {
-      this.#logger.warn(`Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${this.#options.projectName}' will most likely not be available.`);
+      this.#logger.warn(
+        `Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${this.#options.projectName}' will most likely not be available.`,
+      );
       return;
     }
     const locator = new NodeModulesLocator(this.#consumerRoot);
     const discoverer = new FileDiscoverer(this.#assetResolver);
     const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.#logger);
-    const generator = new ShimPackageGenerator(locator, discoverer, this.#changeTracker, emitter, this.#logger);
+    const generator = new ShimPackageGenerator(
+      locator,
+      discoverer,
+      this.#changeTracker,
+      emitter,
+      this.#logger,
+    );
     await generator.generate();
   }
 
   get assetMiddleware(): ConnectMiddleware {
-    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before enableAssetMiddleware()');
+    if (!this.#assetMiddleware)
+      throw new Error('assetMiddleware accessed before enableAssetMiddleware()');
     return this.#assetMiddleware;
   }
 

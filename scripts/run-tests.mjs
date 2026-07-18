@@ -47,7 +47,7 @@ const commands = {
 };
 
 let cmds;
-if (filter === ''){
+if (filter === '') {
   cmds = [
     ...commands['no-build'],
     ...commands['debug-fingerprint'],
@@ -59,7 +59,9 @@ if (filter === ''){
   cmds = commands[filter];
 } else {
   console.error(`Unknown filter: ${filter}`);
-  console.error(`Available filters: debug-fingerprint, debug-nofingerprint, publish-fingerprint, publish-nofingerprint, no-build, or '' for all`);
+  console.error(
+    `Available filters: debug-fingerprint, debug-nofingerprint, publish-fingerprint, publish-nofingerprint, no-build, or '' for all`,
+  );
   process.exit(1);
 }
 

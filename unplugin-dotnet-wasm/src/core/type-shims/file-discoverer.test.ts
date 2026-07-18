@@ -41,10 +41,10 @@ describe('FileDiscoverer', () => {
   });
 
   it('foo.ts + foo.d.ts in insertion order produces one entry with both slots filled', () => {
-    const resolver = createResolver(
-      ['pkg/foo.ts', 'pkg/foo.d.ts'],
-      { 'pkg/foo.ts': '/src/foo.ts', 'pkg/foo.d.ts': '/src/foo.d.ts' },
-    );
+    const resolver = createResolver(['pkg/foo.ts', 'pkg/foo.d.ts'], {
+      'pkg/foo.ts': '/src/foo.ts',
+      'pkg/foo.d.ts': '/src/foo.d.ts',
+    });
     const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
@@ -57,10 +57,10 @@ describe('FileDiscoverer', () => {
   });
 
   it('foo.d.ts + foo.ts produces one entry with both slots filled (definition checked first)', () => {
-    const resolver = createResolver(
-      ['pkg/foo.d.ts', 'pkg/foo.ts'],
-      { 'pkg/foo.d.ts': '/src/foo.d.ts', 'pkg/foo.ts': '/src/foo.ts' },
-    );
+    const resolver = createResolver(['pkg/foo.d.ts', 'pkg/foo.ts'], {
+      'pkg/foo.d.ts': '/src/foo.d.ts',
+      'pkg/foo.ts': '/src/foo.ts',
+    });
     const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
@@ -82,12 +82,11 @@ describe('FileDiscoverer', () => {
     expect(group.entries[0]!.subpath).toBe('a/b/c');
   });
 
-
   it('multiple subpaths in one package produce one group with multiple entries', () => {
-    const resolver = createResolver(
-      ['pkg/mod1.ts', 'pkg/mod2.ts'],
-      { 'pkg/mod1.ts': '/src/mod1.ts', 'pkg/mod2.ts': '/src/mod2.ts' },
-    );
+    const resolver = createResolver(['pkg/mod1.ts', 'pkg/mod2.ts'], {
+      'pkg/mod1.ts': '/src/mod1.ts',
+      'pkg/mod2.ts': '/src/mod2.ts',
+    });
     const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
@@ -100,10 +99,10 @@ describe('FileDiscoverer', () => {
   });
 
   it('multiple packages produce multiple groups in first-seen order', () => {
-    const resolver = createResolver(
-      ['pkg1.ts', 'pkg2.ts'],
-      { 'pkg1.ts': '/src/pkg1.ts', 'pkg2.ts': '/src/pkg2.ts' },
-    );
+    const resolver = createResolver(['pkg1.ts', 'pkg2.ts'], {
+      'pkg1.ts': '/src/pkg1.ts',
+      'pkg2.ts': '/src/pkg2.ts',
+    });
     const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
@@ -114,15 +113,12 @@ describe('FileDiscoverer', () => {
   });
 
   it('non-TS routes (.css, .wasm, .js, .mjs) are skipped', () => {
-    const resolver = createResolver(
-      ['app.css', 'mod.wasm', 'index.js', 'util.mjs'],
-      {
-        'app.css': '/src/app.css',
-        'mod.wasm': '/src/mod.wasm',
-        'index.js': '/src/index.js',
-        'util.mjs': '/src/util.mjs',
-      },
-    );
+    const resolver = createResolver(['app.css', 'mod.wasm', 'index.js', 'util.mjs'], {
+      'app.css': '/src/app.css',
+      'mod.wasm': '/src/mod.wasm',
+      'index.js': '/src/index.js',
+      'util.mjs': '/src/util.mjs',
+    });
     const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
@@ -131,10 +127,10 @@ describe('FileDiscoverer', () => {
   });
 
   it('route resolving to null is excluded', () => {
-    const resolver = createResolver(
-      ['typeshim.ts', 'orphan.ts'],
-      { 'typeshim.ts': '/src/typeshim.ts', 'orphan.ts': null },
-    );
+    const resolver = createResolver(['typeshim.ts', 'orphan.ts'], {
+      'typeshim.ts': '/src/typeshim.ts',
+      'orphan.ts': null,
+    });
     const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
@@ -142,5 +138,4 @@ describe('FileDiscoverer', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]!.packageName).toBe('typeshim');
   });
-
 });

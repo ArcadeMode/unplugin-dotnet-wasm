@@ -1,5 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { FRAMEWORK_BINARY_REGEX, FRAMEWORK_JS_REGEX, DOTNET_NODE_BUILTINS } from '../../core/constants';
+import {
+  FRAMEWORK_BINARY_REGEX,
+  FRAMEWORK_JS_REGEX,
+  DOTNET_NODE_BUILTINS,
+} from '../../core/constants';
 import type { PluginContext } from '../context';
 
 type CompilerHooks = {
@@ -23,10 +27,16 @@ export interface WebpackFamilyHooks {
         fn: (ctx: {
           server: {
             middlewares: {
-              use(handler: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => void): void;
+              use(
+                handler: (
+                  req: IncomingMessage,
+                  res: ServerResponse,
+                  next: (err?: unknown) => void,
+                ) => void,
+              ): void;
             };
           };
-        }) => void
+        }) => void,
       ): void;
     }): void;
   };
@@ -68,12 +78,17 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
     compiler.options.devServer ??= {};
     const devServerConfig = compiler.options.devServer as Record<string, unknown>;
-    const existingSetup = devServerConfig.setupMiddlewares as ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
+    const existingSetup = devServerConfig.setupMiddlewares as
+      ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
 
     devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
       const assetMiddlewareEntry = {
         name: 'unplugin-dotnet-wasm',
-        middleware: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void): void => {
+        middleware: (
+          req: IncomingMessage,
+          res: ServerResponse,
+          next: (err?: unknown) => void,
+        ): void => {
           ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
         },
@@ -99,17 +114,17 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   }
 
   return {
-    webpack: (compiler) => { 
-      applyBuildConfig(compiler.options); 
-      awaitContextInit(compiler); 
+    webpack: (compiler) => {
+      applyBuildConfig(compiler.options);
+      awaitContextInit(compiler);
     },
-    rspack:  (compiler) => { 
-      applyBuildConfig(compiler.options); 
-      awaitContextInit(compiler); 
+    rspack: (compiler) => {
+      applyBuildConfig(compiler.options);
+      awaitContextInit(compiler);
     },
     rsbuild: {
       setup(api) {
-        api.modifyRspackConfig(config => applyBuildConfig(config, { prepend: true }));
+        api.modifyRspackConfig((config) => applyBuildConfig(config, { prepend: true }));
         api.onAfterCreateCompiler(({ compiler }) => {
           const c = compiler as { hooks?: CompilerHooks };
           awaitContextInit(c);

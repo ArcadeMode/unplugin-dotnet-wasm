@@ -7,7 +7,14 @@ import type { Platform } from '../test-matrix';
 // dotnet.js has bare `import('module')` / `import('process')` fallback paths
 // that only fire under Node. Some rollup-family drivers need these marked as
 // external so the bundler doesn't warn about unresolved bare imports.
-export const DOTNET_NODE_BUILTINS = new Set(['module', 'process', 'fs', 'path', 'url', 'worker_threads']);
+export const DOTNET_NODE_BUILTINS = new Set([
+  'module',
+  'process',
+  'fs',
+  'path',
+  'url',
+  'worker_threads',
+]);
 
 export abstract class IsolatedBundlerBuild {
   readonly warnings: string[] = [];
@@ -15,11 +22,16 @@ export abstract class IsolatedBundlerBuild {
   protected readonly baseDir: string;
   protected readonly platform: Platform;
 
-  protected constructor(bundlerName: string, protected readonly fixtureDir: string, platform: Platform, label: string) {
+  protected constructor(
+    bundlerName: string,
+    protected readonly fixtureDir: string,
+    platform: Platform,
+    label: string,
+  ) {
     this.platform = platform;
     const id = `${label}-${randomBytes(4).toString('hex')}`;
     this.baseDir = join(fixtureDir, '.tmp-test', `${bundlerName}-build`, id);
-    this.outDir  = join(this.baseDir, 'dist');
+    this.outDir = join(this.baseDir, 'dist');
   }
 
   /** Directory containing the hashed asset outputs (`.wasm`, `.dat`, …). */
@@ -40,4 +52,3 @@ export abstract class IsolatedBundlerBuild {
     return resolve(this.fixtureDir, 'src/entry.ts');
   }
 }
-

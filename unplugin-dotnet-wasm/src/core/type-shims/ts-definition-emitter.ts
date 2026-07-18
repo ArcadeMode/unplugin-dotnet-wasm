@@ -10,7 +10,10 @@ export class TsDefinitionEmitter {
   private ts?: typeof typescript;
   private unavailable = false;
 
-  constructor(private readonly root: string, private readonly logger: Logger) {}
+  constructor(
+    private readonly root: string,
+    private readonly logger: Logger,
+  ) {}
 
   /**
    * Generates .d.ts content that re-exports definitionFile.
@@ -20,7 +23,7 @@ export class TsDefinitionEmitter {
     if (!definitionFile.endsWith(DECL_EXT)) {
       throw new Error(`Expected a .d.ts file path, got "${definitionFile}"`);
     }
-    if (!path.isAbsolute(definitionFile)) { 
+    if (!path.isAbsolute(definitionFile)) {
       // non-absolute paths wont resolve correctly in the consumer's node_modules
       throw new Error(`Expected an absolute path, got "${definitionFile}"`);
     }

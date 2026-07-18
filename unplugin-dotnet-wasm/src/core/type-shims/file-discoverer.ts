@@ -17,9 +17,7 @@ export interface DiscoveryGroup {
 type EntryData = { entry: DiscoveryEntry; packageName: string };
 
 export class FileDiscoverer {
-  constructor(
-    private readonly resolver: AssetResolver,
-  ) {}
+  constructor(private readonly resolver: AssetResolver) {}
 
   /**
    * Discover all ts exports grouped by root path segment (or file name if no segment).

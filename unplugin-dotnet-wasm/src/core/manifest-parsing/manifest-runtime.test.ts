@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import {
-  parseRuntimeManifest,
-  ManifestParseError,
-} from './manifest-runtime';
+import { parseRuntimeManifest, ManifestParseError } from './manifest-runtime';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
@@ -32,13 +29,15 @@ describe('parseRuntimeManifest', () => {
 
   it('one content root contains the bin output wwwroot', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
-    expect(manifest.ContentRoots.some(r => /bin[/\\]Debug[/\\]net10\.0[/\\]wwwroot[/\\]$/.test(r))).toBe(true);
+    expect(
+      manifest.ContentRoots.some((r) => /bin[/\\]Debug[/\\]net10\.0[/\\]wwwroot[/\\]$/.test(r)),
+    ).toBe(true);
   });
 
   it('_framework contains a fingerprinted dotnet.*.js asset', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
-    const key = Object.keys(frameworkChildren).find(k => /^dotnet\.[a-z0-9]+\.js$/.test(k));
+    const key = Object.keys(frameworkChildren).find((k) => /^dotnet\.[a-z0-9]+\.js$/.test(k));
     expect(key, 'expected a fingerprinted dotnet.*.js entry in _framework').toBeDefined();
     const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
@@ -48,7 +47,9 @@ describe('parseRuntimeManifest', () => {
   it('_framework contains a SampleLibrary.wasm asset (fingerprinted or canonical)', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
-    const key = Object.keys(frameworkChildren).find(k => /^SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(k));
+    const key = Object.keys(frameworkChildren).find((k) =>
+      /^SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(k),
+    );
     expect(key, 'expected a SampleLibrary.wasm entry in _framework').toBeDefined();
     const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();

@@ -11,7 +11,10 @@ export function collapseDotSegments(posixPath: string): string {
   const out: string[] = [];
   for (const seg of posixPath.split('/')) {
     if (seg === '' || seg === '.') continue;
-    if (seg === '..') { out.pop(); continue; }
+    if (seg === '..') {
+      out.pop();
+      continue;
+    }
     out.push(seg);
   }
   return out.join('/');

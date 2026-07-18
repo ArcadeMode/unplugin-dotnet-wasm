@@ -18,10 +18,20 @@ export abstract class PathLookup<TValue> {
     if (this.map.has(p.lookupKey)) throw new DuplicatePathError(p.lookupKey);
     this.map.set(p.lookupKey, value);
   }
-  get(p: NormalizedPath): TValue | undefined { return this.map.get(p.lookupKey); }
-  has(p: NormalizedPath): boolean { return this.map.has(p.lookupKey); }
-  get size(): number { return this.map.size; }
-  values(): IterableIterator<TValue> { return this.map.values(); }
+  get(p: NormalizedPath): TValue | undefined {
+    return this.map.get(p.lookupKey);
+  }
+  has(p: NormalizedPath): boolean {
+    return this.map.has(p.lookupKey);
+  }
+  get size(): number {
+    return this.map.size;
+  }
+  values(): IterableIterator<TValue> {
+    return this.map.values();
+  }
   /** Iterate [key, value] entries. The key is the case-folded lookupKey string. */
-  [Symbol.iterator](): IterableIterator<[string, TValue]> { return this.map[Symbol.iterator](); }
+  [Symbol.iterator](): IterableIterator<[string, TValue]> {
+    return this.map[Symbol.iterator]();
+  }
 }

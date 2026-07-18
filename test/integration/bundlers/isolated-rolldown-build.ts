@@ -4,8 +4,12 @@ import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild, DOTNET_NODE_BUILTINS } from './isolated-bundler-build';
 
 export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
-  constructor(fixtureDir: string, platform: Platform, label: string) { super('rolldown', fixtureDir, platform, label); }
-  get entryChunk(): string { return join(this.assets, 'entry.js'); }
+  constructor(fixtureDir: string, platform: Platform, label: string) {
+    super('rolldown', fixtureDir, platform, label);
+  }
+  get entryChunk(): string {
+    return join(this.assets, 'entry.js');
+  }
 
   async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
     this.warnings.length = 0;
@@ -34,4 +38,3 @@ export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
     await bundle.close();
   }
 }
-

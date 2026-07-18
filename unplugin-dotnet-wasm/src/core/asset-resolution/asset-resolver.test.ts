@@ -1,4 +1,4 @@
-import {  describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AssetResolver } from './asset-resolver';
 import { type VirtualFileSystem, type ResolvedAsset } from './vfs';
 import { EndpointLookup, type EndpointMatch } from './endpoint-lookup';
@@ -62,17 +62,21 @@ describe('AssetResolver probe expansion', () => {
   });
 
   it('returns the index.<ext> hit when no extension probe matches', () => {
-    const resolveFn = vi.fn().mockImplementation((vp: string) =>
-      vp === 'some-dir/index.ts' ? vfsAsset('/abs/some-dir/index.ts') : undefined,
-    );
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === 'some-dir/index.ts' ? vfsAsset('/abs/some-dir/index.ts') : undefined,
+      );
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup());
     expect(r.resolve('some-dir')).toBe('/abs/some-dir/index.ts');
   });
 
   it('stops at the first VFS hit and returns its physicalPath', () => {
-    const resolveFn = vi.fn().mockImplementation((vp: string) =>
-      vp === 'bare.ts' ? vfsAsset('/abs/bare.ts') : undefined,
-    );
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === 'bare.ts' ? vfsAsset('/abs/bare.ts') : undefined,
+      );
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup());
     expect(r.resolve('bare')).toBe('/abs/bare.ts');
     // 'bare' (miss) + 'bare.ts' (hit) = exactly 2 calls; no further probing
@@ -85,17 +89,21 @@ describe('AssetResolver endpoint alias paths', () => {
   const lookup: EndpointLookup = lookupOf(['_framework/dotnet.js', fpMatch]);
 
   it('resolves via vfs.resolve(alias.assetFile) when the asset is in the VFS', () => {
-    const resolveFn = vi.fn().mockImplementation((vp: string) =>
-      vp === '_framework/dotnet.abc123.js'
-        ? vfsAsset('/abs/_framework/dotnet.abc123.js')
-        : undefined,
-    );
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === '_framework/dotnet.abc123.js'
+          ? vfsAsset('/abs/_framework/dotnet.abc123.js')
+          : undefined,
+      );
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), lookup);
     expect(r.resolve('_framework/dotnet.js')).toBe('/abs/_framework/dotnet.abc123.js');
   });
 
   it('falls back to vfs.resolveFile(alias.assetFile) when the VFS map misses (§3.2 step 6)', () => {
-    const resolveFileFn = vi.fn().mockReturnValue({ physicalPath: '/abs/_framework/dotnet.abc123.js' });
+    const resolveFileFn = vi
+      .fn()
+      .mockReturnValue({ physicalPath: '/abs/_framework/dotnet.abc123.js' });
     const r = new AssetResolver(stubVfs({ resolveFile: resolveFileFn }), lookup);
     expect(r.resolve('_framework/dotnet.js')).toBe('/abs/_framework/dotnet.abc123.js');
     expect(resolveFileFn).toHaveBeenCalledWith('_framework/dotnet.abc123.js');
@@ -116,11 +124,13 @@ describe('AssetResolver relative specifier clamping', () => {
   it('collapses the bundler-friendly `./../_content/…` initializer specifier to its canonical route', () => {
     // dotnet.js (virtually at _framework/) statically imports the initializer as
     // `./../_content/<pkg>/<pkg>.lib.module.js`; it must resolve to `_content/…`.
-    const resolveFn = vi.fn().mockImplementation((vp: string) =>
-      vp === '_content/Pkg/Pkg.lib.module.js'
-        ? vfsAsset('/nuget/pkg/staticwebassets/Pkg.lib.module.js')
-        : undefined,
-    );
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === '_content/Pkg/Pkg.lib.module.js'
+          ? vfsAsset('/nuget/pkg/staticwebassets/Pkg.lib.module.js')
+          : undefined,
+      );
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup());
     expect(r.resolve('./../_content/Pkg/Pkg.lib.module.js')).toBe(
       '/nuget/pkg/staticwebassets/Pkg.lib.module.js',
@@ -130,51 +140,71 @@ describe('AssetResolver relative specifier clamping', () => {
 
   it('clamps `..` segments that would escape above the root', () => {
     const resolveFn = vi.fn().mockReturnValue(undefined);
-    new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup()).resolve('../../foo.js');
+    new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup()).resolve(
+      '../../foo.js',
+    );
     expect(resolveFn).toHaveBeenCalledWith('foo.js');
   });
 
   it('collapses interior `.`/`..` segments', () => {
     const resolveFn = vi.fn().mockReturnValue(undefined);
-    new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup()).resolve('_framework/./sub/../dotnet.js');
+    new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup()).resolve(
+      '_framework/./sub/../dotnet.js',
+    );
     expect(resolveFn).toHaveBeenCalledWith('_framework/dotnet.js');
   });
 });
 
 describe('AssetResolver full miss', () => {
   it('returns null when both VFS and endpoint lookup miss for every probe', () => {
-    expect(new AssetResolver(stubVfs(), new EndpointLookup()).resolve('nonexistent.wasm')).toBeNull();
+    expect(
+      new AssetResolver(stubVfs(), new EndpointLookup()).resolve('nonexistent.wasm'),
+    ).toBeNull();
   });
 });
 
 describe('AssetResolver case-insensitive endpoint lookup', () => {
   it('resolves and retrieves headers with mixed-case specifier against lowercase manifest route', () => {
-    const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js', responseHeaders: [{ Name: 'Content-Type', Value: 'text/javascript' }] };
+    const fpMatch: EndpointMatch = {
+      assetFile: '_framework/dotnet.abc123.js',
+      responseHeaders: [{ Name: 'Content-Type', Value: 'text/javascript' }],
+    };
     const lookup: EndpointLookup = lookupOf(['_framework/dotnet.js', fpMatch]);
-    const resolveFn = vi.fn().mockImplementation((vp: string) =>
-      vp === '_framework/dotnet.abc123.js'
-        ? vfsAsset('/abs/_framework/dotnet.abc123.js')
-        : undefined,
-    );
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === '_framework/dotnet.abc123.js'
+          ? vfsAsset('/abs/_framework/dotnet.abc123.js')
+          : undefined,
+      );
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), lookup);
     // Query with mixed case
     expect(r.resolve('/_Framework/Dotnet.JS')).toBe('/abs/_framework/dotnet.abc123.js');
     // Headers should also be found with mixed case
-    expect(r.headersFor('/_Framework/Dotnet.JS')).toEqual([{ Name: 'Content-Type', Value: 'text/javascript' }]);
+    expect(r.headersFor('/_Framework/Dotnet.JS')).toEqual([
+      { Name: 'Content-Type', Value: 'text/javascript' },
+    ]);
   });
 
   it('resolves and retrieves headers for non-canonical path with dot segments', () => {
-    const fpMatch: EndpointMatch = { assetFile: '_framework/dotnet.abc123.js', responseHeaders: [{ Name: 'Content-Type', Value: 'text/javascript' }] };
+    const fpMatch: EndpointMatch = {
+      assetFile: '_framework/dotnet.abc123.js',
+      responseHeaders: [{ Name: 'Content-Type', Value: 'text/javascript' }],
+    };
     const lookup: EndpointLookup = lookupOf(['_framework/dotnet.js', fpMatch]);
-    const resolveFn = vi.fn().mockImplementation((vp: string) =>
-      vp === '_framework/dotnet.abc123.js'
-        ? vfsAsset('/abs/_framework/dotnet.abc123.js')
-        : undefined,
-    );
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === '_framework/dotnet.abc123.js'
+          ? vfsAsset('/abs/_framework/dotnet.abc123.js')
+          : undefined,
+      );
     const r = new AssetResolver(stubVfs({ resolve: resolveFn }), lookup);
     // Query with ./ segments
     expect(r.resolve('/_framework/./dotnet.js')).toBe('/abs/_framework/dotnet.abc123.js');
     // Headers should also be found
-    expect(r.headersFor('/_framework/./dotnet.js')).toEqual([{ Name: 'Content-Type', Value: 'text/javascript' }]);
+    expect(r.headersFor('/_framework/./dotnet.js')).toEqual([
+      { Name: 'Content-Type', Value: 'text/javascript' },
+    ]);
   });
 });
