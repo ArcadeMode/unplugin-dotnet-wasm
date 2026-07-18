@@ -4,8 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { parseEndpointsManifest, type EndpointsManifest } from '../manifest-parsing/manifest-endpoints';
 import { normalizePath } from '../path-utils';
 import {
-  buildEndpointLookup,
-  EndpointLookupBuildError,
+  EndpointLookup,
+  DuplicatePathError,
   type EndpointMatch,
 } from './endpoint-lookup';
 
@@ -37,42 +37,42 @@ function makeEndpoint(
   };
 }
 
-describe('buildEndpointLookup', () => {
+describe('EndpointLookup', () => {
 
   it('builds without errors from the real SampleLibrary fixture', () => {
-    expect(() => buildEndpointLookup(loadFixture())).not.toThrow();
+    expect(() => new EndpointLookup(loadFixture())).not.toThrow();
   });
 
   it('returns a non-empty ReadonlyMap', () => {
-    const lookup = buildEndpointLookup(loadFixture());
+    const lookup = new EndpointLookup(loadFixture());
     expect(lookup.size).toBeGreaterThan(0);
   });
 
   it('canonical route _framework/SampleLibrary.wasm is present', () => {
-    const lookup = buildEndpointLookup(loadFixture());
+    const lookup = new EndpointLookup(loadFixture());
     // The map is keyed by the case-folded lookupKey; query the way consumers do.
     expect(lookup.has(normalizePath('_framework/SampleLibrary.wasm'))).toBe(true);
   });
 
   it('canonical route _framework/dotnet.js is present', () => {
-    const lookup = buildEndpointLookup(loadFixture());
+    const lookup = new EndpointLookup(loadFixture());
     expect(lookup.has(normalizePath('_framework/dotnet.js'))).toBe(true);
   });
 
   it('_framework/dotnet.js assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
-    const lookup = buildEndpointLookup(loadFixture());
+    const lookup = new EndpointLookup(loadFixture());
     const match = lookup.get(normalizePath('_framework/dotnet.js')) as EndpointMatch;
     expect(match.assetFile).toMatch(/^_framework\/dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('_framework/SampleLibrary.wasm assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
-    const lookup = buildEndpointLookup(loadFixture());
+    const lookup = new EndpointLookup(loadFixture());
     const match = lookup.get(normalizePath('_framework/SampleLibrary.wasm')) as EndpointMatch;
     expect(match.assetFile).toMatch(/^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/);
   });
 
   it('at least one entry has a fingerprint value', () => {
-    const lookup = buildEndpointLookup(loadFixture());
+    const lookup = new EndpointLookup(loadFixture());
     const entries = [...lookup.values()];
     expect(entries.some(m => m.fingerprint !== undefined)).toBe(true);
   });
@@ -86,28 +86,28 @@ describe('buildEndpointLookup', () => {
       fpEndpoint,
       'SampleLibrary fixture must be built with WasmFingerprintAssets=true',
     ).toBeDefined();
-    const match = buildEndpointLookup(manifest).get(
+    const match = new EndpointLookup(manifest).get(
       normalizePath(fpEndpoint!.Route),
     ) as EndpointMatch;
     expect(match.label).toBe('_framework/SampleLibrary.wasm');
   });
 
   it('strips a leading slash from Route', () => {
-    const lookup = buildEndpointLookup(
+    const lookup = new EndpointLookup(
       makeManifest([makeEndpoint('/_framework/foo.js', '_framework/foo.abc123.js')]),
     );
     expect(lookup.has(normalizePath('_framework/foo.js'))).toBe(true);
   });
 
   it('normalises backslashes to forward slashes in Route', () => {
-    const lookup = buildEndpointLookup(
+    const lookup = new EndpointLookup(
       makeManifest([makeEndpoint('_framework\\foo.js', '_framework/foo.abc123.js')]),
     );
     expect(lookup.has(normalizePath('_framework/foo.js'))).toBe(true);
   });
 
   it('normalises backslashes to forward slashes in AssetFile', () => {
-    const lookup = buildEndpointLookup(
+    const lookup = new EndpointLookup(
       makeManifest([makeEndpoint('_framework/foo.js', '_framework\\foo.abc123.js')]),
     );
     expect(lookup.get(normalizePath('_framework/foo.js'))?.assetFile).toBe('_framework/foo.abc123.js');
@@ -124,7 +124,7 @@ describe('buildEndpointLookup', () => {
       ),
     ]);
     // Only 1 uncompressed → should succeed, no duplicate error
-    const lookup = buildEndpointLookup(manifest);
+    const lookup = new EndpointLookup(manifest);
     expect(lookup.size).toBe(1);
   });
 
@@ -138,11 +138,11 @@ describe('buildEndpointLookup', () => {
         { Name: 'Content-Encoding', Value: 'gzip' },
       ]),
     ]);
-    expect(buildEndpointLookup(manifest).size).toBe(1);
+    expect(new EndpointLookup(manifest).size).toBe(1);
   });
 
   it('extracts fingerprint from EndpointProperties', () => {
-    const lookup = buildEndpointLookup(
+    const lookup = new EndpointLookup(
       makeManifest([
         makeEndpoint('_framework/foo.wasm', '_framework/foo.abc.wasm', [
           { Name: 'fingerprint', Value: 'abc' },
@@ -153,7 +153,7 @@ describe('buildEndpointLookup', () => {
   });
 
   it('extracts label from EndpointProperties', () => {
-    const lookup = buildEndpointLookup(
+    const lookup = new EndpointLookup(
       makeManifest([
         makeEndpoint('_framework/foo.abc.wasm', '_framework/foo.abc.wasm', [
           { Name: 'label', Value: '_framework/foo.wasm' },
@@ -163,12 +163,12 @@ describe('buildEndpointLookup', () => {
     expect(lookup.get(normalizePath('_framework/foo.abc.wasm'))?.label).toBe('_framework/foo.wasm');
   });
 
-  it('throws EndpointLookupBuildError on duplicate uncompressed routes', () => {
+  it('throws DuplicatePathError on duplicate uncompressed routes', () => {
     const manifest = makeManifest([
       makeEndpoint('_framework/foo.js', '_framework/foo.abc.js'),
       makeEndpoint('_framework/foo.js', '_framework/foo.def.js'),
     ]);
-    expect(() => buildEndpointLookup(manifest)).toThrow(EndpointLookupBuildError);
+    expect(() => new EndpointLookup(manifest)).toThrow(DuplicatePathError);
   });
 
   it('error carries the offending route', () => {
@@ -177,20 +177,20 @@ describe('buildEndpointLookup', () => {
       makeEndpoint('_framework/foo.js', '_framework/foo.def.js'),
     ]);
     try {
-      buildEndpointLookup(manifest);
+      new EndpointLookup(manifest);
       expect.fail('should have thrown');
     } catch (e) {
-      expect(e).toBeInstanceOf(EndpointLookupBuildError);
-      expect((e as EndpointLookupBuildError).route).toBe('_framework/foo.js');
+      expect(e).toBeInstanceOf(DuplicatePathError);
+      expect((e as DuplicatePathError).key).toBe('_framework/foo.js');
     }
   });
 
   it('returns an empty map for a manifest with no endpoints', () => {
-    expect(buildEndpointLookup(makeManifest([])).size).toBe(0);
+    expect(new EndpointLookup(makeManifest([])).size).toBe(0);
   });
 
   it('populates responseHeaders from the endpoint', () => {
-    const lookup = buildEndpointLookup(
+    const lookup = new EndpointLookup(
       makeManifest([makeEndpoint('_framework/foo.wasm', '_framework/foo.abc.wasm')]),
     );
     expect(lookup.get(normalizePath('_framework/foo.wasm'))?.responseHeaders).toEqual([

@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { type Logger, NULL_LOGGER } from '../logger';
 import { normalizePath, type NormalizedPath } from '../path-utils';
+import { PathLookup } from './path-lookup';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -51,6 +52,8 @@ interface NodePattern {
   pattern: string;
 }
 
+class AssetLookup extends PathLookup<ResolvedAsset> {}
+
 /**
  * statSync that returns true iff the path exists and is a regular file.
  */
@@ -70,14 +73,14 @@ function collectManifestAssets(
   node: ManifestNode,
   rawRoots: string[],
   segments: string[],
-  out: Map<string, ResolvedAsset>,
+  out: AssetLookup,
 ): void {
   if (node.Asset !== null) {
     const rootDir = rawRoots[node.Asset.ContentRootIndex];
     if (rootDir !== undefined) {
-      const { path, lookupKey } = normalizePath(segments.join('/'));
-      out.set(lookupKey, {
-        virtualPath: path,
+      const normalized = normalizePath(segments.join('/'));
+      out.set(normalized, {
+        virtualPath: normalized.path,
         physicalPath: join(rootDir, node.Asset.SubPath),
       });
     }
@@ -119,7 +122,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   const logger = opts?.logger ?? NULL_LOGGER;
 
   // ── Step 1: ingest every explicit `Asset` node from the manifest. ──
-  const lookup = new Map<string, ResolvedAsset>();
+  const lookup = new AssetLookup();
   collectManifestAssets(manifest.Root, manifest.ContentRoots, [], lookup);
 
   // ── Step 2: pre-compile manifest patterns for lazy fallthrough. ──
@@ -159,13 +162,13 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
       virtualPath: candidate.path,
       physicalPath: candidatePhysicalPath,
     };
-    lookup.set(candidate.lookupKey, asset);
+    lookup.set(candidate, asset);
     return asset;
   }
 
   function resolve(virtualPath: string): ResolvedAsset | undefined {
     const normalizedVP = normalizePath(virtualPath);
-    const exact = lookup.get(normalizedVP.lookupKey);
+    const exact = lookup.get(normalizedVP);
     if (exact !== undefined) return exact;
 
     for (const pat of patterns) {

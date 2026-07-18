@@ -2,7 +2,7 @@ import type { DotnetAssetsOptions } from '../types';
 import { createConsoleLogger, type Logger } from '../core/logger';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
-import { buildEndpointLookup } from '../core/asset-resolution/endpoint-lookup';
+import { EndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
 import { ShimPackageGenerator } from '../core/type-shims/shim-package-generator';
@@ -50,7 +50,7 @@ export class PluginContext {
   async #doInitialize(): Promise<void> {
     const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
       await new ManifestLoader().load(this.#options);
-    const endpointLookup = buildEndpointLookup(endpointsManifest);
+    const endpointLookup = new EndpointLookup(endpointsManifest);
     const vfs = runtimeManifest
       ? buildVfs(runtimeManifest, { logger: this.#logger })
       : buildEmptyVfs(endpointsManifestPath, { logger: this.#logger });
