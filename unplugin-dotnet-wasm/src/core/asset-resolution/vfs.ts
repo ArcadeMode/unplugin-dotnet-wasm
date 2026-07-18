@@ -2,7 +2,7 @@ import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { ManifestNode, RuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { type Logger, NULL_LOGGER } from '../logger';
-import { stripLeadingSlash, toPosixPath } from '../path-utils';
+import { normalizePath } from '../path-utils';
 
 export interface ResolvedAsset {
   /** Virtual POSIX path relative to the VFS root (e.g. `_framework/dotnet.js`). */
@@ -75,9 +75,9 @@ function collectManifestAssets(
   if (node.Asset !== null) {
     const rootDir = rawRoots[node.Asset.ContentRootIndex];
     if (rootDir !== undefined) {
-      const virtualPath = segments.join('/');
-      out.set(virtualPath.toLowerCase(), {
-        virtualPath,
+      const { path, lookupKey } = normalizePath(segments.join('/'));
+      out.set(lookupKey, {
+        virtualPath: path,
         physicalPath: join(rootDir, node.Asset.SubPath),
       });
     }
@@ -131,9 +131,8 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   );
 
   function list(virtualDir: string): string[] {
-    const norm = stripLeadingSlash(toPosixPath(virtualDir)).replace(/\/$/, '');
-    const prefix = norm === '' ? '' : `${norm}/`;
-    const prefixKey = prefix.toLowerCase();
+    const { lookupKey: normKey } = normalizePath(virtualDir);
+    const prefixKey = normKey === '' ? '' : `${normKey}/`;
     const found: string[] = [];
 
     for (const [key, asset] of lookup) {
@@ -154,19 +153,19 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   function tryStatCandidate(
     candidateVirtualPath: string,
     candidatePhysicalPath: string,
+    lookupKey: string,
   ): ResolvedAsset | undefined {
     if (!isFile(candidatePhysicalPath)) return undefined;
     const asset: ResolvedAsset = {
       virtualPath: candidateVirtualPath,
       physicalPath: candidatePhysicalPath,
     };
-    lookup.set(candidateVirtualPath.toLowerCase(), asset);
+    lookup.set(lookupKey, asset);
     return asset;
   }
 
   function resolve(virtualPath: string): ResolvedAsset | undefined {
-    const vp = stripLeadingSlash(toPosixPath(virtualPath));
-    const key = vp.toLowerCase();
+    const { path: vp, lookupKey: key } = normalizePath(virtualPath);
 
     const exact = lookup.get(key);
     if (exact !== undefined) return exact;
@@ -179,7 +178,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
       if (pat.pattern !== '**') continue;
 
       const candidatePhysicalPath = join(rawRoot, vp);
-      const hit = tryStatCandidate(vp, candidatePhysicalPath);
+      const hit = tryStatCandidate(vp, candidatePhysicalPath, key);
       if (hit !== undefined) {
         logger.debug(`resolved via pattern: "${vp}" → "${candidatePhysicalPath}"`);
         return hit;
@@ -191,7 +190,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   }
 
   function resolveFile(assetFile: string): ResolvedFile | undefined {
-    const posixFile = stripLeadingSlash(toPosixPath(assetFile));
+    const { path: posixFile } = normalizePath(assetFile);
     for (const rawRoot of manifest.ContentRoots) {
       const absPath = join(rawRoot, posixFile);
       if (isFile(absPath)) return { physicalPath: absPath };

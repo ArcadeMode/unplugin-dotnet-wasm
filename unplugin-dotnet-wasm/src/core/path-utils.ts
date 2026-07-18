@@ -3,16 +3,6 @@ export function toPosixPath(p: string): string {
   return p.replace(/\\/g, '/');
 }
 
-/** Strip one or more leading `/` characters. */
-export function stripLeadingSlash(p: string): string {
-  return p.replace(/^\/+/u, '');
-}
-
-/** Strip a single leading `./` then any leading `/`. */
-export function stripLeadingSlashOrDot(p: string): string {
-  return stripLeadingSlash(p.replace(/^\.\//u, ''));
-}
-
 /**
  * Collapse a POSIX path to canonical form: drop empty and `.` segments,
  * resolve `..`. Assumes POSIX input — run toPosixPath first if unsure.
@@ -27,9 +17,28 @@ export function collapseDotSegments(posixPath: string): string {
   return out.join('/');
 }
 
-/** Canonical key for endpoint-route lookups: POSIX, dot-segments collapsed, case-folded. */
-export function normalizeRoute(p: string): string {
-  return collapseDotSegments(toPosixPath(p)).toLowerCase();
+export interface NormalizedPath {
+  /**
+   * Canonical POSIX form: separators normalised, `.`/`..`/empty segments
+   * collapsed, case PRESERVED. Use for filesystem access — case-sensitive on
+   * non-Windows hosts.
+   */
+  readonly path: string;
+  /**
+   * `path` lower-cased: the canonical key for case-insensitive lookup maps
+   * (the VFS asset map and the endpoint route map). Never stat this.
+   */
+  readonly lookupKey: string;
+}
+
+/**
+ * Canonical form of a virtual/physical path: POSIX separators with empty and
+ * `.`/`..` segments collapsed. Case is PRESERVED in `path`; `lookupKey` is
+ * the case-folded key for use in case-insensitive lookup maps.
+ */
+export function normalizePath(p: string): NormalizedPath {
+  const path = collapseDotSegments(toPosixPath(p));
+  return { path, lookupKey: path.toLowerCase() };
 }
 
 /**

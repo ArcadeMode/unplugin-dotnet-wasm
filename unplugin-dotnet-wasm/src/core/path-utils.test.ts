@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { collapseDotSegments, normalizeRoute } from './path-utils';
+import { collapseDotSegments, normalizePath } from './path-utils';
 
 describe('collapseDotSegments', () => {
   it("collapses './' segments", () => {
@@ -27,12 +27,22 @@ describe('collapseDotSegments', () => {
   });
 });
 
-describe('normalizeRoute', () => {
-  it('lowercases the path after collapsing dot segments', () => {
-    expect(normalizeRoute('/_Framework/./Dotnet.JS')).toBe('_framework/dotnet.js');
+describe('normalizePath', () => {
+  it('returns POSIX path with case PRESERVED and a case-folded lookupKey', () => {
+    expect(normalizePath('\\_Framework\\.\\Dotnet.JS')).toEqual({
+      path: '_Framework/Dotnet.JS',
+      lookupKey: '_framework/dotnet.js',
+    });
   });
 
-  it('collapses dots and lowercases together', () => {
-    expect(normalizeRoute('/_Framework/../_Framework/DOTNET.js')).toBe('_framework/dotnet.js');
+  it('resolves dot segments in both fields', () => {
+    expect(normalizePath('/_Framework/../_Content/App.WASM')).toEqual({
+      path: '_Content/App.WASM',
+      lookupKey: '_content/app.wasm',
+    });
+  });
+
+  it('returns empty strings for empty input', () => {
+    expect(normalizePath('')).toEqual({ path: '', lookupKey: '' });
   });
 });

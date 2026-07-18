@@ -1,5 +1,5 @@
 import type { Endpoint, EndpointsManifest, ResponseHeader } from '../manifest-parsing/manifest-endpoints';
-import { normalizeRoute, stripLeadingSlash, toPosixPath } from '../path-utils';
+import { normalizePath } from '../path-utils';
 
 export interface EndpointMatch {
   /** Physical file path relative to the .NET application root */
@@ -31,8 +31,8 @@ export function buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup
   for (const endpoint of manifest.Endpoints) {
     if (isCompressed(endpoint)) continue;
 
-    const route = normalizeRoute(endpoint.Route);
-    const assetFile = stripLeadingSlash(toPosixPath(endpoint.AssetFile));
+    const route = normalizePath(endpoint.Route).lookupKey;
+    const assetFile = normalizePath(endpoint.AssetFile).path;
     const match = extractMatch(assetFile, endpoint);
 
     if (map.has(route)) {

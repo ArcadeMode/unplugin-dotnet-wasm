@@ -2,7 +2,7 @@ import type { VirtualFileSystem } from './vfs';
 import type { EndpointLookup } from './endpoint-lookup';
 import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
-import { collapseDotSegments, normalizeRoute, toPosixPath } from '../path-utils';
+import { normalizePath } from '../path-utils';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,
@@ -20,17 +20,16 @@ export class AssetResolver {
   resolve(source: string): string | null {
     // Collapse relative specifiers (e.g. the bundler-friendly boot config's
     // `./../_content/<pkg>/<pkg>.lib.module.js`) to their canonical manifest
-    // route. Case is PRESERVED here: the probe also drives the VFS physical-file
-    // lookup, which must match on-disk casing on case-sensitive filesystems.
-    // Case-folding happens only on the endpoint-map lookup below.
-    const virtualPath = collapseDotSegments(toPosixPath(source));
+    // route. normalizePath preserves case for the VFS physical-file probe;
+    // only the endpoint-map lookup below case-folds via the lookupKey.
+    const { path: virtualPath } = normalizePath(source);
     if (virtualPath === '') return null;
 
     for (const probe of new ExtensionProbes(virtualPath)) {
       const vfsHit = this.vfs.resolve(probe);
       if (vfsHit !== undefined) return vfsHit.physicalPath;
 
-      const alias = this.endpointLookup.get(normalizeRoute(probe));
+      const alias = this.endpointLookup.get(normalizePath(probe).lookupKey);
       if (alias !== undefined) {
         const resolved = this.vfs.resolve(alias.assetFile);
         if (resolved !== undefined) return resolved.physicalPath;
@@ -44,7 +43,7 @@ export class AssetResolver {
   }
 
   headersFor(route: string): readonly ResponseHeader[] | undefined {
-    const key = normalizeRoute(route);
+    const key = normalizePath(route).lookupKey;
     return this.endpointLookup.get(key)?.responseHeaders;
   }
 
