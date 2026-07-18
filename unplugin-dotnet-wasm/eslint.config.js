@@ -1,5 +1,6 @@
 // @ts-check
 import tseslint from 'typescript-eslint';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default tseslint.config(
   ...tseslint.configs.recommended,
@@ -10,4 +11,5 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  eslintPluginPrettierRecommended,
 );
