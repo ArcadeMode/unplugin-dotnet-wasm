@@ -61,7 +61,7 @@ export class PluginContext {
       return;
     }
     const locator = new NodeModulesLocator(this.#consumerRoot);
-    const discoverer = new FileDiscoverer(this.#assetResolver, this.#logger);
+    const discoverer = new FileDiscoverer(this.#assetResolver);
     const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.#logger);
     const generator = new ShimPackageGenerator(locator, discoverer, this.#changeTracker, emitter, this.#logger);
     await generator.generate();

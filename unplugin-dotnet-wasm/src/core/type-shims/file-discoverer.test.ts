@@ -1,6 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import type { Logger } from '../logger';
 import { FileDiscoverer } from './file-discoverer';
 
 function createResolver(
@@ -13,20 +12,10 @@ function createResolver(
   } as unknown as AssetResolver;
 }
 
-function createLogger(): Logger {
-  return {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  };
-}
-
 describe('FileDiscoverer', () => {
   it('single .ts route produces one group with one entry (sourceFile set)', () => {
     const resolver = createResolver(['pkg.ts'], { 'pkg.ts': '/src/pkg.ts' });
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -41,8 +30,7 @@ describe('FileDiscoverer', () => {
 
   it('single .d.ts route produces entry with definitionFile set', () => {
     const resolver = createResolver(['pkg.d.ts'], { 'pkg.d.ts': '/src/pkg.d.ts' });
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -57,8 +45,7 @@ describe('FileDiscoverer', () => {
       ['pkg/foo.ts', 'pkg/foo.d.ts'],
       { 'pkg/foo.ts': '/src/foo.ts', 'pkg/foo.d.ts': '/src/foo.d.ts' },
     );
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -74,8 +61,7 @@ describe('FileDiscoverer', () => {
       ['pkg/foo.d.ts', 'pkg/foo.ts'],
       { 'pkg/foo.d.ts': '/src/foo.d.ts', 'pkg/foo.ts': '/src/foo.ts' },
     );
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -87,8 +73,7 @@ describe('FileDiscoverer', () => {
 
   it('nested route (pkg/a/b/c.ts) extracts correct packageName and subpath', () => {
     const resolver = createResolver(['pkg/a/b/c.ts'], { 'pkg/a/b/c.ts': '/src/pkg/a/b/c.ts' });
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -103,8 +88,7 @@ describe('FileDiscoverer', () => {
       ['pkg/mod1.ts', 'pkg/mod2.ts'],
       { 'pkg/mod1.ts': '/src/mod1.ts', 'pkg/mod2.ts': '/src/mod2.ts' },
     );
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -120,8 +104,7 @@ describe('FileDiscoverer', () => {
       ['pkg1.ts', 'pkg2.ts'],
       { 'pkg1.ts': '/src/pkg1.ts', 'pkg2.ts': '/src/pkg2.ts' },
     );
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -140,8 +123,7 @@ describe('FileDiscoverer', () => {
         'util.mjs': '/src/util.mjs',
       },
     );
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 
@@ -153,8 +135,7 @@ describe('FileDiscoverer', () => {
       ['typeshim.ts', 'orphan.ts'],
       { 'typeshim.ts': '/src/typeshim.ts', 'orphan.ts': null },
     );
-    const logger = createLogger();
-    const discoverer = new FileDiscoverer(resolver, logger);
+    const discoverer = new FileDiscoverer(resolver);
 
     const groups = discoverer.discover();
 

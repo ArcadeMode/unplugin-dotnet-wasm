@@ -69,7 +69,7 @@ describe('ShimPackageGenerator.generate', () => {
     );
     const generator = new ShimPackageGenerator(
       new NodeModulesLocator(root),
-      new FileDiscoverer(resolver, createLogger()),
+      new FileDiscoverer(resolver),
       createTracker(true),
       emitter,
       createLogger(),
@@ -104,7 +104,7 @@ describe('ShimPackageGenerator.generate', () => {
     const emitter = createEmitter(undefined, () => '// freshly compiled\n');
     const generator = new ShimPackageGenerator(
       new NodeModulesLocator(root),
-      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }), createLogger()),
+      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' })),
       createTracker(false), // unchanged
       emitter,
       createLogger(),
@@ -124,7 +124,7 @@ describe('ShimPackageGenerator.generate', () => {
     const { root, nm } = tempRoot();
     const generator = new ShimPackageGenerator(
       new NodeModulesLocator(root),
-      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }), createLogger()),
+      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' })),
       createTracker(true),
       createEmitter(undefined, () => null), // compileToDTS returns null
       createLogger(),
@@ -149,7 +149,7 @@ describe('ShimPackageGenerator.generate', () => {
     );
     const generator = new ShimPackageGenerator(
       new NodeModulesLocator(root),
-      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }), createLogger()),
+      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' })),
       createTracker(true),
       emitter,
       logger,
@@ -174,7 +174,7 @@ describe('ShimPackageGenerator.generate', () => {
     const logger = createLogger();
     const generator = new ShimPackageGenerator(
       new NodeModulesLocator(root),
-      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' }), createLogger()),
+      new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' })),
       createTracker(true),
       createEmitter(undefined, () => '// generated\n'),
       logger,
@@ -200,7 +200,7 @@ describe('ShimPackageGenerator.generate', () => {
     const emitter = createEmitter((defFile) => `export * from '${defFile.slice(0, -5)}';\n`);
     const generator = new ShimPackageGenerator(
       new NodeModulesLocator(root),
-      new FileDiscoverer(resolver, createLogger()),
+      new FileDiscoverer(resolver),
       createTracker(true),
       emitter,
       createLogger(),

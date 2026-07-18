@@ -1,5 +1,4 @@
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import type { Logger } from '../logger';
 
 const SOURCE_EXT = '.ts';
 const DECL_EXT = '.d.ts';
@@ -20,7 +19,6 @@ type EntryData = { entry: DiscoveryEntry; packageName: string };
 export class FileDiscoverer {
   constructor(
     private readonly resolver: AssetResolver,
-    private readonly logger: Logger,
   ) {}
 
   /**
