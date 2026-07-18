@@ -1,5 +1,5 @@
 import type { Endpoint, EndpointsManifest, ResponseHeader } from '../manifest-parsing/manifest-endpoints';
-import { normalizePath } from '../path-utils';
+import { normalizePath, type NormalizedPath } from '../path-utils';
 
 export interface EndpointMatch {
   /** Physical file path relative to the .NET application root */
@@ -13,8 +13,35 @@ export interface EndpointMatch {
   readonly responseHeaders: readonly ResponseHeader[];
 }
 
-/** Immutable route → EndpointMatch lookup table. */
-export type EndpointLookup = ReadonlyMap<string, EndpointMatch>;
+/**
+ * Route → EndpointMatch lookup table. Keyed internally by the case-folded
+ * lookupKey and filled only via {@link set}, so callers can neither read nor
+ * write with a raw un-normalized string — a mis-keyed instance cannot exist.
+ */
+export class EndpointLookup {
+  private readonly map = new Map<string, EndpointMatch>();
+
+  /**
+   * Insert a route→match. The key is derived from `route.lookupKey`.
+   * @throws {EndpointLookupBuildError} if the route is already present.
+   */
+  set(route: NormalizedPath, match: EndpointMatch): void {
+    if (this.map.has(route.lookupKey)) {
+      throw new EndpointLookupBuildError(
+        `Duplicate endpoint route after normalisation: "${route.lookupKey}"`,
+        route.lookupKey,
+      );
+    }
+    this.map.set(route.lookupKey, match);
+  }
+
+  get(p: NormalizedPath): EndpointMatch | undefined { return this.map.get(p.lookupKey); }
+  has(p: NormalizedPath): boolean { return this.map.has(p.lookupKey); }
+  get size(): number { return this.map.size; }
+  values(): IterableIterator<EndpointMatch> { return this.map.values(); }
+  /** Iterate [route, match] entries. The route key is the case-folded lookupKey. */
+  [Symbol.iterator](): IterableIterator<[string, EndpointMatch]> { return this.map[Symbol.iterator](); }
+}
 
 /**
  * Derive an {@link EndpointLookup} from a parsed endpoints manifest.
@@ -26,26 +53,17 @@ export type EndpointLookup = ReadonlyMap<string, EndpointMatch>;
  *   normalised route.
  */
 export function buildEndpointLookup(manifest: EndpointsManifest): EndpointLookup {
-  const map = new Map<string, EndpointMatch>();
+  const lookup = new EndpointLookup();
 
   for (const endpoint of manifest.Endpoints) {
     if (isCompressed(endpoint)) continue;
 
-    const route = normalizePath(endpoint.Route).lookupKey;
+    const route = normalizePath(endpoint.Route);
     const assetFile = normalizePath(endpoint.AssetFile).path;
-    const match = extractMatch(assetFile, endpoint);
-
-    if (map.has(route)) {
-      throw new EndpointLookupBuildError(
-        `Duplicate endpoint route after normalisation: "${route}"`,
-        route,
-      );
-    }
-
-    map.set(route, match);
+    lookup.set(route, extractMatch(assetFile, endpoint));
   }
 
-  return map;
+  return lookup;
 }
 
 function isCompressed(endpoint: Endpoint): boolean {

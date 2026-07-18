@@ -51,23 +51,23 @@ describe('buildEndpointLookup', () => {
   it('canonical route _framework/SampleLibrary.wasm is present', () => {
     const lookup = buildEndpointLookup(loadFixture());
     // The map is keyed by the case-folded lookupKey; query the way consumers do.
-    expect(lookup.has(normalizePath('_framework/SampleLibrary.wasm').lookupKey)).toBe(true);
+    expect(lookup.has(normalizePath('_framework/SampleLibrary.wasm'))).toBe(true);
   });
 
   it('canonical route _framework/dotnet.js is present', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    expect(lookup.has('_framework/dotnet.js')).toBe(true);
+    expect(lookup.has(normalizePath('_framework/dotnet.js'))).toBe(true);
   });
 
   it('_framework/dotnet.js assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    const match = lookup.get('_framework/dotnet.js') as EndpointMatch;
+    const match = lookup.get(normalizePath('_framework/dotnet.js')) as EndpointMatch;
     expect(match.assetFile).toMatch(/^_framework\/dotnet(\.[a-z0-9]+)?\.js$/);
   });
 
   it('_framework/SampleLibrary.wasm assetFile resolves to the correct filename (fingerprinted or canonical)', () => {
     const lookup = buildEndpointLookup(loadFixture());
-    const match = lookup.get(normalizePath('_framework/SampleLibrary.wasm').lookupKey) as EndpointMatch;
+    const match = lookup.get(normalizePath('_framework/SampleLibrary.wasm')) as EndpointMatch;
     expect(match.assetFile).toMatch(/^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/);
   });
 
@@ -87,7 +87,7 @@ describe('buildEndpointLookup', () => {
     if (!fpEndpoint) return; // no separate fingerprinted route when fingerprinting is disabled
     const lookup = buildEndpointLookup(manifest);
     const fpRoute = fpEndpoint!.Route;
-    const match = lookup.get(normalizePath(fpRoute).lookupKey) as EndpointMatch;
+    const match = lookup.get(normalizePath(fpRoute)) as EndpointMatch;
     expect(match.label).toBe('_framework/SampleLibrary.wasm');
   });
 
@@ -95,21 +95,21 @@ describe('buildEndpointLookup', () => {
     const lookup = buildEndpointLookup(
       makeManifest([makeEndpoint('/_framework/foo.js', '_framework/foo.abc123.js')]),
     );
-    expect(lookup.has('_framework/foo.js')).toBe(true);
+    expect(lookup.has(normalizePath('_framework/foo.js'))).toBe(true);
   });
 
   it('normalises backslashes to forward slashes in Route', () => {
     const lookup = buildEndpointLookup(
       makeManifest([makeEndpoint('_framework\\foo.js', '_framework/foo.abc123.js')]),
     );
-    expect(lookup.has('_framework/foo.js')).toBe(true);
+    expect(lookup.has(normalizePath('_framework/foo.js'))).toBe(true);
   });
 
   it('normalises backslashes to forward slashes in AssetFile', () => {
     const lookup = buildEndpointLookup(
       makeManifest([makeEndpoint('_framework/foo.js', '_framework\\foo.abc123.js')]),
     );
-    expect(lookup.get('_framework/foo.js')?.assetFile).toBe('_framework/foo.abc123.js');
+    expect(lookup.get(normalizePath('_framework/foo.js'))?.assetFile).toBe('_framework/foo.abc123.js');
   });
 
   it('skips endpoints with a Content-Encoding selector', () => {
@@ -148,7 +148,7 @@ describe('buildEndpointLookup', () => {
         ]),
       ]),
     );
-    expect(lookup.get('_framework/foo.wasm')?.fingerprint).toBe('abc');
+    expect(lookup.get(normalizePath('_framework/foo.wasm'))?.fingerprint).toBe('abc');
   });
 
   it('extracts label from EndpointProperties', () => {
@@ -159,7 +159,7 @@ describe('buildEndpointLookup', () => {
         ]),
       ]),
     );
-    expect(lookup.get('_framework/foo.abc.wasm')?.label).toBe('_framework/foo.wasm');
+    expect(lookup.get(normalizePath('_framework/foo.abc.wasm'))?.label).toBe('_framework/foo.wasm');
   });
 
   it('throws EndpointLookupBuildError on duplicate uncompressed routes', () => {
@@ -192,7 +192,7 @@ describe('buildEndpointLookup', () => {
     const lookup = buildEndpointLookup(
       makeManifest([makeEndpoint('_framework/foo.wasm', '_framework/foo.abc.wasm')]),
     );
-    expect(lookup.get('_framework/foo.wasm')?.responseHeaders).toEqual([
+    expect(lookup.get(normalizePath('_framework/foo.wasm'))?.responseHeaders).toEqual([
       { Name: 'Content-Type', Value: 'application/octet-stream' },
     ]);
   });

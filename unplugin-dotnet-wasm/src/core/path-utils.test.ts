@@ -29,20 +29,20 @@ describe('collapseDotSegments', () => {
 
 describe('normalizePath', () => {
   it('returns POSIX path with case PRESERVED and a case-folded lookupKey', () => {
-    expect(normalizePath('\\_Framework\\.\\Dotnet.JS')).toEqual({
-      path: '_Framework/Dotnet.JS',
-      lookupKey: '_framework/dotnet.js',
-    });
+    const n = normalizePath('\\_Framework\\.\\Dotnet.JS');
+    expect(n.path).toBe('_Framework/Dotnet.JS');
+    expect(n.lookupKey).toBe('_framework/dotnet.js');
   });
 
   it('resolves dot segments in both fields', () => {
-    expect(normalizePath('/_Framework/../_Content/App.WASM')).toEqual({
-      path: '_Content/App.WASM',
-      lookupKey: '_content/app.wasm',
-    });
+    const n = normalizePath('/_Framework/../_Content/App.WASM');
+    expect(n.path).toBe('_Content/App.WASM');
+    expect(n.lookupKey).toBe('_content/app.wasm');
   });
 
   it('returns empty strings for empty input', () => {
-    expect(normalizePath('')).toEqual({ path: '', lookupKey: '' });
+    const n = normalizePath('');
+    expect(n.path).toBe('');
+    expect(n.lookupKey).toBe('');
   });
 });

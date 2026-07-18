@@ -29,7 +29,7 @@ export class AssetResolver {
       const vfsHit = this.vfs.resolve(probe);
       if (vfsHit !== undefined) return vfsHit.physicalPath;
 
-      const alias = this.endpointLookup.get(normalizePath(probe).lookupKey);
+      const alias = this.endpointLookup.get(normalizePath(probe));
       if (alias !== undefined) {
         const resolved = this.vfs.resolve(alias.assetFile);
         if (resolved !== undefined) return resolved.physicalPath;
@@ -43,8 +43,7 @@ export class AssetResolver {
   }
 
   headersFor(route: string): readonly ResponseHeader[] | undefined {
-    const key = normalizePath(route).lookupKey;
-    return this.endpointLookup.get(key)?.responseHeaders;
+    return this.endpointLookup.get(normalizePath(route))?.responseHeaders;
   }
 
   /**

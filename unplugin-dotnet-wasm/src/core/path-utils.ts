@@ -17,6 +17,8 @@ export function collapseDotSegments(posixPath: string): string {
   return out.join('/');
 }
 
+declare const normalizedPathBrand: unique symbol;
+
 export interface NormalizedPath {
   /**
    * Canonical POSIX form: separators normalised, `.`/`..`/empty segments
@@ -29,6 +31,7 @@ export interface NormalizedPath {
    * (the VFS asset map and the endpoint route map). Never stat this.
    */
   readonly lookupKey: string;
+  readonly [normalizedPathBrand]: never;
 }
 
 /**
@@ -38,7 +41,7 @@ export interface NormalizedPath {
  */
 export function normalizePath(p: string): NormalizedPath {
   const path = collapseDotSegments(toPosixPath(p));
-  return { path, lookupKey: path.toLowerCase() };
+  return { path, lookupKey: path.toLowerCase() } as NormalizedPath;
 }
 
 /**
