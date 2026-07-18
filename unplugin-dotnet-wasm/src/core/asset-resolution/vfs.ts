@@ -222,8 +222,9 @@ export function buildEmptyVfs(endpointsManifestPath?: string, opts?: { logger?: 
 
   const manifestDir = dirname(endpointsManifestPath);
   const wwwroot = join(manifestDir, 'wwwroot');
-  const contentRoot = existsSync(wwwroot) ? wwwroot : manifestDir;
-  const rootLabel = existsSync(wwwroot) ? 'wwwroot' : 'manifest dir';
+  const wwwrootExists = existsSync(wwwroot) && statSync(wwwroot).isDirectory();
+  const contentRoot = wwwrootExists ? wwwroot : manifestDir;
+  const rootLabel = wwwrootExists ? 'wwwroot' : 'manifest dir';
 
   logger.debug(`building single-root VFS from endpoints manifest using ${rootLabel}`);
 
