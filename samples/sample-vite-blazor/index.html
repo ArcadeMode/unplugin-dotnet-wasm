@@ -10,11 +10,12 @@
     <!--
       These are real custom elements registered by the Blazor library via
       RegisterCustomElement<T>(). They work in plain HTML - no framework needed.
-      The `initial` attribute maps to the [Parameter] on the Counter component.
+      Their parameters are set from code in src/entry.ts (JS properties), and the
+      counter's CountChanged callback is observed as the `countchanged` DOM event.
     -->
     <section>
       <h2>Counter</h2>
-      <blazor-counter initial="10"></blazor-counter>
+      <blazor-counter></blazor-counter>
     </section>
 
     <section>

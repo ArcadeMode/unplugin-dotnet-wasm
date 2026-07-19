@@ -6,12 +6,19 @@
 @code {
     private int currentCount;
 
-    // Custom-element attributes bind to [Parameter] properties, e.g.
-    // <blazor-counter initial="10"></blazor-counter>
+    // Attribute or JS property: <blazor-counter initial="10"> or el.initial = 42
     [Parameter]
     public int Initial { get; set; }
 
+    // Surfaced to JS as the `countchanged` DOM event (event.detail = new count).
+    [Parameter]
+    public EventCallback<int> CountChanged { get; set; }
+
     protected override void OnParametersSet() => currentCount = Initial;
 
-    private void IncrementCount() => currentCount++;
+    private async Task IncrementCount()
+    {
+        currentCount++;
+        await CountChanged.InvokeAsync(currentCount);
+    }
 }
