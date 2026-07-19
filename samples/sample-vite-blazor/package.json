@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev": "vite --open",
     "build": "vite build",
     "preview": "vite preview --open",
     "test": "echo \"No tests in sample - build-only package\" && exit 0",
