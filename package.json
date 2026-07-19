@@ -27,7 +27,7 @@
     "test:no-build": "node scripts/run-tests.mjs no-build",
     "test": "node scripts/run-tests.mjs",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint && eslint scripts test/integration test/fixtures",
+    "lint": "eslint",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",
     "clean": "pnpm -r clean"
@@ -37,12 +37,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
+    "@eslint/js": "^9.22.0",
     "cross-env": "^7.0.3",
-    "eslint": "^9.0.0",
+    "eslint": "^9.22.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.3.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.63.0"
   }
 }
