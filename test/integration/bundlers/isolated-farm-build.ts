@@ -66,8 +66,8 @@ await build({
         cwd: this.fixtureDir,
         env: { ...process.env, FARM_BUILD_CONFIG: configEnv },
       });
-    } catch (err: any) {
-      const stderrOutput: string = err.stderr?.toString() ?? '';
+    } catch (err: unknown) {
+      const stderrOutput: string = (err as { stderr?: Buffer })?.stderr?.toString() ?? '';
       if (stderrOutput) process.stderr.write(stderrOutput);
       if (stderrOutput) this.warnings.push(stderrOutput);
 
