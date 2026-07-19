@@ -1,0 +1,24 @@
+<div class="blazor-counter">
+    <p role="status">Current count: @currentCount</p>
+    <button @onclick="IncrementCount">Click me</button>
+</div>
+
+@code {
+    private int currentCount;
+
+    // Attribute or JS property: <blazor-counter initial="10"> or el.initial = 42
+    [Parameter]
+    public int Initial { get; set; }
+
+    // Surfaced to JS as the `countchanged` DOM event (event.detail = new count).
+    [Parameter]
+    public EventCallback<int> CountChanged { get; set; }
+
+    protected override void OnParametersSet() => currentCount = Initial;
+
+    private async Task IncrementCount()
+    {
+        currentCount++;
+        await CountChanged.InvokeAsync(currentCount);
+    }
+}

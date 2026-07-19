@@ -1,0 +1,24 @@
+<div class="blazor-date-time-now">
+    <p>Initial: <strong>@Initial.ToLongTimeString()</strong></p>
+    <p>Now: <strong>@_now.ToLongTimeString()</strong></p>
+    <p>Elapsed: <strong>@((_now - Initial).TotalSeconds.ToString("F0"))s</strong> since initial</p>
+    <button @onclick="Refresh">Refresh</button>
+</div>
+
+@code {
+    private DateTime _now = DateTime.Now;
+
+    // Initial datetime from an attribute or JS property (ISO-8601 string / Date).
+    [Parameter]
+    public DateTime Initial { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (Initial == default)
+        {
+            Initial = _now;
+        }
+    }
+
+    private void Refresh() => _now = DateTime.Now;
+}

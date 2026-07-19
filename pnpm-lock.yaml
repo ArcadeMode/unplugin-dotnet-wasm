@@ -49,6 +49,22 @@ importers:
         specifier: ^6.0.0
         version: 6.4.3(@types/node@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
 
+  samples/sample-vite-blazor:
+    dependencies:
+      unplugin-dotnet-wasm:
+        specifier: workspace:*
+        version: link:../../unplugin-dotnet-wasm
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.0
+        version: 6.1.3
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.3(@types/node@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
+
   test/fixtures/browser/library-app-bun:
     dependencies:
       unplugin-dotnet-wasm:
