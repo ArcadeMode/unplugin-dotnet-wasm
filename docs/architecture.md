@@ -44,18 +44,13 @@ The StaticWebAssets SDK enables fingerprinting by default, but it is not require
 
 ## Per-bundler emission strategies
 
-`meta.framework` dispatches to a family in [`src/unplugin/index.ts`](../unplugin-dotnet-wasm/src/unplugin/index.ts); the core VFS/manifest layer stays bundler-agnostic. The families exist because each bundler emits binary assets differently:
-
-- **Rollup family** (`rollup`, `vite`, `rolldown`): `load` + `this.emitFile({ type: 'asset' })` + the `import.meta.ROLLUP_FILE_URL_*` placeholder, which these bundlers rewrite to the hashed URL at bundle time.
-- **Webpack family** (`webpack`, `rspack`, `rsbuild`): `load` is omitted (unplugin's webpack loader corrupts binaries if passed through load). Instead a scoped `module.rules` entry is injected to serve wasm/dat/pdb as `asset/resource`. These rules are scoped to the dotnet framework files so user `.wasm` imports keep their default handling. On rsbuild the rule is prepended to the ruleset to win over the built-in `.wasm → webassembly/async` rule.
-- **esbuild family** (`esbuild`, `bun`): `resolveId` is dropped in favour of `onResolve` directly inside `setup(build)` so files stay in the default namespace.
-- **Farm**: Rollup-shaped `resolveId`; binary emission is opted in by the consumer via `compilation.assets.include: ['wasm']` (Farm exposes no plugin hook for it).
+The plugin dispatches to an appropriate bundler family based on runtime metadata unplugin provides ([`src/unplugin/index.ts`](../unplugin-dotnet-wasm/src/unplugin/index.ts)); the core VFS/manifest layer stays bundler-agnostic. Families exist only because bundlers disagree on how binary assets get emitted — hook shapes, placeholder rewriting, asset-rule injection, and namespace handling all vary. Rather than a bespoke path per bundler, the plugin groups them into a few families that each share one emission strategy, and keeps everything above that layer common. The per-family glue is small and self-contained; the specifics live in the source.
 
 ## Dev server
 
 The `resolveId` hook and VFS-backed resolution described above are not build-only - they run identically under a bundler's dev server, so out-of-tree assets that travel the module graph (e.g. the bundler-friendly boot config's statically-imported `./../_content/<pkg>/…` NuGet JS initializers, collapsed to their canonical manifest route by the resolver's clamp-normalisation) resolve the same way in `dev` as in `build`, on every bundler. No dev-specific code involved.
 
-What dev servers add is delivery of **runtime-fetched** out-of-tree assets: the runtime fetches `_framework/*.{wasm,dat,pdb}` (and URL-referenced files) at boot, which no bundler serves for an out-of-tree output. In serve mode the binary `load` hook returns an explicit route (`/_framework/<hashedName>`) and `createAssetMiddleware` streams the physical file with the manifest's headers. The middleware *core* is one uniform bundler-agnostic connect handler; each family only supplies the glue to register it - Vite `configureServer`, webpack/rspack `setupMiddlewares`, rsbuild `server.setup`, and a Koa shim for Farm's Koa-based server.
+What dev servers add is delivery of **runtime-fetched** out-of-tree assets: the runtime fetches `_framework/*.{wasm,dat,pdb}` (and URL-referenced files) at boot, which no bundler serves for an out-of-tree output. In serve mode the binary `load` hook returns an explicit route (`/_framework/<hashedName>`) and `createAssetMiddleware` streams the physical file with the manifest's headers. The middleware *core* is one uniform bundler-agnostic connect handler; each family only supplies the small glue to register it against its own dev-server API.
 
 ## Cross-target output contract (why Node support is a subset)
 

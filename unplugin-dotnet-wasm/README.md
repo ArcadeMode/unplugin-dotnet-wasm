@@ -361,7 +361,7 @@ The plugin is build-time only today. Scope so far and what's planned:
 - Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
 - Node built-ins externalized so the dotnet loader's Node paths don't break browser builds[^rollup-family-node-externals]
 - IDE / language-server type support: editors and `tsc` are aware of the TypeScript emitted from your .NET WASM project like:
-  - the SDK's own `dotnet.d.ts`
+  - the SDK's own `dotnet.d.ts`[^dotnet-dts-net11]
   - your own `.ts` files under `wwwroot`
   - generated output like `typeshim.ts` ([TypeShim](https://github.com/ArcadeMode/TypeShim))
 
@@ -372,7 +372,7 @@ The plugin is build-time only today. Scope so far and what's planned:
 3. Preload `<link>` injection from the endpoints manifest's preload metadata
 4. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included (requires some .NET 11 SDK testing)
 
-Design rationale for the decisions above lives in [`docs/architecture.md`](../../docs/architecture.md).
+Design rationale for the decisions above lives in [`docs/architecture.md`](../docs/architecture.md).
 
 ## Requirements
 
@@ -397,3 +397,5 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../..
 [^esbuild-no-dev-server]: esbuild's serve mode exposes no middleware API, so out-of-tree assets can't be served through the plugin.
 
 [^bun-no-dev-server]: Bun's dev server (1.3+) is app-owned (`Bun.serve`) and exposes no plugin middleware hook, so the plugin can't serve out-of-tree assets through it. Middleware support is tracked upstream in [oven-sh/bun#17608](https://github.com/oven-sh/bun/issues/17608).
+
+[^dotnet-dts-net11]: As of .NET 11, the MSBuild property `WasmEmitTypeScriptDefinitions=true` includes `dotnet.d.ts` in the build output.
