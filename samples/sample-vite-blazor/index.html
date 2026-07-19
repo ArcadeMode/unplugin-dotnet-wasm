@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Blazor components inside a Vite app</title>
+  </head>
+  <body>
+    <h1>Blazor WebAssembly, rendered inside a framework-agnostic Vite app</h1>
+
+    <!--
+      These are real custom elements registered by the Blazor library via
+      RegisterCustomElement<T>(). They work in plain HTML - no framework needed.
+      The `initial` attribute maps to the [Parameter] on the Counter component.
+    -->
+    <section>
+      <h2>Counter</h2>
+      <blazor-counter initial="10"></blazor-counter>
+    </section>
+
+    <section>
+      <h2>Date / time</h2>
+      <blazor-date-time-now></blazor-date-time-now>
+    </section>
+
+    <script type="module" src="/src/entry.ts"></script>
+  </body>
+</html>

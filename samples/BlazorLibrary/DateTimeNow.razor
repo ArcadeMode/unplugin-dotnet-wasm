@@ -1,0 +1,8 @@
+<div class="blazor-date-time-now">
+    <p>Rendered by Blazor at: <strong>@DateTime.Now.ToLongTimeString()</strong></p>
+    <button @onclick="Refresh">Refresh</button>
+</div>
+
+@code {
+    private void Refresh() => StateHasChanged();
+}

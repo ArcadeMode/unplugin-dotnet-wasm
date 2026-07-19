@@ -1,0 +1,21 @@
+{
+  "name": "@dotnet-wasm-bundler/sample-vite-blazor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview --open",
+    "test": "echo \"No tests in sample - build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*"
+  }
+}
