@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
-import { Platform } from '../test-matrix';
+import type { Platform } from '../test-matrix';
 
 export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
   constructor(fixtureDir: string, platform: Platform, label: string) {

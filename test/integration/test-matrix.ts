@@ -1,12 +1,10 @@
-import { describe, it, SuiteFactory } from 'vitest';
+import type { SuiteFactory } from 'vitest';
+import { describe, it } from 'vitest';
 import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import type { Fingerprint, BuildMode, Platform, Bundler } from './test-matrix-parameters';
 import {
-  Fingerprint,
-  BuildMode,
-  Platform,
-  Bundler,
   readFingerprint,
   readBuildMode,
   readPlatform,

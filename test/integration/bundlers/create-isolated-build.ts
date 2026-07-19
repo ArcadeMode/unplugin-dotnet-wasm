@@ -1,5 +1,5 @@
 import type { Bundler, Platform } from '../test-matrix';
-import { IsolatedBundlerBuild } from './isolated-bundler-build';
+import type { IsolatedBundlerBuild } from './isolated-bundler-build';
 import { IsolatedViteBuild } from './isolated-vite-build';
 import { IsolatedRollupBuild } from './isolated-rollup-build';
 import { IsolatedRolldownBuild } from './isolated-rolldown-build';

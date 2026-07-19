@@ -66,6 +66,9 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
+      - name: Lint
+        run: pnpm lint
+
   matrix:
     name: Run integration tests
     needs: [unit, format]
