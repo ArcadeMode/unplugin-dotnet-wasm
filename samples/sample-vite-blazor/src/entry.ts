@@ -21,11 +21,12 @@ function wireComponents(): void {
     });
   }
 
-  const dateTime = document.querySelector<HTMLElement & { initial: string }>('blazor-date-time-now');
+  const dateTime = document.querySelector<HTMLElement & { initial: string }>(
+    'blazor-date-time-now',
+  );
   if (dateTime) {
     dateTime.initial = new Date().toISOString(); // set the initial datetime from code
   }
 }
 
 start().then(wireComponents);
-
