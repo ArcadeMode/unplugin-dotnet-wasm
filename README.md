@@ -381,35 +381,6 @@ Testing the `bun` integration additionally requires Bun >= 1.3.
 
 > To quickly set up all dependencies for the repo run: `./dev-env-init.ps1`
 
-
-## Status & roadmap
-
-The plugin is build-time only today. Scope so far and what's planned:
-
-**Done**
-
-- Build-time integration for multple bundlers ([table above](#bundler-support))
-  - 9 on browser targets
-  - 4 on Node targets 
-- Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
-- Dev-server support for Vite, Webpack, Rspack, Rsbuild, and Farm ([table above](#bundler-support))
-- Fingerprint-agnostic and multi-content-root asset resolution
-- Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
-- Node built-ins externalized so the dotnet loader's Node paths don't break browser builds[^rollup-family-node-externals]
-- IDE / language-server type support: editors and `tsc` are aware of the TypeScript emitted from your .NET WASM project like:
-  - the SDK's own `dotnet.d.ts`[^dotnet-dts-net11]
-  - your own `.ts` files under `wwwroot`
-  - generated output like `typeshim.ts` ([TypeShim](https://github.com/ArcadeMode/TypeShim))
-
-**Planned**
-
-1. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes - including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
-2. Node targets for esbuild, bun, webpack, rspack, rsbuild (pending the URL-string rewrite, see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset))
-3. Preload `<link>` injection from the endpoints manifest's preload metadata
-4. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included (requires some .NET 11 SDK testing)
-
-Design rationale for the decisions above lives in [`docs/architecture.md`](../docs/architecture.md).
-
 ## Requirements
 
 - Node.js >= 24
