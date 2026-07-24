@@ -331,7 +331,7 @@ DotnetAssets({
 | Rspack | ✅ Supported | ✅ Supported[^rspack-node-esm] | ✅ Supported |
 | Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported |
 | esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] |
-| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | ✅ Supported |
+| Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported |
 | Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] |
 
 ## Run the sample
@@ -375,7 +375,7 @@ Testing the `bun` integration additionally requires Bun >= 1.3.
 
 [^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`.
 
-[^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
+[^farm-node-esm]: Node support requires ESM output as a single chunk - set `output.targetEnv: 'node'` (or `'node-next'`), `output.format: 'esm'`, `compilation.assets.mode: 'browser'`, and `partialBundling.enforceResources: [{ name: 'entry', test: ['.+'] }]`.
 
 [^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
 

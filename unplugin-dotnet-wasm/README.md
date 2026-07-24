@@ -325,7 +325,7 @@ DotnetAssets({
 | Rspack | ✅ Supported | ✅ Supported[^rspack-node-esm] | ✅ Supported |
 | Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported |
 | esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] |
-| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | ✅ Supported |
+| Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported |
 | Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] |
 
 ## Status & roadmap
@@ -336,7 +336,7 @@ The plugin is build-time only today. Scope so far and what's planned:
 
 - Build-time integration for multple bundlers ([table above](#bundler-support))
   - 9 on browser targets
-  - 8 on Node targets 
+  - 9 on Node targets 
 - Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
 - Dev-server support for Vite, Webpack, Rspack, Rsbuild, and Farm ([table above](#bundler-support))
 - Fingerprint-agnostic and multi-content-root asset resolution
@@ -367,7 +367,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 
 [^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`.
 
-[^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
+[^farm-node-esm]: Node support requires ESM output as a single chunk - set `output.targetEnv: 'node'` (or `'node-next'`), `output.format: 'esm'`, `compilation.assets.mode: 'browser'`, and `partialBundling.enforceResources: [{ name: 'entry', test: ['.+'] }]`.
 
 [^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
 

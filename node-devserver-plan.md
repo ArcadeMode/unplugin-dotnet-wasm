@@ -242,12 +242,34 @@ Shared context (applies to all three):
 Exit criteria: **met** — webpack/rspack/rsbuild node builds all run shimless (no plugin changes;
 each via consumer-side ESM-output config, rspack/rsbuild additionally needing `publicPath: 'auto'`).
 
-## Phase 4 — farm reconcile
+## Phase 4 — farm node ✅ DONE
 
-- [ ] Determine actual farm node status (README claims support; matrix `BUNDLERS_SUPPORT.node`
-      omits it). Either add a farm node fixture + enable, or correct the README footnote.
-- Node dev server is **out of scope** for farm too (same reasoning as Phase 3 — no non-HTTP
-  SSR runner); `DEV_SERVER_NODE_BUNDLERS` stays `['vite']`.
+The only Phase-3/4 slice that needed a **plugin change** (`farm-family.ts`). Two farm-specific
+blockers, both cleared:
+
+- [x] **Orphaned chunks (the documented blocker) — fixed by config.** `partialBundling.enforceResources:
+      [{ name: 'entry', test: ['.+'] }]` forces the runtime into a single chunk, so nothing is split
+      into never-loaded chunks. `targetEnv: 'node-next'`, `format: 'esm'`.
+- [x] **Asset URL scheme — fixed by a node-scoped plugin proxy.** Farm's two asset modes both fail
+      on Node: `mode:'node'` emits `fileURLToPath(new URL(rel, import.meta.url))` (an OS path →
+      `fetch` "unknown scheme"); `mode:'browser'` emits a bare relative string (no base → "Invalid
+      URL"). Fix mirrors the esbuild family: `farm-family.ts` `resolveId` routes binary assets
+      (node target only, guarded by `isNodeTarget` set in the `config` hook) through a proxy id
+      (`<abs>.dotnet-url-proxy.js`); `load` returns `buildImportMetaUrlModule(<abs>)` — the shared
+      `new URL(u, import.meta.url).href` helper already used by esbuild/bun. The proxy's inner
+      re-import is guarded by the importer suffix (unplugin **does** pass the importer as `resolveId`'s
+      2nd arg — the type just hadn't declared it). Fixture keeps `assets.mode: 'browser'` so the
+      inner import binds `u` to the relative `"./assets/<name>"` string the proxy wraps.
+- [x] Added `farm` to `BUNDLERS_SUPPORT.node`.
+- [x] node e2e green (**debug + publish**); **browser farm e2e green (8/8) — no regression** from the
+      shared `farm-family.ts` change (node path is guarded by `isNodeTarget`, browser untouched).
+- [x] Plugin typecheck + lint clean; 183 unit tests pass.
+- Node dev server remains **out of scope** for farm (same reasoning as Phase 3 — no non-HTTP SSR
+  runner); `DEV_SERVER_NODE_BUNDLERS` stays `['vite']`.
+- Consumer-config requirement for farm node (document in Phase 5, like rspack's `publicPath: 'auto'`):
+  `targetEnv` node + `format: 'esm'` + `enforceResources` single-chunk + `assets.mode: 'browser'`.
+
+All 9 bundlers now build on Node.
 
 ## Phase 5 — docs, matrix support list, roadmap
 

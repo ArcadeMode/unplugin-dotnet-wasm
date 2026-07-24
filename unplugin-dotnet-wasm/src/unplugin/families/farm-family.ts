@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { basename, parse, join } from 'node:path';
+import { basename, dirname, parse, join, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
+import { buildImportMetaUrlModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
 
 // https://www.farmfe.org/docs/api/js-plugin-api#configuredevserver
@@ -26,7 +28,7 @@ interface FarmDevServer {
 }
 
 export interface FarmFamilyHooks {
-  resolveId(source: string): string | null;
+  resolveId(source: string, importer?: string | null): string | null;
   load: {
     filter: { id: RegExp };
     handler(id: string): Promise<string | null>;
@@ -39,12 +41,36 @@ export interface FarmFamilyHooks {
 
 export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
   const FARM_CONTENT_DIR = '__dotnet_wasm__';
+  // Node-only proxy id suffix; `.js` so farm treats it as a JS module, not another asset.
+  const PROXY_SUFFIX = '.dotnet-url-proxy.js';
   const farmContentAliases = new Map<string, string>();
+  let isNodeTarget = false;
 
   return {
-    resolveId(source: string): string | null {
+    resolveId(source: string, importer?: string | null): string | null {
+      // Proxy module's inner re-import → resolve/emit the real asset natively (esbuild-family guard).
+      if (importer && importer.endsWith(PROXY_SUFFIX)) return null;
+      if (source.endsWith(PROXY_SUFFIX)) return source;
+
       const resolved = ctx.assetResolver.resolve(source);
+
+      // Sibling asset imports (`./dotnet.native.wasm` from dotnet.js) aren't manifest routes, so
+      // fall back to the physical importer dir (the real `_framework` location).
+      let assetPath: string | null = null;
+      if (resolved !== null && BINARY_EXTENSIONS_REGEX.test(resolved)) assetPath = resolved;
+      else if (BINARY_EXTENSIONS_REGEX.test(source) && importer) {
+        assetPath = resolve(dirname(importer), source);
+      }
+
+      // Node: route binary assets through an import.meta.url proxy (mirrors esbuild) so the export
+      // is a file:// URL string — farm's node asset mode emits an OS path fetch() can't read, its
+      // browser mode a base-less relative string. Browser target is unaffected.
+      if (isNodeTarget && assetPath !== null) {
+        return assetPath.replace(/\\/g, '/') + PROXY_SUFFIX;
+      }
+
       if (resolved === null) return null;
+
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
         // files are being served from another root (e.g. C:\ while project is on D:\)
         // farm no likey, return alias which we will resolve in `load`
@@ -54,8 +80,12 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       return resolved;
     },
     load: {
-      filter: { id: new RegExp(FARM_CONTENT_DIR) },
+      filter: { id: new RegExp(`${FARM_CONTENT_DIR}|dotnet-url-proxy`) },
       async handler(id: string): Promise<string | null> {
+        if (id.endsWith(PROXY_SUFFIX)) {
+          const real = id.slice(0, -PROXY_SUFFIX.length).replace(/\\/g, '/');
+          return buildImportMetaUrlModule(real);
+        }
         const real = farmContentAliases.get(basename(id));
         return real === undefined ? null : readFile(real, 'utf-8');
       },
@@ -64,6 +94,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       config(userConfig: FarmConfig): Record<string, never> {
         if (userConfig.root) ctx.setConsumerRoot(userConfig.root);
         const targetEnv = userConfig.compilation?.output?.targetEnv;
+        isNodeTarget = typeof targetEnv === 'string' && targetEnv.startsWith('node');
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree =
           targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;
