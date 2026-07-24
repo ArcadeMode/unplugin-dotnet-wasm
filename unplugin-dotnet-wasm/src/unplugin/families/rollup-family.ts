@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
+import {
+  buildFileUrlModule,
+  buildOriginPathModule,
+} from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
 
 export interface RollupFamilyHooks {
@@ -44,11 +47,11 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           // hand the runtime an absolute file:// URL to the physical asset. `id` is already the
           // resolved physical path (resolveId mapped it via the VFS).
           if (options?.ssr) {
-            return `export default ${JSON.stringify(pathToFileURL(id).href)};`;
+            return buildFileUrlModule(id);
           }
           // Browser dev server: the page origin resolves /_framework/* and the connect
           // middleware streams it. Serve directly instead of falling back to default /@fs/.
-          return `export default ${JSON.stringify('/_framework/' + basename(id))};`;
+          return buildOriginPathModule(basename(id));
         }
         const source = await readFile(id);
         const refId = this.emitFile({ type: 'asset', name: basename(id), source });

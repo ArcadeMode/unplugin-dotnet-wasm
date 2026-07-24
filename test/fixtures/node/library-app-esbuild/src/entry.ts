@@ -5,11 +5,7 @@ import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
 async function runTests(): Promise<void> {
   console.log('[Node] Initializing .NET WASM runtime...');
 
-  const runtimeInfo = await dotnet
-    .withResourceLoader(
-      (type: string, name: string, defaultUri: string) => new URL(defaultUri, import.meta.url).href,
-    )
-    .create();
+  const runtimeInfo = await dotnet.create();
   await TypeShimInitializer.initialize(runtimeInfo);
   runtimeInfo.runMain();
 
