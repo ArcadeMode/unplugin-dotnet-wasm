@@ -1,0 +1,22 @@
+{
+  "name": "@dotnet-wasm-bundler/library-app-node-bun-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun bun.debug.ts",
+    "build:debug": "bun bun.debug.ts",
+    "build:release": "bun bun.release.ts",
+    "test": "node dist/entry.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*"
+  }
+}

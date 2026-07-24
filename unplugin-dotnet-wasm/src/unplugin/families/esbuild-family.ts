@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import {
   BINARY_EXTENSIONS,
   BINARY_EXTENSIONS_REGEX,
@@ -10,6 +10,10 @@ import { buildImportMetaUrlModule } from '../../core/asset-resolution/asset-url-
 import type { PluginContext } from '../context';
 
 const URL_PROXY_NAMESPACE = 'dotnet-url-proxy';
+// Appended to the proxy module's path so it never shares a module key with the real asset.
+// esbuild keys modules by namespace+path, but bun keys by path alone — without a distinct path
+// the proxy's inner re-import collapses back into the proxy itself (self-referential undefined).
+const PROXY_SUFFIX = '.__dotnet_url_proxy__';
 
 interface EsbuildBuild {
   initialOptions: { absWorkingDir?: string; external?: string[]; loader?: Record<string, string> };
@@ -57,9 +61,11 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
     }
 
     // Route binary assets through the import.meta.url proxy so the exported value is a portable
-    // URL string (http(s): browser, file: node). Guard: skip a proxy module's own re-import.
+    // URL string (http(s): browser, file: node). Guard on the importer: a proxy module's own
+    // inner re-import must pass through untouched (bun reports its namespace as `file`, so we
+    // key the guard on the importer path, not the namespace).
     build.onResolve({ filter: /.*/ }, (args) => {
-      if (args.namespace === URL_PROXY_NAMESPACE) return null;
+      if (args.importer?.endsWith(PROXY_SUFFIX)) return null;
 
       const resolved = ctx.assetResolver.resolve(args.path);
       let assetPath: string | null = null;
@@ -70,21 +76,17 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
         assetPath = resolve(dirname(args.importer), args.path);
       }
       if (assetPath === null) return null;
-      return { path: assetPath, namespace: URL_PROXY_NAMESPACE };
+      return { path: assetPath + PROXY_SUFFIX, namespace: URL_PROXY_NAMESPACE };
     });
 
-    // Proxy's inner re-import → resolve into the `file` namespace so the built-in file loader
-    // emits a distinct copy. Without the explicit namespace it collapses into the proxy itself.
-    build.onResolve({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
-      const realPath = resolve(dirname(args.importer ?? ''), args.path);
-      return { path: realPath, namespace: 'file' };
-    });
-
+    // Emit the proxy module: re-import the real asset by its absolute path (→ built-in file
+    // loader → chunk-relative copy) and resolve it against import.meta.url. The inner import is
+    // absolute so both bundlers resolve it to a distinct file-namespace module (see PROXY_SUFFIX).
     build.onLoad({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
+      const realPath = args.path.slice(0, -PROXY_SUFFIX.length);
       return {
-        contents: buildImportMetaUrlModule('./' + basename(args.path)),
+        contents: buildImportMetaUrlModule(realPath),
         loader: 'js' as const,
-        resolveDir: dirname(args.path),
       };
     });
 
