@@ -221,12 +221,26 @@ Shared context (applies to all three):
 - Note: fixture needs explicit `resolve.extensions: ['.ts', '.js']` (extensionless `./polyfill`
       import); same pre-existing `typecheck` state as the other node fixtures.
 
-### Phase 3c — rsbuild (fixture + tests)
-- [ ] Add `test/fixtures/node/library-app-rsbuild/` (ESM output); add to `BUNDLERS_SUPPORT.node`.
-- [ ] Reuse the webpack-family plugin path; touch plugin only if rsbuild diverges.
-- [ ] node build e2e green for rsbuild; browser rsbuild e2e unaffected.
+### Phase 3c — rsbuild (fixture + tests) ✅ DONE
+- [x] Added `test/fixtures/node/library-app-rsbuild/` (rsbuild config API). Shimless — plain
+      `dotnet.create()`.
+- [x] **No `webpack-family.ts` change.** rsbuild wraps rspack; same emit behavior.
+- [x] **rsbuild config specifics** (rsbuild's high-level API doesn't expose the rspack knobs
+      directly, and its node target isn't ESM by default):
+  - `output.target: 'node'`.
+  - `tools.rspack` override to force ESM output + the rspack publicPath fix: `experiments.outputModule`,
+        `output.module: true`, `output.chunkFormat: 'module'`, `output.library: { type: 'module' }`,
+        `output.publicPath: 'auto'` (same divergence as the standalone rspack fixture).
+  - Output shaped so the entry lands at `dist/entry.js` (the bundler-agnostic e2e runs
+        `node dist/entry.js`): entry key `entry`, `output.distPath.js: ''`, `output.filenameHash: false`.
+        Assets land under `dist/static/assets/`; publicPath 'auto' (import.meta.url base) resolves
+        them correctly.
+- [x] Added `rsbuild` to `BUNDLERS_SUPPORT.node`.
+- [x] node build e2e green for rsbuild — **debug and publish** cells both pass. Browser rsbuild
+      unaffected by construction (zero plugin/shared-code changes).
 
-Exit criteria: webpack/rspack/rsbuild node builds run shimless.
+Exit criteria: **met** — webpack/rspack/rsbuild node builds all run shimless (no plugin changes;
+each via consumer-side ESM-output config, rspack/rsbuild additionally needing `publicPath: 'auto'`).
 
 ## Phase 4 — farm reconcile
 

@@ -309,6 +309,22 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  test/fixtures/node/library-app-rsbuild:
+    dependencies:
+      unplugin-dotnet-wasm:
+        specifier: workspace:*
+        version: link:../../../../unplugin-dotnet-wasm
+    devDependencies:
+      '@rsbuild/core':
+        specifier: ^2.1.0
+        version: 2.1.4(core-js@3.49.0)
+      rimraf:
+        specifier: ^6.0.0
+        version: 6.1.3
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   test/fixtures/node/library-app-rspack:
     dependencies:
       unplugin-dotnet-wasm:
