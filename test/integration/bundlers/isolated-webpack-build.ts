@@ -5,9 +5,6 @@ import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
 export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
   constructor(fixtureDir: string, platform: Platform, label: string) {
-    if (platform !== 'browser') {
-      throw new Error(`webpack does not support platform='${platform}'. Supported: browser.`);
-    }
     super('webpack', fixtureDir, platform, label);
   }
   get entryChunk(): string {
@@ -21,33 +18,40 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
       import('unplugin-dotnet-wasm/webpack'),
     ]);
 
+    const isNode = this.platform === 'node';
+    // Node output must be ESM so the dotnet loader's `import "./<asset>"` statements bundle.
+    const config: import('webpack').Configuration = {
+      mode: 'production',
+      target: isNode ? 'node' : 'web',
+      entry: this.entryPoint(),
+      experiments: isNode ? { outputModule: true } : undefined,
+      output: {
+        path: this.outDir,
+        filename: 'assets/entry.js',
+        assetModuleFilename: 'assets/[name]-[contenthash][ext]',
+        clean: true,
+        ...(isNode
+          ? { module: true, chunkFormat: 'module', library: { type: 'module' }, publicPath: 'auto' }
+          : { publicPath: '' }),
+      },
+      resolve: { extensions: ['.ts', '.js'] },
+      module: {
+        rules: [
+          {
+            test: /\.ts$/,
+            loader: 'ts-loader',
+            options: { transpileOnly: true },
+            exclude: /node_modules/,
+          },
+        ],
+      },
+      optimization: { minimize: false },
+      plugins: [DotnetAssets(pluginOptions)],
+    };
+
     await new Promise<void>((resolveP, rejectP) => {
       webpack(
-        {
-          mode: 'production',
-          target: 'web',
-          entry: this.entryPoint(),
-          output: {
-            path: this.outDir,
-            filename: 'assets/entry.js',
-            assetModuleFilename: 'assets/[name]-[contenthash][ext]',
-            publicPath: '',
-            clean: true,
-          },
-          resolve: { extensions: ['.ts', '.js'] },
-          module: {
-            rules: [
-              {
-                test: /\.ts$/,
-                loader: 'ts-loader',
-                options: { transpileOnly: true },
-                exclude: /node_modules/,
-              },
-            ],
-          },
-          optimization: { minimize: false },
-          plugins: [DotnetAssets(pluginOptions)],
-        },
+        config,
         (err, stats) => {
           if (err) return rejectP(err);
           if (stats?.hasErrors()) {
