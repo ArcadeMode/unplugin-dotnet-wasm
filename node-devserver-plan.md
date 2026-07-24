@@ -161,41 +161,70 @@ Validation:
 
 Exit criteria: esbuild+bun node works shimless; browser unaffected.
 
-## Phase 3 — webpack / rspack / rsbuild (node)
+## Phase 3 — webpack / rspack / rsbuild (node builds)
 
-Pre-work (verify the unconfirmed fact FIRST):
-- [ ] Build one node webpack fixture with `experiments.outputModule` + ESM target and inspect
-      the emitted asset import: confirm it is a `URL` **instance** (not a string). Decide fix:
-      append `.href` via a chained loader, or route through the same proxy helper.
+**Node dev servers are out of scope for these bundlers.** Their only dev server is HTTP
+(`webpack-dev-server`, `rspack dev`, `rsbuild dev`); there is no in-process, non-HTTP SSR runner
+like Vitest/vite-node that would exercise a serve-node branch. `DEV_SERVER_NODE_BUNDLERS` stays
+`['vite']`. This phase is **build support only**, done as three vertical slices — each green
+(node build e2e + no browser regression) before the next starts.
 
-Changes:
-- [ ] `src/unplugin/families/webpack-family.ts`: for node/module output, wrap asset modules so
-      the exported value is a URL **string** (`.href`) via `buildImportMetaUrlModule` or a
-      minimal loader. Keep browser `asset/resource` path unchanged.
-- [ ] Add node fixtures: `library-app-webpack`, `-rspack`, `-rsbuild` under `test/fixtures/node/`.
-- [ ] For node **dev-server** coverage (if in scope for these bundlers): each fixture
-      implements the `serve:debug` / `serve:release` script contract (with a
-      `runtime.harness.test.ts` + config, or whatever runner fits) and is added to
-      `DEV_SERVER_NODE_BUNDLERS`. The bundler-agnostic e2e needs **no** change — it just runs
-      the fixture scripts.
+Shared context (applies to all three):
+- **Output format = ESM**, to match every other node fixture (vite/rollup/rolldown/esbuild/bun
+  all emit `format: 'es'`/`'esm'`). So the webpack-family fixtures set `experiments.outputModule`
+  + `output.module: true`. If any bundler here can't produce ESM output the way the others do,
+  **stop and ask** rather than special-casing.
+- **KEY FINDING (Phase 3a): the URL-instance assumption was wrong for `target: 'node'`.** With
+  `target: 'node'` + `outputModule`, webpack's `asset/resource` emits a URL **string**
+  (`module.exports = __webpack_require__.p + "assets/<name>"`, where `__webpack_require__.p` is
+  derived from `import.meta.url`), **not** the `new URL(...)` instance the plan expected (that
+  form is the `target: 'web'` browser case). So **no plugin rewrite is needed** — the existing
+  `asset/resource` rule already yields the `file://` URL string the runtime wants. `webpack-family.ts`
+  is untouched.
+- **Plugin code stays untouched.** All three run through `src/unplugin/families/webpack-family.ts`;
+  since webpack needed no change, rspack/rsbuild slices are expected to be *fixture + tests* only
+  (confirm the same string-emit behavior; touch the plugin only if one diverges).
+- **No separate output-shape verification gate** — build the fixture, wire the test, and let a
+  red test drive any plugin change. (For webpack the test was green on first build.)
+- The bundler-agnostic node build e2e (`runtime-node.e2e.test.ts`) needs **no** per-bundler
+  change; each fixture is picked up by adding it to `BUNDLERS_SUPPORT.node`.
 
-Validation:
-- [ ] node e2e green for webpack, rspack, rsbuild.
-- [ ] browser e2e for the three unaffected.
+### Phase 3a — webpack (fixture + tests) ✅ DONE
+- [x] Added `test/fixtures/node/library-app-webpack/` (ESM output, `target: 'node'`,
+      `experiments.outputModule`) mirroring the esbuild node fixture (`src/entry.ts`,
+      `src/polyfill.ts`, `build:debug`/`build:release`). Shimless — plain `dotnet.create()`.
+- [x] **No `webpack-family.ts` change** — `asset/resource` already emits a URL string on node
+      (see KEY FINDING above). `buildImportMetaUrlModule`/`.href` rewrite not needed.
+- [x] Added `webpack` to `BUNDLERS_SUPPORT.node` in `matrix-lib.mjs`.
+- [x] node build e2e green for webpack — **debug and publish** cells both pass via
+      `pnpm test:matrix --e2e --bundler=webpack --platform=node --fingerprint=false --build-mode=<debug|publish>`.
+      Browser webpack unaffected by construction (zero plugin/shared-code changes).
+- Note: fixture `typecheck` has the same pre-existing errors as the esbuild node fixture (shared
+      `entry.ts`, no `@types/node`); left consistent with siblings, not a gate.
 
-Exit criteria: webpack-family node builds run shimless.
+### Phase 3b — rspack (fixture + tests)
+- [ ] Add `test/fixtures/node/library-app-rspack/` (ESM output); add to `BUNDLERS_SUPPORT.node`.
+- [ ] Reuse the webpack-family plugin path; touch plugin only if rspack's emitted shape differs.
+- [ ] node build e2e green for rspack; browser rspack e2e unaffected.
+
+### Phase 3c — rsbuild (fixture + tests)
+- [ ] Add `test/fixtures/node/library-app-rsbuild/` (ESM output); add to `BUNDLERS_SUPPORT.node`.
+- [ ] Reuse the webpack-family plugin path; touch plugin only if rsbuild diverges.
+- [ ] node build e2e green for rsbuild; browser rsbuild e2e unaffected.
+
+Exit criteria: webpack/rspack/rsbuild node builds run shimless.
 
 ## Phase 4 — farm reconcile
 
 - [ ] Determine actual farm node status (README claims support; matrix `BUNDLERS_SUPPORT.node`
       omits it). Either add a farm node fixture + enable, or correct the README footnote.
-- [ ] If farm gets node dev-server coverage, have its fixture implement the
-      `serve:debug`/`serve:release` script contract + add it to `DEV_SERVER_NODE_BUNDLERS`
-      (same pattern as Phase 3; the bundler-agnostic e2e needs no change).
+- Node dev server is **out of scope** for farm too (same reasoning as Phase 3 — no non-HTTP
+  SSR runner); `DEV_SERVER_NODE_BUNDLERS` stays `['vite']`.
 
 ## Phase 5 — docs, matrix support list, roadmap
 
-- [ ] `test/integration/matrix-lib.mjs`: expand `BUNDLERS_SUPPORT.node` and dev-server-node list.
+- [ ] `test/integration/matrix-lib.mjs`: expand `BUNDLERS_SUPPORT.node` (dev-server-node list
+      stays `['vite']` — dev servers are out of scope for the other node bundlers).
 - [ ] `unplugin-dotnet-wasm/README.md`: update the support table (Node column) + remove/adjust
       the esbuild `withResourceLoader` note and the webpack/bun "rewrite pending" footnotes.
 - [ ] `docs/architecture.md`: update "Cross-target output contract" to describe the implemented

@@ -327,7 +327,7 @@ DotnetAssets({
 | Vite | ✅ Supported | ✅ Supported | ✅ Supported |
 | Rollup | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
 | Rolldown | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
-| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
+| Webpack | ✅ Supported | ✅ Supported[^webpack-node-esm] | ✅ Supported |
 | Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
 | esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] |
@@ -369,7 +369,9 @@ Testing the `bun` integration additionally requires Bun >= 1.3.
 - .NET SDK >= 10 (build output must exist before bundling)
 - TypeScript >= 5 (optional - enables editor / `tsc` type support for .NET WASM imports)
 
-[^webpack-family-node-no-support]: Webpack/Rspack/Rsbuild emit `URL` instances for asset imports; the dotnet runtime needs URL strings. Rewrite step pending - see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+[^webpack-family-node-no-support]: Rspack and Rsbuild Node targets aren't wired up yet - support is in progress.
+
+[^webpack-node-esm]: Node support requires ESM output - set webpack's `experiments.outputModule` and `output.module: true` with `target: 'node'` (the same ESM output every other Node target uses).
 
 [^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
 
