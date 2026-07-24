@@ -1,0 +1,23 @@
+{
+  "name": "@dotnet-wasm-bundler/library-app-node-rspack-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "rspack build --mode development",
+    "build:debug": "rspack build --mode development",
+    "build:release": "rspack build --mode production",
+    "test": "node dist/entry.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^2.1.0",
+    "@rspack/core": "^2.1.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*"
+  }
+}

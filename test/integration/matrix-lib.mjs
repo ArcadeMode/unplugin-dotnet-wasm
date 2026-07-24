@@ -18,7 +18,7 @@ export const BUNDLERS = [
 ];
 export const PLATFORMS = ['node', 'browser'];
 export const BUNDLERS_SUPPORT = {
-  node: ['vite', 'rollup', 'rolldown', 'esbuild', 'bun', 'webpack'],
+  node: ['vite', 'rollup', 'rolldown', 'esbuild', 'bun', 'webpack', 'rspack'],
   browser: ['vite', 'rollup', 'rolldown', 'webpack', 'rspack', 'rsbuild', 'esbuild', 'farm', 'bun'],
 };
 

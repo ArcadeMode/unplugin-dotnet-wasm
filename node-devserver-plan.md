@@ -202,10 +202,24 @@ Shared context (applies to all three):
 - Note: fixture `typecheck` has the same pre-existing errors as the esbuild node fixture (shared
       `entry.ts`, no `@types/node`); left consistent with siblings, not a gate.
 
-### Phase 3b — rspack (fixture + tests)
-- [ ] Add `test/fixtures/node/library-app-rspack/` (ESM output); add to `BUNDLERS_SUPPORT.node`.
-- [ ] Reuse the webpack-family plugin path; touch plugin only if rspack's emitted shape differs.
-- [ ] node build e2e green for rspack; browser rspack e2e unaffected.
+### Phase 3b — rspack (fixture + tests) ✅ DONE
+- [x] Added `test/fixtures/node/library-app-rspack/` (ESM output, `target: 'node'`,
+      `experiments.outputModule`, `builtin:swc-loader` for TS). Shimless — plain `dotnet.create()`.
+- [x] **No `webpack-family.ts` change.** rspack emits the same `__webpack_require__.p + "assets/<name>"`
+      string as webpack, so the plugin is untouched.
+- [x] **rspack divergence (consumer-config fix, not plugin):** rspack's default publicPath for
+      `target: 'node'` + module output is **empty** (`__webpack_require__.p = ""`) → assets bind
+      to a bare relative `"assets/<name>"` string → `fetch` throws `ERR_INVALID_URL`. Webpack's
+      default already derives the base from `import.meta.url`; rspack does not. Fix: set
+      **`output.publicPath: 'auto'`** in the fixture config → rspack emits
+      `__webpack_require__.p = scriptUrl` (import.meta.url-derived) → `file://` URL string. This is
+      an rspack-only consumer-config requirement on top of the shared ESM-output one; needs a
+      README footnote in Phase 5.
+- [x] Added `rspack` to `BUNDLERS_SUPPORT.node`.
+- [x] node build e2e green for rspack — **debug and publish** cells both pass. Browser rspack
+      unaffected by construction (zero plugin/shared-code changes).
+- Note: fixture needs explicit `resolve.extensions: ['.ts', '.js']` (extensionless `./polyfill`
+      import); same pre-existing `typecheck` state as the other node fixtures.
 
 ### Phase 3c — rsbuild (fixture + tests)
 - [ ] Add `test/fixtures/node/library-app-rsbuild/` (ESM output); add to `BUNDLERS_SUPPORT.node`.
