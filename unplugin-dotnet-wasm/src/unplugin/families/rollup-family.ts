@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
 import type { PluginContext } from '../context';
@@ -11,7 +12,7 @@ export interface RollupFamilyHooks {
   };
   load: {
     filter: { id: RegExp };
-    handler(id: string): Promise<string>;
+    handler(id: string, options?: { ssr?: boolean }): Promise<string>;
   };
 }
 
@@ -36,9 +37,17 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       async handler(
         this: { emitFile(options: { type: string; name: string; source: Buffer }): string },
         id: string,
+        options?: { ssr?: boolean },
       ): Promise<string> {
         if (isServe) {
-          // serve directly instead of falling back to default /@fs/
+          // Node dev server (e.g. Vitest in node env): no HTTP origin/port is available, so
+          // hand the runtime an absolute file:// URL to the physical asset. `id` is already the
+          // resolved physical path (resolveId mapped it via the VFS).
+          if (options?.ssr) {
+            return `export default ${JSON.stringify(pathToFileURL(id).href)};`;
+          }
+          // Browser dev server: the page origin resolves /_framework/* and the connect
+          // middleware streams it. Serve directly instead of falling back to default /@fs/.
           return `export default ${JSON.stringify('/_framework/' + basename(id))};`;
         }
         const source = await readFile(id);
