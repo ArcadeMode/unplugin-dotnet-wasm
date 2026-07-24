@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import type { Configuration } from '@rspack/core';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
@@ -22,7 +23,7 @@ export class IsolatedRspackBuild extends IsolatedBundlerBuild {
     // Node output must be ESM. rspack's node publicPath defaults to empty (bare relative asset
     // URLs), so `publicPath: 'auto'` is set for parity with the fixture — harmless here since the
     // integration test inspects emitted files rather than executing the bundle.
-    const config: import('@rspack/core').Configuration = {
+    const config: Configuration = {
       mode: 'production',
       target: isNode ? 'node' : 'web',
       entry: { main: this.entryPoint() },
@@ -55,23 +56,20 @@ export class IsolatedRspackBuild extends IsolatedBundlerBuild {
     };
 
     await new Promise<void>((resolveP, rejectP) => {
-      rspack(
-        config,
-        (err, stats) => {
-          if (err) return rejectP(err);
-          if (stats?.hasErrors()) {
-            const info = stats.toJson({ errors: true, warnings: true });
-            for (const w of info.warnings ?? []) this.warnings.push(w.message);
-            return rejectP(
-              new Error(info.errors?.map((e) => e.message).join('\n') ?? 'rspack build failed'),
-            );
-          }
-          for (const w of stats?.toJson({ warnings: true }).warnings ?? []) {
-            this.warnings.push(w.message);
-          }
-          resolveP();
-        },
-      );
+      rspack(config, (err, stats) => {
+        if (err) return rejectP(err);
+        if (stats?.hasErrors()) {
+          const info = stats.toJson({ errors: true, warnings: true });
+          for (const w of info.warnings ?? []) this.warnings.push(w.message);
+          return rejectP(
+            new Error(info.errors?.map((e) => e.message).join('\n') ?? 'rspack build failed'),
+          );
+        }
+        for (const w of stats?.toJson({ warnings: true }).warnings ?? []) {
+          this.warnings.push(w.message);
+        }
+        resolveP();
+      });
     });
   }
 }

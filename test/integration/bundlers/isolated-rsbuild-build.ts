@@ -1,3 +1,4 @@
+import type { Configuration } from '@rspack/core';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
@@ -37,7 +38,7 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
           // node fixture) so the dotnet loader's asset imports bundle.
           ...(isNode
             ? {
-                rspack: (config: import('@rspack/core').Configuration) => {
+                rspack: (config: Configuration) => {
                   config.output = {
                     ...config.output,
                     module: true,

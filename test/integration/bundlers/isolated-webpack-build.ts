@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import type { Configuration } from 'webpack';
 import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
@@ -20,7 +21,7 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
 
     const isNode = this.platform === 'node';
     // Node output must be ESM so the dotnet loader's `import "./<asset>"` statements bundle.
-    const config: import('webpack').Configuration = {
+    const config: Configuration = {
       mode: 'production',
       target: isNode ? 'node' : 'web',
       entry: this.entryPoint(),
@@ -50,23 +51,20 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
     };
 
     await new Promise<void>((resolveP, rejectP) => {
-      webpack(
-        config,
-        (err, stats) => {
-          if (err) return rejectP(err);
-          if (stats?.hasErrors()) {
-            const info = stats.toJson({ errors: true, warnings: true });
-            for (const w of info.warnings ?? []) this.warnings.push(w.message);
-            return rejectP(
-              new Error(info.errors?.map((e) => e.message).join('\n') ?? 'webpack build failed'),
-            );
-          }
-          for (const w of stats?.toJson({ warnings: true }).warnings ?? []) {
-            this.warnings.push(w.message);
-          }
-          resolveP();
-        },
-      );
+      webpack(config, (err, stats) => {
+        if (err) return rejectP(err);
+        if (stats?.hasErrors()) {
+          const info = stats.toJson({ errors: true, warnings: true });
+          for (const w of info.warnings ?? []) this.warnings.push(w.message);
+          return rejectP(
+            new Error(info.errors?.map((e) => e.message).join('\n') ?? 'webpack build failed'),
+          );
+        }
+        for (const w of stats?.toJson({ warnings: true }).warnings ?? []) {
+          this.warnings.push(w.message);
+        }
+        resolveP();
+      });
     });
   }
 }
