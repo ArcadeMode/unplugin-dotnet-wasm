@@ -183,6 +183,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        platform: [node, browser]
         fingerprint: ['true', 'false']
         build_mode: [debug, publish]
     runs-on: ${{ matrix.os }}
@@ -215,6 +216,7 @@ jobs:
           fi
 
       - name: Install Playwright chromium
+        if: matrix.platform == 'browser'
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             pnpm --dir test/integration exec playwright install --with-deps chromium
@@ -223,12 +225,12 @@ jobs:
           fi
 
       - name: Run dev-server e2e
-        run: pnpm test:matrix --e2e --serve-mode=server --platform=browser --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+        run: pnpm test:matrix --e2e --serve-mode=server --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: test-results-${{ matrix.os }}-dev-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
+          name: test-results-${{ matrix.os }}-dev-${{ matrix.platform }}-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
           path: test/integration/test-results/
 
   results:
