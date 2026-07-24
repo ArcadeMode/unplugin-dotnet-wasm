@@ -5,7 +5,6 @@ import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
 import { buildImportMetaUrlModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
 
-// https://www.farmfe.org/docs/api/js-plugin-api#configuredevserver
 interface FarmConfig {
   root?: string;
   compilation?: {
@@ -14,15 +13,13 @@ interface FarmConfig {
   };
 }
 
-// farm's dev server is Koa-like, but not exactly Koa. It has a `respond` property on the context
-// https://raw.githubusercontent.com/koajs/koa/master/docs/api/context.md
+// farm's dev-server context is Koa-like (carries a `respond` flag), but not exactly Koa.
 interface KoaLikeContext {
   req: IncomingMessage;
   res: ServerResponse;
   respond: boolean;
 }
 
-// https://www.farmfe.org/docs/features/dev-server
 interface FarmDevServer {
   app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
 }
@@ -48,23 +45,21 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
 
   return {
     resolveId(source: string, importer?: string | null): string | null {
-      // Proxy module's inner re-import → resolve/emit the real asset natively (esbuild-family guard).
+      // Proxy's inner re-import → let farm resolve the real asset natively.
       if (importer && importer.endsWith(PROXY_SUFFIX)) return null;
       if (source.endsWith(PROXY_SUFFIX)) return source;
 
       const resolved = ctx.assetResolver.resolve(source);
 
-      // Sibling asset imports (`./dotnet.native.wasm` from dotnet.js) aren't manifest routes, so
-      // fall back to the physical importer dir (the real `_framework` location).
+      // Sibling imports (`./dotnet.native.wasm`) aren't manifest routes; resolve off the importer.
       let assetPath: string | null = null;
       if (resolved !== null && BINARY_EXTENSIONS_REGEX.test(resolved)) assetPath = resolved;
       else if (BINARY_EXTENSIONS_REGEX.test(source) && importer) {
         assetPath = resolve(dirname(importer), source);
       }
 
-      // Node: route binary assets through an import.meta.url proxy (mirrors esbuild) so the export
-      // is a file:// URL string — farm's node asset mode emits an OS path fetch() can't read, its
-      // browser mode a base-less relative string. Browser target is unaffected.
+      // Node: wrap binary assets in an import.meta.url proxy (mirrors esbuild) for a file:// URL
+      // string; farm's own node/browser asset modes yield values fetch() can't use.
       if (isNodeTarget && assetPath !== null) {
         return assetPath.replace(/\\/g, '/') + PROXY_SUFFIX;
       }
@@ -72,8 +67,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       if (resolved === null) return null;
 
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
-        // files are being served from another root (e.g. C:\ while project is on D:\)
-        // farm no likey, return alias which we will resolve in `load`
+        // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
         farmContentAliases.set(basename(resolved), resolved);
         return join(ctx.consumerRoot, FARM_CONTENT_DIR, basename(resolved));
       }

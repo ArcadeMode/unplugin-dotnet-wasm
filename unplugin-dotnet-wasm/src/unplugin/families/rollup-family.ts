@@ -43,14 +43,12 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         options?: { ssr?: boolean },
       ): Promise<string> {
         if (isServe) {
-          // Node dev server (e.g. Vitest in node env): no HTTP origin/port is available, so
-          // hand the runtime an absolute file:// URL to the physical asset. `id` is already the
-          // resolved physical path (resolveId mapped it via the VFS).
+          // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
+          // `id` is already the resolved physical path (mapped by resolveId via the VFS).
           if (options?.ssr) {
             return buildFileUrlModule(id);
           }
-          // Browser dev server: the page origin resolves /_framework/* and the connect
-          // middleware streams it. Serve directly instead of falling back to default /@fs/.
+          // Browser dev server: page origin + connect middleware serve /_framework/*.
           return buildOriginPathModule(basename(id));
         }
         const source = await readFile(id);
