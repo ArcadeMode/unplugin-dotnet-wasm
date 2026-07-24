@@ -1,48 +1,60 @@
 import { describe, test, expect } from 'vitest';
-import { createServer } from 'vite';
+import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import DotnetAssets from 'unplugin-dotnet-wasm/vite';
-import { readBundler, readBuildMode, readPlatform, readServeMode } from '../test-matrix-parameters';
+import {
+  readBundler,
+  readFingerprint,
+  readBuildMode,
+  readPlatform,
+  readServeMode,
+} from '../test-matrix-parameters';
 
-const bundler = readBundler();
-const platform = readPlatform();
-const serveMode = readServeMode();
-const buildMode = readBuildMode();
+const currentBundler = readBundler();
+const currentFingerprint = readFingerprint();
+const currentBuildMode = readBuildMode();
+const currentPlatform = readPlatform();
+const currentServeMode = readServeMode();
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
-// Only vite node + server is wired today.
-const skip =
-  platform !== 'node' || serveMode !== 'server' || buildMode === 'none' || bundler !== 'vite';
+const skipSuite =
+  currentPlatform !== 'node' ||
+  currentBuildMode === 'none' ||
+  currentServeMode !== 'server' ||
+  currentBundler !== 'vite';
 
-describe(`[${bundler}][node][server] Vite dev-server WASM runtime interop`, { skip }, () => {
-  test('boots .NET WASM under a Vite dev server (SSR) and runs interop', async () => {
-    const fixtureDir = resolve(__dirname, '../../fixtures/node/library-app-vite');
-    const server = await createServer({
-      root: fixtureDir,
-      configFile: false,
-      logLevel: 'error',
-      server: { middlewareMode: true, hmr: false },
-      plugins: [
-        DotnetAssets({
-          projectRoot: resolve(fixtureDir, '../../Library'),
-          projectName: 'Library',
-          configuration: buildMode === 'publish' ? 'Release' : 'Debug',
-          isPublish: buildMode === 'publish',
-          targetFramework: 'net10.0',
-          logLevel: 'warn',
-        }),
-      ],
+// Bundler-agnostic: each node dev-server fixture exposes a stable `serve:debug`/`serve:release`
+// script contract (mirrors build:debug/build:release). All runner/config/mode details are
+// hidden behind those script names, so this test never needs per-bundler changes.
+describe(
+  `[${currentBundler}][${currentFingerprint}][${currentBuildMode}][${currentPlatform}][server] Node dev-server WASM runtime interop`,
+  { skip: skipSuite },
+  () => {
+    test('boots .NET WASM under the node dev server (Vitest SSR) and runs interop', () => {
+      const fixtureDir = resolve(__dirname, `../../fixtures/node/library-app-${currentBundler}`);
+      const script = currentBuildMode === 'publish' ? 'serve:release' : 'serve:debug';
+
+      const result = spawnSync('pnpm', ['run', script], {
+        cwd: fixtureDir,
+        encoding: 'utf8',
+        timeout: 90_000,
+        shell: true,
+      });
+
+      if (result.status !== 0) {
+        const diagnostics = [
+          `Exit code: ${result.status}`,
+          `\nStdout:\n${result.stdout}`,
+          result.stderr ? `\nStderr:\n${result.stderr}` : '',
+          result.error ? `\nSpawn error: ${result.error.message}` : '',
+        ].join('');
+        throw new Error(
+          `Fixture ${currentBundler} serve:${currentBuildMode} failed:\n${diagnostics}`,
+        );
+      }
+
+      expect(result.status).toBe(0);
     });
-
-    try {
-      const mod = await server.ssrLoadModule('/runtime-serve-runner.ts');
-      const run = mod.run as () => Promise<string>;
-      const result = await run();
-      expect(result).toBe('SUCCESS');
-    } finally {
-      await server.close();
-    }
-  }, 60_000);
-});
+  },
+);
