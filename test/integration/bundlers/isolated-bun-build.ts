@@ -6,9 +6,6 @@ import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
 export class IsolatedBunBuild extends IsolatedBundlerBuild {
   constructor(fixtureDir: string, platform: Platform, label: string) {
-    if (platform !== 'browser') {
-      throw new Error(`bun does not support platform='${platform}'. Supported: browser.`);
-    }
     super('bun', fixtureDir, platform, label);
   }
   get entryChunk(): string {
@@ -30,7 +27,7 @@ try {
   const result = await Bun.build({
     entrypoints: ['${this.entryPoint().replace(/\\/g, '\\\\')}'],
     outdir: '${this.outDir.replace(/\\/g, '\\\\')}',
-    target: 'browser',
+    target: '${this.platform === 'node' ? 'node' : 'browser'}',
     format: 'esm',
     minify: false,
     naming: {

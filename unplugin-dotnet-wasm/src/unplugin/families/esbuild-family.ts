@@ -82,11 +82,14 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
     // Emit the proxy module: re-import the real asset by its absolute path (→ built-in file
     // loader → chunk-relative copy) and resolve it against import.meta.url. The inner import is
     // absolute so both bundlers resolve it to a distinct file-namespace module (see PROXY_SUFFIX).
+    // resolveDir is required: without it esbuild refuses to search the filesystem for the import
+    // (harmless for bun, which resolves the absolute path directly).
     build.onLoad({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
       const realPath = args.path.slice(0, -PROXY_SUFFIX.length);
       return {
         contents: buildImportMetaUrlModule(realPath),
         loader: 'js' as const,
+        resolveDir: dirname(realPath),
       };
     });
 
