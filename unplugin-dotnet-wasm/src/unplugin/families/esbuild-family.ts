@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, resolve, relative } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import {
   BINARY_EXTENSIONS,
   BINARY_EXTENSIONS_REGEX,
@@ -56,53 +56,35 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       }
     }
 
-    // First-encounter resolution (imports inside file-namespace modules).
+    // Route binary assets through the import.meta.url proxy so the exported value is a portable
+    // URL string (http(s): browser, file: node). Guard: skip a proxy module's own re-import.
     build.onResolve({ filter: /.*/ }, (args) => {
+      if (args.namespace === URL_PROXY_NAMESPACE) return null;
+
       const resolved = ctx.assetResolver.resolve(args.path);
-      if (resolved === null) {
-        // Asset resolver missed; check if the path itself is a binary extension.
-        // If it's a relative path and we have an importer, resolve it to an absolute path.
-        if (BINARY_EXTENSIONS_REGEX.test(args.path) && args.importer) {
-          const importerDir = dirname(args.importer);
-          const absolutePath = resolve(importerDir, args.path);
-          // Encode the directory so the proxy handler can resolve relative imports
-          return { path: `proxy:${absolutePath}`, namespace: URL_PROXY_NAMESPACE };
-        }
-        return null;
+      let assetPath: string | null = null;
+      if (resolved !== null) {
+        if (!BINARY_EXTENSIONS_REGEX.test(resolved)) return { path: resolved };
+        assetPath = resolved;
+      } else if (BINARY_EXTENSIONS_REGEX.test(args.path) && args.importer) {
+        assetPath = resolve(dirname(args.importer), args.path);
       }
-      // Binary assets → route through the import.meta.url proxy so the exported value is a
-      // portable URL string (http(s): in browser, file: in Node) with no consumer shim.
-      if (BINARY_EXTENSIONS_REGEX.test(resolved)) {
-        // Encode the directory so the proxy handler can resolve relative imports
-        return { path: `proxy:${resolved}`, namespace: URL_PROXY_NAMESPACE };
-      }
-      return { path: resolved };
+      if (assetPath === null) return null;
+      return { path: assetPath, namespace: URL_PROXY_NAMESPACE };
     });
 
-    // The proxy module's inner re-import → hand the real file to esbuild's built-in `file`
-    // loader (default `file` namespace) so it emits the copy and yields a chunk-relative path.
-    // This is also the recursion guard: the inner import never re-enters the proxy.
+    // Proxy's inner re-import → resolve into the `file` namespace so the built-in file loader
+    // emits a distinct copy. Without the explicit namespace it collapses into the proxy itself.
     build.onResolve({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
-      if (args.path.startsWith('proxy:')) {
-        // This is the inner import from the proxy module. Extract the asset path and
-        // resolve the relative import against it.
-        const assetPath = args.path.slice(6); // Remove 'proxy:' prefix
-        const assetDir = dirname(assetPath);
-        const relativeImport = args.importer ? args.path : '';
-        // For relative imports like './dotnet.native.wasm', resolve against the asset dir
-        return null; // Let esbuild handle it after we process the outer proxy path
-      }
-      // Inner re-imports from the proxy (like './dotnet.native.wasm') are resolved
-      // relative to the asset directory. Return the path for esbuild's file loader.
-      return { path: args.path };
+      const realPath = resolve(dirname(args.importer ?? ''), args.path);
+      return { path: realPath, namespace: 'file' };
     });
 
     build.onLoad({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
-      const assetPath = args.path.startsWith('proxy:') ? args.path.slice(6) : args.path;
       return {
-        contents: buildImportMetaUrlModule(basename(assetPath)),
+        contents: buildImportMetaUrlModule('./' + basename(args.path)),
         loader: 'js' as const,
-        resolveDir: dirname(assetPath),
+        resolveDir: dirname(args.path),
       };
     });
 
