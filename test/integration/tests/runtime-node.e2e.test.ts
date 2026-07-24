@@ -7,16 +7,19 @@ import {
   readFingerprint,
   readBuildMode,
   readPlatform,
+  readServeMode,
 } from '../test-matrix-parameters';
 
 const currentBundler = readBundler();
 const currentFingerprint = readFingerprint();
 const currentBuildMode = readBuildMode();
 const currentPlatform = readPlatform();
+const currentServeMode = readServeMode();
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
-const skipSuite = currentPlatform !== 'node' || currentBuildMode === 'none';
+const skipSuite =
+  currentPlatform !== 'node' || currentBuildMode === 'none' || currentServeMode === 'server';
 
 describe(
   `[${currentBundler}][${currentFingerprint}][${currentBuildMode}][${currentPlatform}] Node WASM runtime interop`,

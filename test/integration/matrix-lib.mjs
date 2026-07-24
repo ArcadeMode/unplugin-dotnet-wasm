@@ -25,6 +25,8 @@ export const BUNDLERS_SUPPORT = {
 export const SERVE_MODES = ['dist', 'server'];
 // Bundlers whose dev server + middleware are wired for serve=server. Append per Parts 4–7.
 export const DEV_SERVER_BUNDLERS = ['vite', 'webpack', 'rspack', 'rsbuild', 'farm'];
+// Node-platform dev server (SSR) support. Extend as more bundlers gain node dev-server coverage.
+export const DEV_SERVER_NODE_BUNDLERS = ['vite'];
 
 const FINGERPRINT_MAP = { true: 'fingerprint', false: 'nofingerprint' };
 
@@ -117,12 +119,13 @@ export function buildConfigs({
 export function runConfig(config, { cwd, vitestBin, index, total }) {
   const configName = `${config.bundler}-${config.platform}-${config.serveMode}-${config.fingerprint}-${config.buildMode}`;
 
+  const devServerBundlers =
+    config.platform === 'node' ? DEV_SERVER_NODE_BUNDLERS : DEV_SERVER_BUNDLERS;
   const serverIllegal =
     config.serveMode === 'server' &&
     (config.type !== 'e2e' ||
-      config.platform !== 'browser' ||
-      !DEV_SERVER_BUNDLERS.includes(config.bundler) ||
-      config.buildMode === 'none');
+      config.buildMode === 'none' ||
+      !devServerBundlers.includes(config.bundler));
   if (serverIllegal || !BUNDLERS_SUPPORT[config.platform].includes(config.bundler)) {
     return { config: configName, type: config.type, status: 'skipped', exitCode: null };
   }
