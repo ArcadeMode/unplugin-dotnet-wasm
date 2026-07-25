@@ -26,7 +26,6 @@ defaults:
     shell: bash
 
 jobs:
-
   version:
     name: Determine Version
     runs-on: ubuntu-latest
@@ -58,7 +57,6 @@ jobs:
 
           Write-Host "Version: $ver"
           "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
 
   validate:
     name: Validate build and tests
