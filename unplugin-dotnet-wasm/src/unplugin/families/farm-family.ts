@@ -43,15 +43,20 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
 
   return {
     resolveId(source: string, importer?: string | null): string | null {
-      // resolving the proxy modules import: let farm resolve the real asset natively.
-      if (importer && importer.endsWith(PROXY_SUFFIX)) return null;
-      if (source.endsWith(PROXY_SUFFIX)) return source;
+      if (importer && importer.endsWith(PROXY_SUFFIX)) {
+        // resolving the proxy modules import: let farm resolve the real asset natively (is absolute path).
+        return null;
+      }
+
+      if (source.endsWith(PROXY_SUFFIX)) {
+        return source; // handled by load handler
+      }
 
       const resolved = ctx.assetResolver.resolve(source);
       const assetPath = ctx.assetResolver.resolvePath(resolved, source, importer ?? undefined);
 
-      // Node: wrap binary assets in a proxy module (see load handler)
       if (isNodeTarget && assetPath !== null) {
+        // Node: wrap binary assets in a proxy module (see load handler)
         return toPosixPath(assetPath) + PROXY_SUFFIX;
       }
 
