@@ -6,6 +6,10 @@ import { buildLiteralPathExportModule } from '../../core/asset-resolution/asset-
 import type { PluginContext } from '../context';
 import { pathToFileURL } from 'node:url';
 
+type RollupLoadHandlerThis = {
+  emitFile(options: { type: string; name: string; source: Buffer }): string;
+};
+
 export interface RollupFamilyHooks {
   vite: {
     configResolved(config: { root: string; command: string }): void;
@@ -36,17 +40,15 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
     load: {
       filter: { id: BINARY_EXTENSIONS_REGEX },
       async handler(
-        this: { emitFile(options: { type: string; name: string; source: Buffer }): string },
+        this: RollupLoadHandlerThis,
         id: string,
         options?: { ssr?: boolean },
       ): Promise<string> {
         if (isServe) {
-          // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
-          if (options?.ssr) {
-            return buildLiteralPathExportModule(pathToFileURL(id).href);
-          }
-          // Browser dev server: page origin + connect middleware serve /_framework/*.
-          return buildLiteralPathExportModule('/_framework/' + basename(id));
+          const exportPath = options?.ssr
+            ? pathToFileURL(id).href // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
+            : '/_framework/' + basename(id); // Browser dev server: page origin + connect middleware serve /_framework/*.
+          return buildLiteralPathExportModule(exportPath);
         }
         const source = await readFile(id);
         const refId = this.emitFile({ type: 'asset', name: basename(id), source });
