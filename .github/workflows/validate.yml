@@ -2,7 +2,14 @@ name: Validate
 
 on:
   pull_request:
-
+  workflow_call:
+    outputs:
+      badge-color:
+        description: 'Color for the test results badge'
+        value: ${{ jobs.publish-results.outputs.badge-color }}
+      badge-message:
+        description: 'Text for the test results badge'
+        value: ${{ jobs.publish-results.outputs.badge-message }}
 defaults:
   run:
     shell: bash
@@ -70,7 +77,7 @@ jobs:
         run: pnpm lint
 
   matrix:
-    name: Run integration tests
+    name: Run e2e tests
     needs: [unit, format]
     strategy:
       fail-fast: false
@@ -195,9 +202,12 @@ jobs:
           name: test-results-${{ matrix.os }}-none
           path: test/integration/test-results/
 
-  results:
+  publish-results:
     name: Publish test results
     needs: [unit, format, matrix, matrix-none]
+    outputs:
+      badge-color: ${{ steps.badge.outputs.color }}
+      badge-message: ${{ steps.badge.outputs.message }}
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -222,3 +232,12 @@ jobs:
         with:
           name: all-test-results
           path: results/
+
+      - name: Determine badge content
+        id: badge
+        shell: pwsh
+        run: |
+          $color = if ("${{ fromJSON(steps.test-results.outputs.json).conclusion }}" -eq "success") { '#26cc23' } else { '#cc5623' }
+          $message = if ("${{ fromJSON(steps.test-results.outputs.json).conclusion }}" -eq "success") { "${{ fromJSON( steps.test-results.outputs.json ).formatted.stats.runs_succ }} passing" } else { "${{ fromJSON( steps.test-results.outputs.json ).formatted.stats.runs_fail }}/${{ fromJSON( steps.test-results.outputs.json ).formatted.stats.runs }} failing" }
+          "color=$color" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "message=$message" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
