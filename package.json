@@ -12,7 +12,7 @@
     "publish:library:nofingerprint": "dotnet publish test/fixtures/Library/Library.csproj -c Release -p:WasmFingerprintAssets=false",
     "clean:library": "dotnet clean test/fixtures/Library/Library.csproj -c Debug && dotnet clean test/fixtures/Library/Library.csproj -c Release && node -e \"require('node:fs').rmSync('test/fixtures/Library/bin/Release/net10.0/publish', { recursive: true, force: true })\"",
 
-    "build:sample": "pnpm build:sample:vite-wasm",
+    "build:sample": "dotnet build samples/SampleLibrary/SampleLibrary.csproj -c Debug && dotnet publish samples/SampleLibrary/SampleLibrary.csproj",
     "dev:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/sample-vite dev",
     "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @dotnet-wasm-bundler/sample-vite preview",
     "build:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/sample-vite build && dotnet build samples/SampleLibrary/SampleLibrary.csproj -c Debug",
