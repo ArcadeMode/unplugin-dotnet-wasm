@@ -2,7 +2,13 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
+import { buildLiteralPathExportModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
+import { pathToFileURL } from 'node:url';
+
+type RollupLoadHandlerThis = {
+  emitFile(options: { type: string; name: string; source: Buffer }): string;
+};
 
 export interface RollupFamilyHooks {
   vite: {
@@ -11,7 +17,7 @@ export interface RollupFamilyHooks {
   };
   load: {
     filter: { id: RegExp };
-    handler(id: string): Promise<string>;
+    handler(id: string, options?: { ssr?: boolean }): Promise<string>;
   };
 }
 
@@ -34,12 +40,15 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
     load: {
       filter: { id: BINARY_EXTENSIONS_REGEX },
       async handler(
-        this: { emitFile(options: { type: string; name: string; source: Buffer }): string },
+        this: RollupLoadHandlerThis,
         id: string,
+        options?: { ssr?: boolean },
       ): Promise<string> {
         if (isServe) {
-          // serve directly instead of falling back to default /@fs/
-          return `export default ${JSON.stringify('/_framework/' + basename(id))};`;
+          const exportPath = options?.ssr
+            ? pathToFileURL(id).href // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
+            : '/_framework/' + basename(id); // Browser dev server: page origin + connect middleware serve /_framework/*.
+          return buildLiteralPathExportModule(exportPath);
         }
         const source = await readFile(id);
         const refId = this.emitFile({ type: 'asset', name: basename(id), source });

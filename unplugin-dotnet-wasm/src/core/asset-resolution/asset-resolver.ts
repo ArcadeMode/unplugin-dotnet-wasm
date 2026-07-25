@@ -3,6 +3,8 @@ import type { EndpointLookup } from './endpoint-lookup';
 import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
 import { normalizePath } from '../path-utils';
+import { resolve, dirname } from 'node:path';
+import { BINARY_EXTENSIONS_REGEX } from '../constants';
 
 /**
  * Resolves bare/virtual import specifiers against a manifest-backed VFS,
@@ -40,6 +42,16 @@ export class AssetResolver {
     }
 
     return null;
+  }
+
+  resolvePath(resolved: string | null, path: string, importer?: string): string | null {
+    let assetPath: string | null = null;
+    if (resolved !== null && BINARY_EXTENSIONS_REGEX.test(resolved)) {
+      assetPath = resolved;
+    } else if (BINARY_EXTENSIONS_REGEX.test(path) && importer) {
+      assetPath = resolve(dirname(importer), path); // Sibling imports (`./dotnet.native.wasm`) aren't resolvable routes for us: resolve off the importer.
+    }
+    return assetPath;
   }
 
   headersFor(route: string): readonly ResponseHeader[] | undefined {

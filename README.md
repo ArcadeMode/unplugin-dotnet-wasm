@@ -128,8 +128,6 @@ await esbuild.build({
 });
 ```
 
-When targeting Node, the runtime needs an explicit resource loader - see [Runtime usage](#runtime-usage) below.
-
 </details>
 
 <details>
@@ -283,22 +281,6 @@ const runtime = await dotnet.create();
 runtime.runMain();
 ```
 
-<details>
-<summary><strong>Note on esbuild resource loading on Node</strong></summary>
-
-When targeting Node with esbuild, the dotnet runtime a resource loader so the runtime can succesfully resolvee WASM URLs:
-
-```ts
-import { dotnet } from '_framework/dotnet';
-
-const runtime = await dotnet
-  .withResourceLoader((type, name, defaultUri) => new URL(defaultUri, import.meta.url).href)
-  .create();
-runtime.runMain();
-```
-
-</details>
-
 ### Dev server
 
 The plugin works with the bundler's dev server out of the box - start it as usual (`vite`, `webpack serve`, `rspack serve`, `rsbuild dev`, `farm dev`) and the .NET WASM app boots with no extra config. Assets are served with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects.
@@ -345,12 +327,12 @@ DotnetAssets({
 | Vite | ✅ Supported | ✅ Supported | ✅ Supported |
 | Rollup | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
 | Rolldown | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] |
-| Webpack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
-| Rspack | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
-| Rsbuild | ✅ Supported | ❌ Not supported[^webpack-family-node-no-support] | ✅ Supported |
-| esbuild | ✅ Supported | ⚠️ Supported[^esbuild-node-partial-support] | -[^esbuild-no-dev-server] |
-| Farm | ✅ Supported | ❌ Not supported[^farm-node-no-support] | ✅ Supported |
-| Bun | ✅ Supported | ❌ Not supported[^bun-node-no-support] | -[^bun-no-dev-server] |
+| Webpack | ✅ Supported | ✅ Supported[^webpack-node-esm] | ✅ Supported |
+| Rspack | ✅ Supported | ✅ Supported[^rspack-node-esm] | ✅ Supported |
+| Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported |
+| esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] |
+| Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported |
+| Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] |
 
 ## Run the sample
 
@@ -387,13 +369,13 @@ Testing the `bun` integration additionally requires Bun >= 1.3.
 - .NET SDK >= 10 (build output must exist before bundling)
 - TypeScript >= 5 (optional - enables editor / `tsc` type support for .NET WASM imports)
 
-[^esbuild-node-partial-support]: esbuild works on Node but the runtime needs an explicit `.withResourceLoader(...)` call to resolve WASM URLs. See [Runtime usage](#runtime-usage).
+[^webpack-node-esm]: Node support requires ESM output - set webpack's `experiments.outputModule` and `output.module: true` with `target: 'node'` (the same ESM output every other Node target uses).
 
-[^webpack-family-node-no-support]: Webpack/Rspack/Rsbuild emit `URL` instances for asset imports; the dotnet runtime needs URL strings. Rewrite step pending - see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+[^rspack-node-esm]: Node support requires ESM output - set rspack's `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'` with `target: 'node'`.
 
-[^bun-node-no-support]: Bun emits bare strings for asset imports; the dotnet runtime needs URL strings. Rewrite step pending - see [architecture](../docs/architecture.md#cross-target-output-contract-why-node-support-is-a-subset).
+[^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`.
 
-[^farm-node-no-support]: Farm's `node-next` and `node` output modes split code into orphaned chunks so they never get loaded, might investigate further in the future (got tips? let me know)
+[^farm-node-esm]: Node support requires ESM output as a single chunk - set `output.targetEnv: 'node'` (or `'node-next'`), `output.format: 'esm'`, `compilation.assets.mode: 'browser'`, and `partialBundling.enforceResources: [{ name: 'entry', test: ['.+'] }]`.
 
 [^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
 

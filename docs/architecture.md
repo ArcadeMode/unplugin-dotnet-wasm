@@ -52,11 +52,18 @@ The `resolveId` hook and VFS-backed resolution described above are not build-onl
 
 What dev servers add is delivery of **runtime-fetched** out-of-tree assets: the runtime fetches `_framework/*.{wasm,dat,pdb}` (and URL-referenced files) at boot, which no bundler serves for an out-of-tree output. In serve mode the binary `load` hook returns an explicit route (`/_framework/<hashedName>`) and `createAssetMiddleware` streams the physical file with the manifest's headers. The middleware *core* is one uniform bundler-agnostic connect handler; each family only supplies the small glue to register it against its own dev-server API.
 
-## Cross-target output contract (why Node support is a subset)
+A Node dev server (e.g. Vitest, which runs a Vite dev server in SSR mode) has no HTTP origin for the runtime to fetch from, so there the serve path binds each asset to an absolute `file://` URL pointing at the live build output instead of a route.
 
-With `WasmBundlerFriendlyBootConfig=true`, `dotnet.js` contains a real `import "./<asset>"` per asset, each expected to resolve to a **URL string**. For output to work under both browser and Node without a consumer-side shim, every asset import must be rewritten to `new URL("./<file>", import.meta.url).href`: a relative, `import.meta.url`-based, plain-string value, emitted as ESM. The dotnet runtime's built-in `fetch_like` already handles the resulting scheme (`http(s):` in the browser, `file:` in Node).
+## Cross-target output contract
 
-Rollup-family and Farm produce this shape natively, so they support Node targets today. esbuild/bun emit bare strings and webpack/rspack/rsbuild emit `URL` instances (only under `output.module`), so **their Node targets are deferred** pending a rewrite step; browser output is unaffected. The [README bundler table](../unplugin-dotnet-wasm/README.md#bundler-support) reflects the current matrix.
+With `WasmBundlerFriendlyBootConfig=true`, `dotnet.js` contains a real `import "./<asset>"` per asset, and each bound value must be a **URL string** the runtime's built-in `fetch_like` can load — `http(s):` in the browser, `file:` in Node. The shape that satisfies both without a consumer-side shim is a relative, `import.meta.url`-based plain string emitted as ESM: `new URL("./<file>", import.meta.url).href`.
+
+Bundlers reach that shape by one of two strategies, chosen per family:
+
+- **Native binding.** Given ESM output, some bundlers already resolve asset imports against `import.meta.url` and hand back a URL string; the asset rule/loader the family installs is enough.
+- **Proxy module.** Where a bundler instead emits a bare relative string (no base) or an absolute filesystem path (a scheme `fetch` rejects), the plugin interposes a small generated module: it re-imports the real asset — so the bundler's own emitter still copies the file and yields its relative path — and re-exports `new URL(u, import.meta.url).href`. One shared helper builds this module and the families that need it reuse it.
+
+Node output must be ESM, and a few bundlers require the consumer to opt into ESM output (occasionally a base URL) in their own config; the [README](../unplugin-dotnet-wasm/README.md#bundler-support) footnotes spell out those cases. Browser output is unaffected by either strategy.
 
 ## Testing model
 

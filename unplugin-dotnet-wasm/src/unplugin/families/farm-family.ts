@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { basename, parse, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { PROXY_SUFFIX, URL_PROXY_NAMESPACE } from '../../core/constants';
+import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
+import { toPosixPath } from '../../core/path-utils';
 
-// https://www.farmfe.org/docs/api/js-plugin-api#configuredevserver
 interface FarmConfig {
   root?: string;
   compilation?: {
@@ -12,21 +14,19 @@ interface FarmConfig {
   };
 }
 
-// farm's dev server is Koa-like, but not exactly Koa. It has a `respond` property on the context
-// https://raw.githubusercontent.com/koajs/koa/master/docs/api/context.md
+// farm's dev-server context is Koa-like (carries a `respond` flag), but not exactly Koa.
 interface KoaLikeContext {
   req: IncomingMessage;
   res: ServerResponse;
   respond: boolean;
 }
 
-// https://www.farmfe.org/docs/features/dev-server
 interface FarmDevServer {
   app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
 }
 
 export interface FarmFamilyHooks {
-  resolveId(source: string): string | null;
+  resolveId(source: string, importer?: string | null): string | null;
   load: {
     filter: { id: RegExp };
     handler(id: string): Promise<string | null>;
@@ -38,24 +38,46 @@ export interface FarmFamilyHooks {
 }
 
 export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
-  const FARM_CONTENT_DIR = '__dotnet_wasm__';
   const farmContentAliases = new Map<string, string>();
+  let isNodeTarget = false;
 
   return {
-    resolveId(source: string): string | null {
+    resolveId(source: string, importer?: string | null): string | null {
+      if (importer && importer.endsWith(PROXY_SUFFIX)) {
+        // resolving the proxy modules import: let farm resolve the real asset natively (is absolute path).
+        return null;
+      }
+
+      if (source.endsWith(PROXY_SUFFIX)) {
+        return source; // handled by load handler
+      }
+
       const resolved = ctx.assetResolver.resolve(source);
-      if (resolved === null) return null;
+      const assetPath = ctx.assetResolver.resolvePath(resolved, source, importer ?? undefined);
+
+      if (isNodeTarget && assetPath !== null) {
+        // Node: wrap binary assets in a proxy module (see load handler)
+        return toPosixPath(assetPath) + PROXY_SUFFIX;
+      }
+
+      if (resolved === null) {
+        return null;
+      }
+
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
-        // files are being served from another root (e.g. C:\ while project is on D:\)
-        // farm no likey, return alias which we will resolve in `load`
+        // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
         farmContentAliases.set(basename(resolved), resolved);
-        return join(ctx.consumerRoot, FARM_CONTENT_DIR, basename(resolved));
+        return join(ctx.consumerRoot, URL_PROXY_NAMESPACE, basename(resolved));
       }
       return resolved;
     },
     load: {
-      filter: { id: new RegExp(FARM_CONTENT_DIR) },
+      filter: { id: new RegExp(`${URL_PROXY_NAMESPACE}`) },
       async handler(id: string): Promise<string | null> {
+        if (id.endsWith(PROXY_SUFFIX)) {
+          const real = id.slice(0, -PROXY_SUFFIX.length).replace(/\\/g, '/');
+          return buildNewUrlAssetProxyModule(real); // return the actual proxy module
+        }
         const real = farmContentAliases.get(basename(id));
         return real === undefined ? null : readFile(real, 'utf-8');
       },
@@ -64,6 +86,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       config(userConfig: FarmConfig): Record<string, never> {
         if (userConfig.root) ctx.setConsumerRoot(userConfig.root);
         const targetEnv = userConfig.compilation?.output?.targetEnv;
+        isNodeTarget = typeof targetEnv === 'string' && targetEnv.startsWith('node');
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree =
           targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;

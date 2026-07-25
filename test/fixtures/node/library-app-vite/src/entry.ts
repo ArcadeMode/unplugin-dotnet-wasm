@@ -15,6 +15,16 @@ async function runTests(): Promise<void> {
   const thrower = new Throws();
 
   try {
+    console.log('[LibraryInitializer] Testing...');
+    const ai = (globalThis as any).blazorApplicationInsights;
+    (globalThis as any).__contentAssetOk = typeof ai === 'object' && ai !== null;
+    if (!(globalThis as any).__contentAssetOk) {
+      throw new Error(
+        'LibraryInitializer failed: globalThis.blazorApplicationInsights is not an object',
+      );
+    }
+    console.log('[LibraryInitializer] ✓ Passed');
+
     // Test Echo.Greet (sync)
     console.log('[Echo.Greet] Testing...');
     const greet = echo.Greet('world');

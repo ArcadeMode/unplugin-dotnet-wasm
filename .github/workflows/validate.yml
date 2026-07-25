@@ -77,8 +77,17 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         platform: [node, browser]
-        fingerprint: ['true', 'false']
+        fingerprint: ['true'] # only with fingerprinting enabled
         build_mode: [debug, publish]
+        include: # + two smoke tests without fingerprinting (limit the number of jobs)
+          - os: ubuntu-latest
+            platform: browser
+            fingerprint: 'false'
+            build_mode: publish
+          - os: windows-latest
+            platform: node
+            fingerprint: 'false'
+            build_mode: debug
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -125,14 +134,24 @@ jobs:
       - name: Run integration tests
         run: pnpm test:matrix --integration --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
-      - name: Run e2e tests
-        run: pnpm test:matrix --e2e --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+      - name: Run e2e tests (dist)
+        run: pnpm test:matrix --e2e --serve-mode=dist --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
+
+      - name: Move test results # protect results from being overwritten by the next test run
+        run: mv test/integration/test-results test/integration/test-results-dist
+
+      - name: Clean fixture dists # ensure the dev server tests are not using the dist files
+        run: pnpm clean:fixture
+      - name: Run e2e tests (dev server)
+        run: pnpm test:matrix --e2e --serve-mode=server --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
-          path: test/integration/test-results/
+          path: |
+            test/integration/test-results/
+            test/integration/test-results-dist/
 
   matrix-none:
     name: Run integration tests (no build)
@@ -176,64 +195,9 @@ jobs:
           name: test-results-${{ matrix.os }}-none
           path: test/integration/test-results/
 
-  matrix-dev:
-    name: Run dev-server tests
-    needs: [unit, format]
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        fingerprint: ['true', 'false']
-        build_mode: [debug, publish]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9
-
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.x'
-
-      - run: pnpm install
-
-      - name: Build plugin
-        run: pnpm build:plugin
-
-      - name: Build library
-        run: |
-          if [ "${{ matrix.build_mode }}" = "publish" ]; then
-            pnpm publish:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
-          else
-            pnpm build:library:${{ matrix.fingerprint == 'true' && 'fingerprint' || 'nofingerprint' }}
-          fi
-
-      - name: Install Playwright chromium
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            pnpm --dir test/integration exec playwright install --with-deps chromium
-          else
-            pnpm --dir test/integration exec playwright install chromium
-          fi
-
-      - name: Run dev-server e2e
-        run: pnpm test:matrix --e2e --serve-mode=server --platform=browser --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: test-results-${{ matrix.os }}-dev-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
-          path: test/integration/test-results/
-
   results:
     name: Publish test results
-    needs: [unit, format, matrix, matrix-none, matrix-dev]
+    needs: [unit, format, matrix, matrix-none]
     if: always()
     runs-on: ubuntu-latest
     permissions:
