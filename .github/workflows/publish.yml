@@ -1,6 +1,18 @@
 name: Publish
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag to publish v1.2.3[-prerelease]'
+        required: true
+        default: ''
+        type: string
+      dry-run:
+        description: 'Dry run'
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - 'v*.*.*'
@@ -14,8 +26,47 @@ defaults:
     shell: bash
 
 jobs:
+
+  version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - name: Determine and validate version
+        id: ver
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          $inputVersion = "$env:INPUT_VERSION".Trim()
+          $tagVersion   = if ($env:REF_TYPE -eq 'tag') { "$env:REF_NAME".Trim() } else { '' }
+          $raw = if ($inputVersion) { $inputVersion } elseif ($tagVersion) { $tagVersion } else { '' }
+
+          if (-not $raw) { Write-Error "No version provided via workflow_dispatch or tag push."; exit 1 }
+
+          $ver = $raw -replace '^v', ''
+
+          # SemVer 2.0.0: x.y.z with optional -prerelease and +build
+          $semverPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
+          if ($ver -notmatch $semverPattern) {
+            Write-Error "Invalid SemVer: '$ver'. Expected x.y.z[ -prerelease ][ +build ]."; exit 1
+          }
+
+          Write-Host "Version: $ver"
+          "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+
+  validate:
+    name: Validate build and tests
+    uses: ./.github/workflows/validate.yml
+
   publish:
     name: Publish to npm
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -47,12 +98,21 @@ jobs:
       - name: Build plugin
         run: pnpm build:plugin
 
-      - name: Build sample
-        run: pnpm build:sample
-
-      - name: Run unit tests
-        run: pnpm test:unit
-
       - name: Publish to npm
-        run: npm publish --provenance
+        run: npm publish --provenance ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
         working-directory: unplugin-dotnet-wasm
+
+  badge:
+    name: 🏷️ Update Readme Badge
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: '70747793e15450ee02945775bfbbc4b5'
+          filename: unplugin-dotnet-wasm-badge.json
+          label: Tests
+          message: ${{ needs.validate.outputs.badge-message }}
+          color: ${{ needs.validate.outputs.badge-color }}
