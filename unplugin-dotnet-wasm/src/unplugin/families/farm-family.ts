@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { PROXY_SUFFIX, URL_PROXY_NAMESPACE } from '../../core/constants';
 import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
-import { normalizePath } from '../../core/path-utils';
+import { toPosixPath } from '../../core/path-utils';
 
 interface FarmConfig {
   root?: string;
