@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-wasm/vite';
+import DotnetWasm from 'unplugin-dotnet-wasm/vite';
 import { resolve } from 'node:path';
 
 export default defineConfig(({ mode }) => {
   const isRelease = mode === 'production';
   return {
     plugins: [
-      DotnetAssets({
+      DotnetWasm({
         projectRoot: resolve(__dirname, '../../Library'),
         projectName: 'Library',
         configuration: isRelease ? 'Release' : 'Debug',

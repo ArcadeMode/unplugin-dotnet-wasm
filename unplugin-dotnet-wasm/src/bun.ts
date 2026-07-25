@@ -1,5 +1,5 @@
-import { dotnetStaticAssets } from './unplugin/index';
+import { dotnetWasmUnplugin } from './unplugin/index';
 
-const DotnetAssets = dotnetStaticAssets.bun;
-export default DotnetAssets;
-export { DotnetAssets as 'module.exports' };
+const DotnetWasm = dotnetWasmUnplugin.bun;
+export default DotnetWasm;
+export { DotnetWasm as 'module.exports' };

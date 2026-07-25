@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 import type { Platform } from '../test-matrix';
 
@@ -11,9 +11,9 @@ export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
-    const [esbuild, { default: DotnetAssets }] = await Promise.all([
+    const [esbuild, { default: DotnetWasm }] = await Promise.all([
       import('esbuild'),
       import('unplugin-dotnet-wasm/esbuild'),
     ]);
@@ -27,7 +27,7 @@ export class IsolatedEsbuildBuild extends IsolatedBundlerBuild {
       entryNames: 'assets/entry',
       assetNames: 'assets/[name]-[hash]',
       logLevel: 'silent',
-      plugins: [DotnetAssets(pluginOptions)],
+      plugins: [DotnetWasm(pluginOptions)],
     });
     for (const w of result.warnings) this.warnings.push(w.text);
   }

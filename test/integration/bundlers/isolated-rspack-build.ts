@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { Configuration } from '@rspack/core';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
@@ -12,9 +12,9 @@ export class IsolatedRspackBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
-    const [{ rspack }, { default: DotnetAssets }] = await Promise.all([
+    const [{ rspack }, { default: DotnetWasm }] = await Promise.all([
       import('@rspack/core'),
       import('unplugin-dotnet-wasm/rspack'),
     ]);
@@ -52,7 +52,7 @@ export class IsolatedRspackBuild extends IsolatedBundlerBuild {
         ],
       },
       optimization: { minimize: false },
-      plugins: [DotnetAssets(pluginOptions)],
+      plugins: [DotnetWasm(pluginOptions)],
     };
 
     await new Promise<void>((resolveP, rejectP) => {

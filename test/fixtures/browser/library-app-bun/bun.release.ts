@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-wasm/bun';
+import DotnetWasm from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, mkdirSync } from 'node:fs';
@@ -22,7 +22,7 @@ const result = await Bun.build({
     '.pdb': 'file',
   },
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
       configuration: 'Release',

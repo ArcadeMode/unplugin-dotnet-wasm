@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import DotnetAssets from 'unplugin-dotnet-wasm/vite';
+import DotnetWasm from 'unplugin-dotnet-wasm/vite';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     root: __dirname,
     plugins: [
-      DotnetAssets({
+      DotnetWasm({
         projectRoot: resolve(__dirname, '../../Library'),
         projectName: 'Library',
         configuration: isRelease ? 'Release' : 'Debug',

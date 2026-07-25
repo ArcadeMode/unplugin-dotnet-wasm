@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
@@ -12,11 +12,11 @@ export class IsolatedBunBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
 
     const buildScript = `
-import DotnetAssets from 'unplugin-dotnet-wasm/bun';
+import DotnetWasm from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -39,7 +39,7 @@ try {
       '.dat': 'file',
       '.pdb': 'file',
     },
-    plugins: [DotnetAssets(pluginOptions)],
+    plugins: [DotnetWasm(pluginOptions)],
   });
 
   if (!result.success) {

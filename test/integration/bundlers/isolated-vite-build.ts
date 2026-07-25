@@ -1,8 +1,8 @@
 import { build as viteBuild, createLogger, type InlineConfig } from 'vite';
 import { join, resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
-import DotnetAssetsVite from 'unplugin-dotnet-wasm/vite';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import DotnetWasmVite from 'unplugin-dotnet-wasm/vite';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
@@ -29,7 +29,7 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
     }
   }
 
-  async build(pluginOptions: DotnetAssetsOptions, extra: InlineConfig = {}): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions, extra: InlineConfig = {}): Promise<void> {
     this.warnings.length = 0;
     const logger = createLogger('warn');
     const orig = logger.warn.bind(logger);
@@ -52,7 +52,7 @@ export class IsolatedViteBuild extends IsolatedBundlerBuild {
       logLevel: 'warn',
       customLogger: logger,
       cacheDir: this.cacheDir,
-      plugins: [DotnetAssetsVite(pluginOptions)],
+      plugins: [DotnetWasmVite(pluginOptions)],
       ...extra,
       build: {
         outDir: this.outDir,

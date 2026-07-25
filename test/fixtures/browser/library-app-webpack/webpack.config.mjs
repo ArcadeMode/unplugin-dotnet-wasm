@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-wasm/webpack';
+import DotnetWasm from 'unplugin-dotnet-wasm/webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +40,7 @@ export default (env, argv) => {
     },
     plugins: [
       new HtmlWebpackPlugin({ template: './src/index.html' }),
-      DotnetAssets({
+      DotnetWasm({
         projectRoot: resolve(__dirname, '../../Library'),
         projectName: 'Library',
         configuration: isRelease ? 'Release' : 'Debug',

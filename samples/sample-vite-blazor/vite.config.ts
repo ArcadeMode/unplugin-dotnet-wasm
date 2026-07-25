@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-wasm/vite';
+import DotnetWasm from 'unplugin-dotnet-wasm/vite';
 import { resolve } from 'node:path';
 
 export default defineConfig({
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectRoot: resolve(__dirname, '../BlazorLibrary'),
       projectName: 'BlazorLibrary',
       configuration: 'Debug',

@@ -1,5 +1,5 @@
-import { dotnetStaticAssets } from './unplugin/index';
+import { dotnetWasmUnplugin } from './unplugin/index';
 
-const DotnetAssets = dotnetStaticAssets.rsbuild;
-export default DotnetAssets;
-export { DotnetAssets as 'module.exports' };
+const DotnetWasm = dotnetWasmUnplugin.rsbuild;
+export default DotnetWasm;
+export { DotnetWasm as 'module.exports' };
