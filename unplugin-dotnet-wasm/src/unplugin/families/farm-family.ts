@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, parse, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { PROXY_SUFFIX, URL_PROXY_NAMESPACE } from '../../core/constants';
-import { buildImportProxyModule } from '../../core/asset-resolution/asset-url-module';
+import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
 import { normalizePath } from '../../core/path-utils';
 
@@ -38,7 +38,6 @@ export interface FarmFamilyHooks {
 }
 
 export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
-
   const farmContentAliases = new Map<string, string>();
   let isNodeTarget = false;
 
@@ -72,7 +71,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       async handler(id: string): Promise<string | null> {
         if (id.endsWith(PROXY_SUFFIX)) {
           const real = id.slice(0, -PROXY_SUFFIX.length).replace(/\\/g, '/');
-          return buildImportProxyModule(real); // return the actual proxy module
+          return buildNewUrlAssetProxyModule(real); // return the actual proxy module
         }
         const real = farmContentAliases.get(basename(id));
         return real === undefined ? null : readFile(real, 'utf-8');

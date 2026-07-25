@@ -7,7 +7,7 @@ import {
   PROXY_SUFFIX,
   URL_PROXY_NAMESPACE,
 } from '../../core/constants';
-import { buildImportProxyModule } from '../../core/asset-resolution/asset-url-module';
+import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
 
 type EsbuildHandlerOpts = { filter: RegExp; namespace?: string };
@@ -23,7 +23,9 @@ interface EsbuildBuild {
   ) => void;
   onLoad: (
     opts: EsbuildHandlerOpts,
-    cb: (args: { path: string; }) => Promise<EsbuildOnLoadCallbackResult> | EsbuildOnLoadCallbackResult,
+    cb: (args: {
+      path: string;
+    }) => Promise<EsbuildOnLoadCallbackResult> | EsbuildOnLoadCallbackResult,
   ) => void;
 }
 
@@ -63,24 +65,24 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       const assetPath = ctx.assetResolver.resolvePath(resolved, args.path, args.importer);
 
       if (assetPath !== null) {
-        return { 
-          path: assetPath + PROXY_SUFFIX, 
-          namespace: URL_PROXY_NAMESPACE 
+        return {
+          path: assetPath + PROXY_SUFFIX,
+          namespace: URL_PROXY_NAMESPACE,
         };
       }
-      
+
       if (resolved === null) {
         return null;
       }
-      
+
       return { path: resolved };
     });
 
-    // Emit the proxy module: re-import the real asset by its absolute path 
+    // Emit the proxy module: re-import the real asset by its absolute path
     build.onLoad({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
       const realPath = args.path.slice(0, -PROXY_SUFFIX.length);
       return {
-        contents: buildImportProxyModule(realPath),
+        contents: buildNewUrlAssetProxyModule(realPath),
         loader: 'js' as const,
         resolveDir: dirname(realPath),
       };

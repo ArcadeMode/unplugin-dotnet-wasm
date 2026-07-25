@@ -24,7 +24,7 @@ async function runTests(): Promise<void> {
       );
     }
     console.log('[LibraryInitializer] ✓ Passed');
-    
+
     // Test Echo.Greet (sync)
     console.log('[Echo.Greet] Testing...');
     const greet = echo.Greet('world');

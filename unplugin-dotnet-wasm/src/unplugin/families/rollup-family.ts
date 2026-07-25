@@ -2,11 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
-import {
-  buildFileUrlModule,
-  buildOriginPathModule,
-} from '../../core/asset-resolution/asset-url-module';
+import { buildLiteralPathExportModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
+import { pathToFileURL } from 'node:url';
 
 export interface RollupFamilyHooks {
   vite: {
@@ -45,10 +43,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         if (isServe) {
           // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
           if (options?.ssr) {
-            return buildFileUrlModule(id);
+            return buildLiteralPathExportModule(pathToFileURL(id).href);
           }
           // Browser dev server: page origin + connect middleware serve /_framework/*.
-          return buildOriginPathModule(basename(id));
+          return buildLiteralPathExportModule('/_framework/' + basename(id));
         }
         const source = await readFile(id);
         const refId = this.emitFile({ type: 'asset', name: basename(id), source });
