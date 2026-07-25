@@ -15,24 +15,20 @@ const URL_PROXY_NAMESPACE = 'dotnet-url-proxy';
 // the proxy's inner re-import collapses back into the proxy itself (self-referential undefined).
 const PROXY_SUFFIX = '.__dotnet_url_proxy__';
 
+type EsbuildHandlerOpts = { filter: RegExp; namespace?: string };
+type EsbuildOnResolveCallbackArgs = { path: string; namespace?: string; importer?: string };
+type EsbuildOnResolveCallbackResult = { path: string; namespace?: string } | null;
+type EsbuildOnLoadCallbackResult = { contents: string; loader: 'js'; resolveDir?: string } | null;
+
 interface EsbuildBuild {
   initialOptions: { absWorkingDir?: string; external?: string[]; loader?: Record<string, string> };
   onResolve: (
-    opts: { filter: RegExp; namespace?: string },
-    cb: (args: {
-      path: string;
-      namespace?: string;
-      importer?: string;
-    }) => { path: string; namespace?: string } | null,
+    opts: EsbuildHandlerOpts,
+    cb: (args: EsbuildOnResolveCallbackArgs) => EsbuildOnResolveCallbackResult,
   ) => void;
   onLoad: (
-    opts: { filter: RegExp; namespace?: string },
-    cb: (args: {
-      path: string;
-    }) =>
-      | Promise<{ contents: string; loader: 'js'; resolveDir?: string } | null>
-      | { contents: string; loader: 'js'; resolveDir?: string }
-      | null,
+    opts: EsbuildHandlerOpts,
+    cb: (args: { path: string; }) => Promise<EsbuildOnLoadCallbackResult> | EsbuildOnLoadCallbackResult,
   ) => void;
 }
 
@@ -60,30 +56,34 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       }
     }
 
-    // Route binary assets through the import.meta.url proxy so the exported value is a portable
-    // URL string (http(s): browser, file: node). Guard on the importer: a proxy module's own
-    // inner re-import must pass through untouched (bun reports its namespace as `file`, so we
-    // key the guard on the importer path, not the namespace).
+    // Resolve binary assets through proxy modules that re-import the real asset by its absolute path.
     build.onResolve({ filter: /.*/ }, (args) => {
-      if (args.importer?.endsWith(PROXY_SUFFIX)) return null;
+      if (args.importer?.endsWith(PROXY_SUFFIX)) {
+        return null; // guard against proxy recursion.
+      }
 
       const resolved = ctx.assetResolver.resolve(args.path);
       let assetPath: string | null = null;
       if (resolved !== null) {
-        if (!BINARY_EXTENSIONS_REGEX.test(resolved)) return { path: resolved };
+        if (!BINARY_EXTENSIONS_REGEX.test(resolved)) {
+          return { path: resolved };
+        }
         assetPath = resolved;
       } else if (BINARY_EXTENSIONS_REGEX.test(args.path) && args.importer) {
         assetPath = resolve(dirname(args.importer), args.path);
       }
-      if (assetPath === null) return null;
-      return { path: assetPath + PROXY_SUFFIX, namespace: URL_PROXY_NAMESPACE };
+
+      if (assetPath === null) {
+        return null;
+      }
+      
+      return { 
+        path: assetPath + PROXY_SUFFIX, 
+        namespace: URL_PROXY_NAMESPACE 
+      };
     });
 
-    // Emit the proxy module: re-import the real asset by its absolute path (→ built-in file
-    // loader → chunk-relative copy) and resolve it against import.meta.url. The inner import is
-    // absolute so both bundlers resolve it to a distinct file-namespace module (see PROXY_SUFFIX).
-    // resolveDir is required: without it esbuild refuses to search the filesystem for the import
-    // (harmless for bun, which resolves the absolute path directly).
+    // Emit the proxy module: re-import the real asset by its absolute path 
     build.onLoad({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
       const realPath = args.path.slice(0, -PROXY_SUFFIX.length);
       return {
