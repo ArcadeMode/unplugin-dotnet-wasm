@@ -16,3 +16,6 @@ export const DOTNET_NODE_BUILTINS = [
   'url',
   'worker_threads',
 ] as const;
+
+export const URL_PROXY_NAMESPACE = '__dotnet-wasm-url-proxy__';
+export const PROXY_SUFFIX = `.${URL_PROXY_NAMESPACE}.js`; // .js because bundlers have to treat it as JS, not another asset type.

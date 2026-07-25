@@ -44,7 +44,6 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       ): Promise<string> {
         if (isServe) {
           // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
-          // `id` is already the resolved physical path (mapped by resolveId via the VFS).
           if (options?.ssr) {
             return buildFileUrlModule(id);
           }

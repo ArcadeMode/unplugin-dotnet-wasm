@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildFileUrlModule,
   buildOriginPathModule,
-  buildImportMetaUrlModule,
+  buildImportProxyModule,
 } from './asset-url-module';
 import { pathToFileURL } from 'node:url';
 
@@ -39,7 +39,7 @@ describe('buildOriginPathModule', () => {
 describe('buildImportMetaUrlModule', () => {
   it('returns an import.meta.url resolution module', () => {
     const innerSpecifier = '/x/y.wasm';
-    const result = buildImportMetaUrlModule(innerSpecifier);
+    const result = buildImportProxyModule(innerSpecifier);
     expect(result).toBe(
       `import u from "/x/y.wasm";\nexport default new URL(u, import.meta.url).href;`,
     );
@@ -47,7 +47,7 @@ describe('buildImportMetaUrlModule', () => {
 
   it('correctly encodes the inner specifier', () => {
     const innerSpecifier = './assets/file.wasm';
-    const result = buildImportMetaUrlModule(innerSpecifier);
+    const result = buildImportProxyModule(innerSpecifier);
     expect(result).toContain(`import u from "./assets/file.wasm";`);
     expect(result).toContain(`export default new URL(u, import.meta.url).href;`);
   });

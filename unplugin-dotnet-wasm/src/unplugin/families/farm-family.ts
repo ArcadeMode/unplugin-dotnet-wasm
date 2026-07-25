@@ -1,9 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, parse, join, resolve } from 'node:path';
+import { basename, parse, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
-import { buildImportMetaUrlModule } from '../../core/asset-resolution/asset-url-module';
+import { PROXY_SUFFIX, URL_PROXY_NAMESPACE } from '../../core/constants';
+import { buildImportProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
+import { normalizePath } from '../../core/path-utils';
 
 interface FarmConfig {
   root?: string;
@@ -37,48 +38,41 @@ export interface FarmFamilyHooks {
 }
 
 export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
-  const FARM_CONTENT_DIR = '__dotnet_wasm__';
-  // Node-only proxy id suffix; `.js` so farm treats it as a JS module, not another asset.
-  const PROXY_SUFFIX = '.dotnet-url-proxy.js';
+
   const farmContentAliases = new Map<string, string>();
   let isNodeTarget = false;
 
   return {
     resolveId(source: string, importer?: string | null): string | null {
-      // Proxy's inner re-import → let farm resolve the real asset natively.
+      // resolving the proxy modules import: let farm resolve the real asset natively.
       if (importer && importer.endsWith(PROXY_SUFFIX)) return null;
       if (source.endsWith(PROXY_SUFFIX)) return source;
 
       const resolved = ctx.assetResolver.resolve(source);
+      const assetPath = ctx.assetResolver.resolvePath(resolved, source, importer ?? undefined);
 
-      // Sibling imports (`./dotnet.native.wasm`) aren't manifest routes; resolve off the importer.
-      let assetPath: string | null = null;
-      if (resolved !== null && BINARY_EXTENSIONS_REGEX.test(resolved)) assetPath = resolved;
-      else if (BINARY_EXTENSIONS_REGEX.test(source) && importer) {
-        assetPath = resolve(dirname(importer), source);
-      }
-
-      // Node: wrap binary assets in an import.meta.url proxy (mirrors esbuild) for a file:// URL
-      // string; farm's own node/browser asset modes yield values fetch() can't use.
+      // Node: wrap binary assets in a proxy module (see load handler)
       if (isNodeTarget && assetPath !== null) {
-        return assetPath.replace(/\\/g, '/') + PROXY_SUFFIX;
+        return normalizePath(assetPath).path + PROXY_SUFFIX;
       }
 
-      if (resolved === null) return null;
+      if (resolved === null) {
+        return null;
+      }
 
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
         // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
         farmContentAliases.set(basename(resolved), resolved);
-        return join(ctx.consumerRoot, FARM_CONTENT_DIR, basename(resolved));
+        return join(ctx.consumerRoot, URL_PROXY_NAMESPACE, basename(resolved));
       }
       return resolved;
     },
     load: {
-      filter: { id: new RegExp(`${FARM_CONTENT_DIR}|dotnet-url-proxy`) },
+      filter: { id: new RegExp(`${URL_PROXY_NAMESPACE}`) },
       async handler(id: string): Promise<string | null> {
         if (id.endsWith(PROXY_SUFFIX)) {
           const real = id.slice(0, -PROXY_SUFFIX.length).replace(/\\/g, '/');
-          return buildImportMetaUrlModule(real);
+          return buildImportProxyModule(real); // return the actual proxy module
         }
         const real = farmContentAliases.get(basename(id));
         return real === undefined ? null : readFile(real, 'utf-8');
