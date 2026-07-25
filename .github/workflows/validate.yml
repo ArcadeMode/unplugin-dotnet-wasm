@@ -137,9 +137,11 @@ jobs:
       - name: Run e2e tests (dist)
         run: pnpm test:matrix --e2e --serve-mode=dist --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
+      - name: Move test results # protect results from being overwritten by the next test run
+        run: mv test/integration/test-results test/integration/test-results-dist
+        
       - name: Clean fixture dists # ensure the dev server tests are not using the dist files
         run: pnpm clean:fixture
-
       - name: Run e2e tests (dev server)
         run: pnpm test:matrix --e2e --serve-mode=server --platform=${{ matrix.platform }} --fingerprint=${{ matrix.fingerprint }} --build-mode=${{ matrix.build_mode }}
 
@@ -147,7 +149,9 @@ jobs:
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
-          path: test/integration/test-results/
+          path: | 
+            test/integration/test-results/
+            test/integration/test-results-dist/
 
   matrix-none:
     name: Run integration tests (no build)
