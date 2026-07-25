@@ -139,7 +139,7 @@ jobs:
 
       - name: Move test results # protect results from being overwritten by the next test run
         run: mv test/integration/test-results test/integration/test-results-dist
-        
+
       - name: Clean fixture dists # ensure the dev server tests are not using the dist files
         run: pnpm clean:fixture
       - name: Run e2e tests (dev server)
@@ -149,7 +149,7 @@ jobs:
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.fingerprint }}-${{ matrix.build_mode }}
-          path: | 
+          path: |
             test/integration/test-results/
             test/integration/test-results-dist/
 
