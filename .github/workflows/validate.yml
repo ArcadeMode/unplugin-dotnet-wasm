@@ -77,7 +77,7 @@ jobs:
         run: pnpm lint
 
   matrix:
-    name: Run integration tests
+    name: Run e2e tests
     needs: [unit, format]
     strategy:
       fail-fast: false
