@@ -24,7 +24,7 @@ npm i -D unplugin-dotnet-wasm
 
 ## Usage
 
-Register the plugin in your bundler config. The import path is the only thing that differs across bundlers; the `DotnetAssets({...})` call is identical everywhere. Options are documented under [Configuration](#configuration).
+Register the plugin in your bundler config. The import path is the only thing that differs across bundlers; the `DotnetWasm({...})` call is identical everywhere. Options are documented under [Configuration](#configuration).
 
 ### Bundler examples
 
@@ -33,12 +33,12 @@ Register the plugin in your bundler config. The import path is the only thing th
 
 ```ts
 import { defineConfig } from 'vite';
-import DotnetAssets from 'unplugin-dotnet-wasm/vite';
+import DotnetWasm from 'unplugin-dotnet-wasm/vite';
 
 export default defineConfig({
   // ...
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -55,12 +55,12 @@ export default defineConfig({
 <summary><strong>Webpack</strong></summary>
 
 ```js
-import DotnetAssets from 'unplugin-dotnet-wasm/webpack';
+import DotnetWasm from 'unplugin-dotnet-wasm/webpack';
 
 export default {
   // ...
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -80,13 +80,13 @@ Rollup does not resolve bare module specifiers on its own, so the dotnet runtime
 
 ```js
 import nodeResolve from '@rollup/plugin-node-resolve';
-import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
+import DotnetWasm from 'unplugin-dotnet-wasm/rollup';
 
 export default {
   // ...
   plugins: [
     nodeResolve({ browser: true }),   // omit `browser` when targeting Node
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -115,12 +115,12 @@ export default {
 
 ```ts
 import * as esbuild from 'esbuild';
-import DotnetAssets from 'unplugin-dotnet-wasm/esbuild';
+import DotnetWasm from 'unplugin-dotnet-wasm/esbuild';
 
 await esbuild.build({
   // ...
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -137,12 +137,12 @@ await esbuild.build({
 <summary><strong>Rspack</strong></summary>
 
 ```js
-import DotnetAssets from 'unplugin-dotnet-wasm/rspack';
+import DotnetWasm from 'unplugin-dotnet-wasm/rspack';
 
 export default {
   // ...
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -160,12 +160,12 @@ export default {
 
 ```ts
 import { defineConfig } from '@rsbuild/core';
-import DotnetAssets from 'unplugin-dotnet-wasm/rsbuild';
+import DotnetWasm from 'unplugin-dotnet-wasm/rsbuild';
 
 export default defineConfig({
   // ...
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -182,12 +182,12 @@ export default defineConfig({
 <summary><strong>Rolldown</strong></summary>
 
 ```js
-import DotnetAssets from 'unplugin-dotnet-wasm/rolldown';
+import DotnetWasm from 'unplugin-dotnet-wasm/rolldown';
 
 export default {
   // ...
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -217,7 +217,7 @@ export default {
 Bun refuses to emit files with unknown extensions. Declare the three binary asset types the dotnet runtime references:
 
 ```ts
-import DotnetAssets from 'unplugin-dotnet-wasm/bun';
+import DotnetWasm from 'unplugin-dotnet-wasm/bun';
 
 await Bun.build({
   // ...
@@ -227,7 +227,7 @@ await Bun.build({
     '.pdb': 'file',
   },
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -247,7 +247,7 @@ Farm parses unknown extensions as JavaScript by default and injects `core-js` po
 
 ```ts
 import { defineConfig } from '@farmfe/core';
-import DotnetAssets from 'unplugin-dotnet-wasm/farm';
+import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 
 export default defineConfig({
   compilation: {
@@ -260,7 +260,7 @@ export default defineConfig({
     },
   },
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectName: 'MyLibrary',
       projectRoot: '../MyLibrary',
       configuration: 'Debug',
@@ -299,7 +299,7 @@ Pass either a **project-discovery** config or an **explicit output dir** config.
 Locates manifests under `<projectRoot>/bin/<configuration>/<targetFramework>[/publish]/`.
 
 ```ts
-DotnetAssets({
+DotnetWasm({
   projectName: 'MyLibrary',    // * used to find manifest files
   projectRoot: '../MyLibrary', // * path to the directory containing the .csproj
   configuration: 'Debug',      // * MSBuild configuration, e.g. 'Debug' or 'Release'
@@ -316,7 +316,7 @@ All fields above are required except `logLevel`. `configuration` and `isPublish`
 Use `dotnetOutputDir` when the .NET output is at a non-default path like a custom publish directory or when dotnet's [UseArtifactsOutput](https://learn.microsoft.com/en-us/dotnet/core/sdk/artifacts-output) is enabled.
 
 ```ts
-DotnetAssets({
+DotnetWasm({
   projectName: 'MyLibrary',                    // * used to find manifest files
   dotnetOutputDir: '../MyLibrary/my-out-dir',  // * path to the .NET build/publish output dir
   logLevel: 'warn',                            // 'silent' | 'error' | 'warn' | 'info' | 'debug' (default: 'warn')
