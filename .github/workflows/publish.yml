@@ -93,7 +93,7 @@ jobs:
         run: pnpm build:plugin
 
       - name: Publish to npm
-        run: npm publish --provenance ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
+        run: npm publish --provenance ${{ inputs.dry-run && '--dry-run' || '' }}
         working-directory: unplugin-dotnet-wasm
 
   badge:
@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Update badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: '70747793e15450ee02945775bfbbc4b5'
