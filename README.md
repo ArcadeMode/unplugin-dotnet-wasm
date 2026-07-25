@@ -9,7 +9,7 @@
 
 ## Why unplugin-dotnet-wasm
 
-unplugin-dotnet-wasm enables importing .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) through your favorite JavaScript bundler's own module graph: no manual copy step, no public-dir hacks, and it works against the fast `dotnet build`, saving the slow `dotnet publish` for when you are actually publishing.
+unplugin-dotnet-wasm enables importing .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) through your favorite JavaScript bundler's own module graph: no project configuration surgery, it just works. Compatible with `dotnet build` output to keep your inner dev loop fast, saving the slower `dotnet publish` for when you are actually publishing.
 
 Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
 
