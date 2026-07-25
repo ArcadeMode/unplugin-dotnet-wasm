@@ -353,13 +353,20 @@ Then install dependencies
 pnpm install
 ```
 
-And build+run the vite sample
+Run the vite dev server for the bundled wasm lib sample
 ```bash
-pnpm build:sample
-pnpm build:sample:vite
-pnpm preview:sample
+pnpm build:sample:vite-wasm
+pnpm dev:sample:vite-wasm
+#or use preview to serve the dist folder without dev server
+#pnpm preview:sample:vite-wasm
 ```
-
+Or run the vite dev server for the bundled blazor sample
+```bash
+pnpm build:sample:vite-blazor
+pnpm dev:sample:vite-blazor
+#or use preview to serve the dist folder without dev server
+#pnpm preview:sample:vite-blazor
+```
 Other bundler samples can be found in the `./test/fixtures/[browser|node]` directories.
 
 Testing the `bun` integration additionally requires Bun >= 1.3.
