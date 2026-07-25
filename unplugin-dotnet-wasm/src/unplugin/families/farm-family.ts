@@ -52,7 +52,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
 
       // Node: wrap binary assets in a proxy module (see load handler)
       if (isNodeTarget && assetPath !== null) {
-        return normalizePath(assetPath).path + PROXY_SUFFIX;
+        return toPosixPath(assetPath) + PROXY_SUFFIX;
       }
 
       if (resolved === null) {
