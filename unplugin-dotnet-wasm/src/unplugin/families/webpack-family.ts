@@ -8,10 +8,13 @@ import type { PluginContext } from '../context';
 
 type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
-  watchRun: { 
-    tapPromise(name: string, fn: () => Promise<void>): void,
-    tapAsync(name: string, fn: (compiler: { modifiedFiles?: Iterable<string> }, callback: () => void) => void): void
-   };
+  watchRun: {
+    tapPromise(name: string, fn: () => Promise<void>): void;
+    tapAsync(
+      name: string,
+      fn: (compiler: { modifiedFiles?: Iterable<string> }, callback: () => void) => void,
+    ): void;
+  };
   thisCompilation: {
     tap(
       name: string,
@@ -21,7 +24,6 @@ type CompilerHooks = {
   afterEnvironment: {
     tap(name: string, fn: () => void): void;
   };
-
 };
 
 type WebpackCompiler = {
@@ -34,7 +36,13 @@ type WebpackCompiler = {
       missing: Iterable<string>,
       startTime: number,
       options: unknown,
-      callback: (err?: unknown, timeInfoEntries1?: Map<string, unknown> | undefined, timeInfoEntries2?: Map<string, unknown> | undefined, changes?: Set<string> | undefined, removals?: Set<string> | undefined) => void,
+      callback: (
+        err?: unknown,
+        timeInfoEntries1?: Map<string, unknown> | undefined,
+        timeInfoEntries2?: Map<string, unknown> | undefined,
+        changes?: Set<string> | undefined,
+        removals?: Set<string> | undefined,
+      ) => void,
       undelayed: (fileName: string, changeTime: number) => void,
     ): void;
   } | null;
@@ -129,7 +137,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     opts.module.rules ??= [];
     if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule);
     else opts.module.rules.push(binaryRule, jsParserRule);
-    
+
     // Ensure minimal aggregateTimeout for watch mode to cope with MSBuild file writes
     opts.watchOptions = opts.watchOptions || {};
     const currentTimeout = opts.watchOptions.aggregateTimeout || 0;
@@ -138,7 +146,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     externalizeNodeBuiltins(opts);
   }
 
-  function watchContentRoots(compiler: { hooks?: CompilerHooks, watchFileSystem?: WebpackCompiler['watchFileSystem'] }): void {
+  function watchContentRoots(compiler: {
+    hooks?: CompilerHooks;
+    watchFileSystem?: WebpackCompiler['watchFileSystem'];
+  }): void {
     if (!isServe) return;
 
     compiler.hooks?.thisCompilation.tap('unplugin-dotnet-wasm', (compilation) => {
