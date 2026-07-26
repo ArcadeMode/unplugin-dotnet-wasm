@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild, DOTNET_NODE_BUILTINS } from './isolated-bundler-build';
 
@@ -11,9 +11,9 @@ export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
-    const [{ rolldown }, { default: DotnetAssets }] = await Promise.all([
+    const [{ rolldown }, { default: DotnetWasm }] = await Promise.all([
       import('rolldown'),
       import('unplugin-dotnet-wasm/rolldown'),
     ]);
@@ -27,7 +27,7 @@ export class IsolatedRolldownBuild extends IsolatedBundlerBuild {
       input: this.entryPoint(),
       external,
       onwarn: (w) => this.warnings.push(w.message ?? String(w)),
-      plugins: [DotnetAssets(pluginOptions)],
+      plugins: [DotnetWasm(pluginOptions)],
     });
     await bundle.write({
       dir: this.outDir,

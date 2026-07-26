@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { DotnetAssetsOptions } from '../../types';
+import type { DotnetWasmOptions } from '../../types';
 import { discoverManifests } from './discover';
 import { parseRuntimeManifest, type RuntimeManifest } from './manifest-runtime';
 import { parseEndpointsManifest, type EndpointsManifest } from './manifest-endpoints';
@@ -11,7 +11,7 @@ export interface ManifestLoaderResult {
 }
 
 export class ManifestLoader {
-  async load(options: DotnetAssetsOptions): Promise<ManifestLoaderResult> {
+  async load(options: DotnetWasmOptions): Promise<ManifestLoaderResult> {
     const { runtimeManifestPath, endpointsManifestPath } = discoverManifests(options);
     const [endpointsRaw, runtimeRaw] = await Promise.all([
       readFile(endpointsManifestPath),

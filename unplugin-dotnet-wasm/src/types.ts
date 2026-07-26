@@ -1,12 +1,12 @@
 /**
  * Plugin options. Discriminated union: pass either project-discovery axes
- * ({@link DotnetAssetsDiscoveryOptions}) or an explicit `dotnetOutputDir`
- * ({@link DotnetAssetsExplicitOptions}).
+ * ({@link DotnetWasmDiscoveryOptions}) or an explicit `dotnetOutputDir`
+ * ({@link DotnetWasmExplicitOptions}).
  */
-export type DotnetAssetsOptions = DotnetAssetsBaseOptions &
-  (DotnetAssetsDiscoveryOptions | DotnetAssetsExplicitOptions);
+export type DotnetWasmOptions = DotnetWasmBaseOptions &
+  (DotnetWasmDiscoveryOptions | DotnetWasmExplicitOptions);
 
-export interface DotnetAssetsBaseOptions {
+export interface DotnetWasmBaseOptions {
   /** The .NET project name - used to construct manifest filenames. */
   projectName: string;
   /** Verbosity. Default: `'warn'`. */
@@ -14,7 +14,7 @@ export interface DotnetAssetsBaseOptions {
 }
 
 /** Locate manifests under `<projectRoot>/bin/<configuration>/<targetFramework>[/publish]/`. */
-export interface DotnetAssetsDiscoveryOptions {
+export interface DotnetWasmDiscoveryOptions {
   /** Absolute or workspace-relative path to the directory containing the .csproj. */
   projectRoot: string;
   /** MSBuild configuration. */
@@ -26,7 +26,7 @@ export interface DotnetAssetsDiscoveryOptions {
 }
 
 /** Point directly at the .NET build/publish output directory containing the static-web-assets manifests. */
-export interface DotnetAssetsExplicitOptions {
+export interface DotnetWasmExplicitOptions {
   /** Absolute or workspace-relative path to the .NET build/publish output directory. */
   dotnetOutputDir: string;
 }

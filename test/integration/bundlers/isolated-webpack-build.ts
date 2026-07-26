@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { Configuration } from 'webpack';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
@@ -12,9 +12,9 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
-    const [{ default: webpack }, { default: DotnetAssets }] = await Promise.all([
+    const [{ default: webpack }, { default: DotnetWasm }] = await Promise.all([
       import('webpack'),
       import('unplugin-dotnet-wasm/webpack'),
     ]);
@@ -47,7 +47,7 @@ export class IsolatedWebpackBuild extends IsolatedBundlerBuild {
         ],
       },
       optimization: { minimize: false },
-      plugins: [DotnetAssets(pluginOptions)],
+      plugins: [DotnetWasm(pluginOptions)],
     };
 
     await new Promise<void>((resolveP, rejectP) => {

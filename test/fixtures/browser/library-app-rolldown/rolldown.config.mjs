@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-wasm/rolldown';
+import DotnetWasm from 'unplugin-dotnet-wasm/rolldown';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -26,7 +26,7 @@ export default {
     assetFileNames: 'assets/[name]-[hash][extname]',
   },
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
       configuration: isRelease ? 'Release' : 'Debug',

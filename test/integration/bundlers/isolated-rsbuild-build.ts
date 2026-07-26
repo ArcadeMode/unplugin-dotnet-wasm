@@ -1,5 +1,5 @@
 import type { Configuration } from '@rspack/core';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 import { join } from 'node:path';
@@ -12,9 +12,9 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
-    const [{ createRsbuild }, { default: DotnetAssets }] = await Promise.all([
+    const [{ createRsbuild }, { default: DotnetWasm }] = await Promise.all([
       import('@rsbuild/core'),
       import('unplugin-dotnet-wasm/rsbuild'),
     ]);
@@ -31,7 +31,7 @@ export class IsolatedRsbuildBuild extends IsolatedBundlerBuild {
           filenameHash: false,
           minify: false,
         },
-        plugins: [DotnetAssets(pluginOptions)],
+        plugins: [DotnetWasm(pluginOptions)],
         tools: {
           htmlPlugin: false,
           // rsbuild's node target isn't ESM by default; force ESM module output (matching the

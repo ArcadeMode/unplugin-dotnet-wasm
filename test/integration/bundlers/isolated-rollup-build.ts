@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
@@ -11,13 +11,13 @@ export class IsolatedRollupBuild extends IsolatedBundlerBuild {
     return join(this.assets, 'entry.js');
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
     const [
       { rollup },
       { default: nodeResolve },
       { default: esbuildPlugin },
-      { default: DotnetAssets },
+      { default: DotnetWasm },
     ] = await Promise.all([
       import('rollup'),
       import('@rollup/plugin-node-resolve'),
@@ -28,7 +28,7 @@ export class IsolatedRollupBuild extends IsolatedBundlerBuild {
     // Platform-specific plugins: browser uses nodeResolve with browser: true,
     // node does not use nodeResolve (relies on Node builtin module resolution)
     const plugins = [
-      DotnetAssets(pluginOptions),
+      DotnetWasm(pluginOptions),
       ...(this.platform === 'browser' ? [nodeResolve({ browser: true })] : []),
       esbuildPlugin({ target: 'es2022' }),
     ];

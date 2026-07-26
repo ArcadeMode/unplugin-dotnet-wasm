@@ -1,4 +1,4 @@
-import type { DotnetAssetsOptions } from '../types';
+import type { DotnetWasmOptions } from '../types';
 import { createConsoleLogger, type Logger } from '../core/logger';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
@@ -14,7 +14,7 @@ import { createAssetMiddleware, type ConnectMiddleware } from '../core/dev-serve
 import { isYarnPnp } from '../core/is-yarn-pnp';
 
 export class PluginContext {
-  readonly #options: DotnetAssetsOptions;
+  readonly #options: DotnetWasmOptions;
   readonly #logger: Logger;
   readonly #rewriter: BundlerCompatRewriter;
   // persists source-file mtimes across builds; internal input to the type-shim generator
@@ -25,13 +25,13 @@ export class PluginContext {
   #assetMiddleware: ConnectMiddleware | null = null;
   #initPromise: Promise<void> | null = null;
 
-  constructor(options: DotnetAssetsOptions, framework: BundlerFramework) {
+  constructor(options: DotnetWasmOptions, framework: BundlerFramework) {
     this.#options = options;
     this.#logger = createConsoleLogger(options.logLevel ?? 'warn');
     this.#rewriter = new BundlerCompatRewriter(framework);
   }
 
-  get options(): DotnetAssetsOptions {
+  get options(): DotnetWasmOptions {
     return this.#options;
   }
   get logger(): Logger {

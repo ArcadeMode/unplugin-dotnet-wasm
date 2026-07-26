@@ -4,5 +4,15 @@
   "tabWidth": 2,
   "trailingComma": "all",
   "printWidth": 100,
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": ["*.json", ".prettierrc"],
+      "options": {
+        "parser": "jsonc",
+        "trailingComma": "none",
+        "quoteProps": "preserve"
+      }
+    }
+  ]
 }

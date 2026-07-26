@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 import { IsolatedBundlerBuild } from './isolated-bundler-build';
 
@@ -17,7 +17,7 @@ export class IsolatedFarmBuild extends IsolatedBundlerBuild {
     return join(this.assets, entry);
   }
 
-  async build(pluginOptions: DotnetAssetsOptions): Promise<void> {
+  async build(pluginOptions: DotnetWasmOptions): Promise<void> {
     this.warnings.length = 0;
 
     // Farm's native Rust core writes to fd 2 directly (bypassing process.stderr.write) and
@@ -25,7 +25,7 @@ export class IsolatedFarmBuild extends IsolatedBundlerBuild {
     // process.exit terminates only the child and stderr can be captured via a real pipe.
     const buildScript = `
 import { build } from '@farmfe/core';
-import DotnetAssets from 'unplugin-dotnet-wasm/farm';
+import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 
 const config = JSON.parse(process.env.FARM_BUILD_CONFIG);
 const targetEnv = config.platform === 'node' ? 'node-next' : 'browser-esnext';
@@ -47,7 +47,7 @@ await build({
     progress: false,
   },
   server: { hmr: false },
-  plugins: [DotnetAssets(config.pluginOptions)],
+  plugins: [DotnetWasm(config.pluginOptions)],
 });
 `;
 

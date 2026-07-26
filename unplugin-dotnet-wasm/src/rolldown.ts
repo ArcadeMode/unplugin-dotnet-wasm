@@ -1,5 +1,10 @@
-import { dotnetStaticAssets } from './unplugin/index';
+import { dotnetWasmUnplugin } from './unplugin/index';
 
-const DotnetAssets = dotnetStaticAssets.rolldown;
-export default DotnetAssets;
-export { DotnetAssets as 'module.exports' };
+const DotnetWasm = dotnetWasmUnplugin.rolldown;
+export default DotnetWasm;
+export { DotnetWasm as 'module.exports' };
+
+/**
+ * @deprecated Use `DotnetWasm` instead. `DotnetAssets` will be removed in a future release.
+ */
+export const DotnetAssets = DotnetWasm;

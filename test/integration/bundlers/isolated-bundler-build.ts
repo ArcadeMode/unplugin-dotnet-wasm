@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { rmSync } from 'node:fs';
-import type { DotnetAssetsOptions } from 'unplugin-dotnet-wasm';
+import type { DotnetWasmOptions } from 'unplugin-dotnet-wasm';
 import type { Platform } from '../test-matrix';
 
 // dotnet.js has bare `import('module')` / `import('process')` fallback paths
@@ -42,7 +42,7 @@ export abstract class IsolatedBundlerBuild {
   /** Absolute path to the built entry chunk. Driver-specific. */
   abstract get entryChunk(): string;
 
-  abstract build(options: DotnetAssetsOptions): Promise<void>;
+  abstract build(options: DotnetWasmOptions): Promise<void>;
 
   cleanup(): void {
     rmSync(this.baseDir, { recursive: true, force: true });

@@ -1,5 +1,5 @@
 import { createUnplugin, type UnpluginContextMeta } from 'unplugin';
-import type { DotnetAssetsOptions } from '../types';
+import type { DotnetWasmOptions } from '../types';
 import type { BundlerFramework } from '../core/bundler-compat-rewriter';
 import { FRAMEWORK_JS_REGEX } from '../core/constants';
 import { PluginContext } from './context';
@@ -8,8 +8,8 @@ import { createWebpackFamily } from './families/webpack-family';
 import { createEsbuildFamily } from './families/esbuild-family';
 import { createFarmFamily } from './families/farm-family';
 
-export const dotnetStaticAssets = createUnplugin(
-  (options: DotnetAssetsOptions, meta: UnpluginContextMeta) => {
+export const dotnetWasmUnplugin = createUnplugin(
+  (options: DotnetWasmOptions, meta: UnpluginContextMeta) => {
     const framework = meta.framework;
     const isRollupFamily =
       framework === 'rollup' || framework === 'vite' || framework === 'rolldown';

@@ -1,5 +1,5 @@
 import { defineConfig } from '@farmfe/core';
-import DotnetAssets from 'unplugin-dotnet-wasm/farm';
+import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,7 +38,7 @@ export default defineConfig(() => {
       progress: false,
     },
     plugins: [
-      DotnetAssets({
+      DotnetWasm({
         projectRoot: resolve(__dirname, '../../Library'),
         projectName: 'Library',
         configuration: isRelease ? 'Release' : 'Debug',

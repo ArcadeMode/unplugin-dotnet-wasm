@@ -1,4 +1,4 @@
-import DotnetAssets from 'unplugin-dotnet-wasm/rollup';
+import DotnetWasm from 'unplugin-dotnet-wasm/rollup';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import esbuild from 'rollup-plugin-esbuild';
 import { resolve } from 'node:path';
@@ -28,7 +28,7 @@ export default {
     assetFileNames: 'assets/[name]-[hash][extname]',
   },
   plugins: [
-    DotnetAssets({
+    DotnetWasm({
       projectRoot: resolve(__dirname, '../../Library'),
       projectName: 'Library',
       configuration: isRelease ? 'Release' : 'Debug',

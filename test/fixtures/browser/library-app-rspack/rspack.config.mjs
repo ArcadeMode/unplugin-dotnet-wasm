@@ -1,5 +1,5 @@
 import { rspack } from '@rspack/core';
-import DotnetAssets from 'unplugin-dotnet-wasm/rspack';
+import DotnetWasm from 'unplugin-dotnet-wasm/rspack';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,7 +35,7 @@ export default (env, argv) => {
     optimization: { minimize: false },
     plugins: [
       new rspack.HtmlRspackPlugin({ template: './src/index.html' }),
-      DotnetAssets({
+      DotnetWasm({
         projectRoot: resolve(__dirname, '../../Library'),
         projectName: 'Library',
         configuration: isRelease ? 'Release' : 'Debug',
