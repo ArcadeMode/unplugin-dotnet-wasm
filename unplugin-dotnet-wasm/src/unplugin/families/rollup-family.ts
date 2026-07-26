@@ -15,7 +15,9 @@ export type ViteServerHookResult = () => void | Promise<void>;
 export interface RollupFamilyHooks {
   vite: {
     configResolved(config: { root: string; command: string }): void;
-    configureServer(server: { middlewares: { use: (fn: ConnectMiddleware) => void } }): ViteServerHookResult | void | Promise<void>;
+    configureServer(server: {
+      middlewares: { use: (fn: ConnectMiddleware) => void };
+    }): ViteServerHookResult | void | Promise<void>;
   };
   load: {
     filter: { id: RegExp };
@@ -51,7 +53,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           ctx.assetMiddleware(req, res, next);
         });
         ctx.onInitialized(() => {
-          server.watcher.add(ctx.assetResolver.roots()); 
+          server.watcher.add(ctx.assetResolver.roots());
         });
       },
     },

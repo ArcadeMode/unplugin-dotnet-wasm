@@ -26,7 +26,10 @@ export class PluginContext {
   #assetMiddleware: ConnectMiddleware | null = null;
   #initPromise: Promise<void> | null = null;
 
-  constructor(public readonly options: DotnetWasmOptions, framework: BundlerFramework) {
+  constructor(
+    public readonly options: DotnetWasmOptions,
+    framework: BundlerFramework,
+  ) {
     //this.#options = options;
     this.logger = createConsoleLogger(options.logLevel ?? 'warn');
     this.rewriter = new BundlerCompatRewriter(framework);
@@ -50,7 +53,7 @@ export class PluginContext {
     while (this.initCbs.length > 0) {
       const cb = this.initCbs.shift()!;
       cb();
-    } 
+    }
   }
 
   private readonly initCbs: InitializeCallback[] = [];
