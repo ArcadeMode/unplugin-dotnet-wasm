@@ -4,7 +4,6 @@ import { Echo, Counter, AsyncOps, Throws } from 'typeshim';
 async function initializeWasmRuntime(): Promise<void> {
   const runtimeInfo = await dotnet.create();
   runtimeInfo.runMain();
-
   const echo = new Echo();
   const counter = new Counter(10);
   const asyncOps = new AsyncOps();
