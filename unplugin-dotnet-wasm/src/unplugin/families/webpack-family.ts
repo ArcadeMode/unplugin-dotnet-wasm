@@ -9,6 +9,9 @@ import type { PluginContext } from '../context';
 type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
   watchRun: { tapPromise(name: string, fn: () => Promise<void>): void };
+  thisCompilation: {
+    tap(name: string, fn: (compilation: { contextDependencies: { addAll(files: string[]): void } }) => void): void;
+  };
 };
 
 type WebpackCompiler = {
@@ -85,7 +88,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       const assetMiddlewareEntry = {
         name: 'unplugin-dotnet-wasm',
         middleware: (...args: Parameters<typeof ctx.assetMiddleware>) => {
-          console.log('unplugin-dotnet-wasm: handling request in dev server middleware', args[0].url);
           ctx.assetMiddleware(...args);
         },
       };
@@ -107,17 +109,30 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     else opts.module.rules.push(binaryRule, jsParserRule);
     
     externalizeNodeBuiltins(opts);
-    registerDevServerMiddleware({ options: opts });
+  }
+
+  function watchContentRoots(compiler: { hooks?: CompilerHooks }): void {
+    if (!isServe) return;
+
+    compiler.hooks?.thisCompilation.tap('unplugin-dotnet-wasm', (compilation) => {
+      ctx.onInitialized(() => {
+        compilation.contextDependencies.addAll(ctx.assetResolver.roots());
+      });
+    });
   }
 
   return {
     webpack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
+      registerDevServerMiddleware(compiler);
+      watchContentRoots(compiler);
     },
     rspack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
+      registerDevServerMiddleware(compiler);
+      watchContentRoots(compiler);
     },
     rsbuild: {
       setup(api) {
@@ -127,9 +142,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
         api.onAfterCreateCompiler(({ compiler }) => {
           const c = compiler as { hooks?: CompilerHooks };
           awaitContextInit(c);
+          watchContentRoots(c);
         });
         api.onBeforeStartDevServer(({ server }) => {
-          server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => ctx.assetMiddleware(...args));
+          server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
+            ctx.assetMiddleware(...args);
+          });
         });
       },
     },
