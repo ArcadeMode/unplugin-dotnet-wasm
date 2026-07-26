@@ -17,12 +17,12 @@
     "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @dotnet-wasm-bundler/sample-vite preview",
     "build:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/sample-vite build && dotnet build samples/SampleLibrary/SampleLibrary.csproj -c Debug",
     "clean:sample:wasm": "dotnet clean samples/SampleLibrary/SampleLibrary.csproj -c Debug && dotnet clean samples/SampleLibrary/SampleLibrary.csproj -c Release",
-    
+
     "dev:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor dev",
     "preview:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor preview",
     "build:sample:vite-blazor": "dotnet build samples/BlazorLibrary/BlazorLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor build",
     "clean:sample:dotnet-blazor": "dotnet clean samples/BlazorLibrary/BlazorLibrary.csproj -c Debug && dotnet clean samples/BlazorLibrary/BlazorLibrary.csproj -c Release",
-    
+
     "build:fixtures": "node scripts/build-fixtures.js",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
     "clean:fixture": "pnpm --filter \"@dotnet-wasm-bundler/library-app-*-*-fixture\" run clean",
@@ -38,7 +38,7 @@
     "test:publish-nofingerprint": "node scripts/run-tests.mjs publish-nofingerprint",
     "test:no-build": "node scripts/run-tests.mjs no-build",
     "test": "node scripts/run-tests.mjs",
-    
+
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint",
     "format": "prettier --write . --ignore-unknown",
