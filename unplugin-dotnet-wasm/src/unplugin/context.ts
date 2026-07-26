@@ -18,6 +18,8 @@ type InitializeCallback = () => void | Promise<void>;
 export class PluginContext {
   public readonly logger: Logger;
   public readonly rewriter: BundlerCompatRewriter;
+  
+  private readonly initCbs: InitializeCallback[] = [];
   // persists source-file mtimes across builds; internal input to the type-shim generator
   readonly #changeTracker = new SourceFileChangeTracker();
 
@@ -56,8 +58,6 @@ export class PluginContext {
     }
   }
 
-  private readonly initCbs: InitializeCallback[] = [];
-
   onInitialized(callback: InitializeCallback): void {
     if (this.#initPromise) this.#initPromise.then(callback);
     this.initCbs.push(callback);
@@ -71,6 +71,7 @@ export class PluginContext {
       ? buildVfs(runtimeManifest, { logger: this.logger })
       : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
     this.#assetResolver = new AssetResolver(vfs, endpointLookup);
+    this.#assetMiddleware = createAssetMiddleware(this.assetResolver, this.logger);
 
     if (isYarnPnp()) {
       this.logger.warn(
@@ -93,12 +94,7 @@ export class PluginContext {
 
   get assetMiddleware(): ConnectMiddleware {
     if (!this.#assetMiddleware)
-      throw new Error('assetMiddleware accessed before enableAssetMiddleware()');
+      throw new Error('assetMiddleware accessed before initialize()');
     return this.#assetMiddleware;
-  }
-
-  enableAssetMiddleware(): void {
-    if (this.#assetMiddleware) return;
-    this.#assetMiddleware = createAssetMiddleware(this.assetResolver, this.logger);
   }
 }
