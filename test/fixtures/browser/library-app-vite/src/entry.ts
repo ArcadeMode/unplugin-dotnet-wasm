@@ -1,9 +1,8 @@
 import { dotnet } from '_framework/dotnet';
-import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
+import { Echo, Counter, AsyncOps, Throws } from 'typeshim';
 
 async function initializeWasmRuntime(): Promise<void> {
   const runtimeInfo = await dotnet.create();
-  await TypeShimInitializer.initialize(runtimeInfo);
   runtimeInfo.runMain();
 
   const echo = new Echo();
@@ -23,8 +22,9 @@ async function initializeWasmRuntime(): Promise<void> {
     delayThenEcho: (value: string, delayMs: number) => asyncOps.DelayThenEcho(value, delayMs),
     boom: () => thrower.Boom(),
   };
-  const ai = (globalThis as any).blazorApplicationInsights;
-  (globalThis as any).__contentAssetOk = typeof ai === 'object' && ai !== null;
+
+  const ts_state = (globalThis as any)[Symbol.for('@typeshim')];
+  (globalThis as any).__contentAssetOk = typeof ts_state === 'object' && ts_state !== null;
   (globalThis as any).__libReady = true;
 
   console.log('WASM runtime initialized successfully.');

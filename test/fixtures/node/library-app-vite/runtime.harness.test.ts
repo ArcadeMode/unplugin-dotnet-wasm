@@ -1,15 +1,11 @@
-// The polyfill import MUST be first: ESM evaluates side-effect imports in order, and the
-// .NET JS initializers touch `window` at import time. ./src/polyfill sets globalThis.window.
-import './src/polyfill';
 import { test, expect } from 'vitest';
 import { dotnet } from '_framework/dotnet';
-import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
+import { Echo, Counter, AsyncOps, Throws } from 'typeshim';
 
 // Plain create() with NO .withResourceLoader(...) — the plugin's serve-node branch supplies
 // file:// URLs. Proves the runtime boots in Vitest-node with no consumer shim.
 test('boots .NET WASM runtime under Vitest node (dev server) and runs interop', async () => {
   const runtime = await dotnet.create();
-  await TypeShimInitializer.initialize(runtime);
   runtime.runMain();
 
   const echo = new Echo();

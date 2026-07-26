@@ -1,12 +1,10 @@
-import './polyfill';
 import { dotnet } from '_framework/dotnet';
-import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
+import { Echo, Counter, AsyncOps, Throws } from 'typeshim';
 
 async function runTests(): Promise<void> {
   console.log('[Node] Initializing .NET WASM runtime...');
 
   const runtimeInfo = await dotnet.create();
-  await TypeShimInitializer.initialize(runtimeInfo);
   runtimeInfo.runMain();
 
   const echo = new Echo();
@@ -16,11 +14,11 @@ async function runTests(): Promise<void> {
 
   try {
     console.log('[LibraryInitializer] Testing...');
-    const ai = (globalThis as any).blazorApplicationInsights;
-    (globalThis as any).__contentAssetOk = typeof ai === 'object' && ai !== null;
+    const ts_state = (globalThis as any)[Symbol.for('@typeshim')];
+    (globalThis as any).__contentAssetOk = typeof ts_state === 'object' && ts_state !== null;
     if (!(globalThis as any).__contentAssetOk) {
       throw new Error(
-        'LibraryInitializer failed: globalThis.blazorApplicationInsights is not an object',
+        'LibraryInitializer failed: globalThis[Symbol.for("@typeshim")] is not an object',
       );
     }
     console.log('[LibraryInitializer] ✓ Passed');
