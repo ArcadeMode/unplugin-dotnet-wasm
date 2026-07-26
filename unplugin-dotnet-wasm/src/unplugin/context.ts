@@ -18,7 +18,7 @@ type InitializeCallback = () => void | Promise<void>;
 export class PluginContext {
   public readonly logger: Logger;
   public readonly rewriter: BundlerCompatRewriter;
-  
+
   private readonly initCbs: InitializeCallback[] = [];
   // persists source-file mtimes across builds; internal input to the type-shim generator
   readonly #changeTracker = new SourceFileChangeTracker();
@@ -93,8 +93,7 @@ export class PluginContext {
   }
 
   get assetMiddleware(): ConnectMiddleware {
-    if (!this.#assetMiddleware)
-      throw new Error('assetMiddleware accessed before initialize()');
+    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before initialize()');
     return this.#assetMiddleware;
   }
 }

@@ -48,7 +48,9 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         isServe = config.command === 'serve';
       },
       configureServer(server: ViteDevServer): ViteServerHookResult | void | Promise<void> {
-        server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => ctx.assetMiddleware(...args));
+        server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) =>
+          ctx.assetMiddleware(...args),
+        );
         ctx.onInitialized(() => {
           server.watcher.add(ctx.assetResolver.roots());
         });

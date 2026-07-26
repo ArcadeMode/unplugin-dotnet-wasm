@@ -10,7 +10,10 @@ type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
   watchRun: { tapPromise(name: string, fn: () => Promise<void>): void };
   thisCompilation: {
-    tap(name: string, fn: (compilation: { contextDependencies: { addAll(files: string[]): void } }) => void): void;
+    tap(
+      name: string,
+      fn: (compilation: { contextDependencies: { addAll(files: string[]): void } }) => void,
+    ): void;
   };
 };
 
@@ -107,7 +110,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     opts.module.rules ??= [];
     if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule);
     else opts.module.rules.push(binaryRule, jsParserRule);
-    
+
     externalizeNodeBuiltins(opts);
   }
 
