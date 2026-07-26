@@ -1,9 +1,8 @@
 import { dotnet } from '_framework/dotnet';
-import { TypeShimInitializer, Counter } from 'typeshim';
+import { Counter } from 'typeshim';
 
 async function boot(): Promise<void> {
   const runtime = await dotnet.create();
-  await TypeShimInitializer.initialize(runtime);
   runtime.runMain();
 
   const counter = new Counter(0);
