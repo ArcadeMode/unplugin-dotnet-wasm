@@ -23,7 +23,6 @@
 
   <ItemGroup>
     <!-- Tests JS assets loaded from NuGet directories -->
-    <PackageReference Include="BlazorApplicationInsights" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="TypeShim" />
   </ItemGroup>
