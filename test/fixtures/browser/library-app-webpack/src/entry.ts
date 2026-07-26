@@ -1,9 +1,8 @@
 import { dotnet } from '_framework/dotnet';
-import { TypeShimInitializer, Echo, Counter, AsyncOps, Throws } from 'typeshim';
+import { Echo, Counter, AsyncOps, Throws } from 'typeshim';
 
 async function initializeWasmRuntime(): Promise<void> {
   const runtimeInfo = await dotnet.create();
-  await TypeShimInitializer.initialize(runtimeInfo);
   runtimeInfo.runMain();
 
   const echo = new Echo();
