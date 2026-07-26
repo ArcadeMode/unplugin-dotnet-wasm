@@ -68,4 +68,11 @@ export class AssetResolver {
       if (match.label === undefined) yield route;
     }
   }
+
+  /**
+   * @returns all physical content roots that the asset resolver covers
+   */
+  roots(): string[] {
+    return this.vfs.listRoots();
+  }
 }

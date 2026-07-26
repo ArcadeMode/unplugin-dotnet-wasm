@@ -10,15 +10,32 @@ type RollupLoadHandlerThis = {
   emitFile(options: { type: string; name: string; source: Buffer }): string;
 };
 
+export type ViteServerHookResult = () => void | Promise<void>;
+
 export interface RollupFamilyHooks {
   vite: {
     configResolved(config: { root: string; command: string }): void;
-    configureServer(server: { middlewares: { use: (fn: ConnectMiddleware) => void } }): void;
+    configureServer(server: {
+      middlewares: { use: (fn: ConnectMiddleware) => void };
+    }): ViteServerHookResult | void | Promise<void>;
   };
   load: {
     filter: { id: RegExp };
     handler(id: string, options?: { ssr?: boolean }): Promise<string>;
   };
+}
+
+export interface ViteWatcher {
+  add: (paths: string | readonly string[]) => ViteWatcher;
+}
+
+export interface ViteMiddlewares {
+  use: (fn: ConnectMiddleware) => void;
+}
+
+export interface ViteDevServer {
+  middlewares: ViteMiddlewares;
+  watcher: ViteWatcher;
 }
 
 export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
@@ -30,10 +47,13 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         ctx.setConsumerRoot(config.root);
         isServe = config.command === 'serve';
       },
-      configureServer(server: { middlewares: { use: (fn: ConnectMiddleware) => void } }): void {
+      configureServer(server: ViteDevServer): ViteServerHookResult | void | Promise<void> {
         server.middlewares.use((req, res, next) => {
           ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
+        });
+        ctx.onInitialized(() => {
+          server.watcher.add(ctx.assetResolver.roots());
         });
       },
     },

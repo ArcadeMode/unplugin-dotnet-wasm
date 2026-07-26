@@ -13,10 +13,11 @@ import { FileDiscoverer } from '../core/type-shims/file-discoverer';
 import { createAssetMiddleware, type ConnectMiddleware } from '../core/dev-server/asset-middleware';
 import { isYarnPnp } from '../core/is-yarn-pnp';
 
+type InitializeCallback = () => void | Promise<void>;
+
 export class PluginContext {
-  readonly #options: DotnetWasmOptions;
-  readonly #logger: Logger;
-  readonly #rewriter: BundlerCompatRewriter;
+  public readonly logger: Logger;
+  public readonly rewriter: BundlerCompatRewriter;
   // persists source-file mtimes across builds; internal input to the type-shim generator
   readonly #changeTracker = new SourceFileChangeTracker();
 
@@ -25,20 +26,13 @@ export class PluginContext {
   #assetMiddleware: ConnectMiddleware | null = null;
   #initPromise: Promise<void> | null = null;
 
-  constructor(options: DotnetWasmOptions, framework: BundlerFramework) {
-    this.#options = options;
-    this.#logger = createConsoleLogger(options.logLevel ?? 'warn');
-    this.#rewriter = new BundlerCompatRewriter(framework);
-  }
-
-  get options(): DotnetWasmOptions {
-    return this.#options;
-  }
-  get logger(): Logger {
-    return this.#logger;
-  }
-  get rewriter(): BundlerCompatRewriter {
-    return this.#rewriter;
+  constructor(
+    public readonly options: DotnetWasmOptions,
+    framework: BundlerFramework,
+  ) {
+    //this.#options = options;
+    this.logger = createConsoleLogger(options.logLevel ?? 'warn');
+    this.rewriter = new BundlerCompatRewriter(framework);
   }
 
   get consumerRoot(): string {
@@ -53,34 +47,46 @@ export class PluginContext {
     return this.#assetResolver;
   }
 
-  initialize(): Promise<void> {
-    return (this.#initPromise ??= this.#doInitialize());
+  async initialize(): Promise<void> {
+    if (this.#initPromise) return this.#initPromise;
+    await (this.#initPromise = this.doInitialize());
+    while (this.initCbs.length > 0) {
+      const cb = this.initCbs.shift()!;
+      cb();
+    }
   }
 
-  async #doInitialize(): Promise<void> {
+  private readonly initCbs: InitializeCallback[] = [];
+
+  onInitialized(callback: InitializeCallback): void {
+    if (this.#initPromise) this.#initPromise.then(callback);
+    this.initCbs.push(callback);
+  }
+
+  private async doInitialize(): Promise<void> {
     const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
-      await new ManifestLoader().load(this.#options);
+      await new ManifestLoader().load(this.options);
     const endpointLookup = new EndpointLookup(endpointsManifest);
     const vfs = runtimeManifest
-      ? buildVfs(runtimeManifest, { logger: this.#logger })
-      : buildEmptyVfs(endpointsManifestPath, { logger: this.#logger });
+      ? buildVfs(runtimeManifest, { logger: this.logger })
+      : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
     this.#assetResolver = new AssetResolver(vfs, endpointLookup);
 
     if (isYarnPnp()) {
-      this.#logger.warn(
-        `Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${this.#options.projectName}' will most likely not be available.`,
+      this.logger.warn(
+        `Yarn Plug'n'Play detected: skipping editor/tsc type-shim generation. Asset resolution and bundling are unaffected but type info from '${this.options.projectName}' will most likely not be available.`,
       );
       return;
     }
     const locator = new NodeModulesLocator(this.#consumerRoot);
     const discoverer = new FileDiscoverer(this.#assetResolver);
-    const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.#logger);
+    const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.logger);
     const generator = new ShimPackageGenerator(
       locator,
       discoverer,
       this.#changeTracker,
       emitter,
-      this.#logger,
+      this.logger,
     );
     await generator.generate();
   }
@@ -93,6 +99,6 @@ export class PluginContext {
 
   enableAssetMiddleware(): void {
     if (this.#assetMiddleware) return;
-    this.#assetMiddleware = createAssetMiddleware(this.assetResolver, this.#logger);
+    this.#assetMiddleware = createAssetMiddleware(this.assetResolver, this.logger);
   }
 }
