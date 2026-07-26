@@ -25,6 +25,11 @@ export interface VirtualFileSystem {
   list(virtualDir: string): string[];
 
   /**
+   * List all content roots that the VFS is aware of.
+   */
+  listRoots(): string[];
+
+  /**
    * Resolve a virtual path to its physical file.
    *
    * 1. Exact lookup in the manifest-built map.
@@ -199,7 +204,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
     return undefined;
   }
 
-  return { list, resolve, resolveFile };
+  return { list, resolve, resolveFile, listRoots: () => [...manifest.ContentRoots] };
 }
 
 export function buildEmptyVfs(

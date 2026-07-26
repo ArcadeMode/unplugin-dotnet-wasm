@@ -13,6 +13,8 @@ import { FileDiscoverer } from '../core/type-shims/file-discoverer';
 import { createAssetMiddleware, type ConnectMiddleware } from '../core/dev-server/asset-middleware';
 import { isYarnPnp } from '../core/is-yarn-pnp';
 
+type InitializeCallback = () => void | Promise<void>;
+
 export class PluginContext {
   readonly #options: DotnetWasmOptions;
   readonly #logger: Logger;
@@ -53,11 +55,23 @@ export class PluginContext {
     return this.#assetResolver;
   }
 
-  initialize(): Promise<void> {
-    return (this.#initPromise ??= this.#doInitialize());
+  async initialize(): Promise<void> {
+    if (this.#initPromise) return this.#initPromise;
+    await (this.#initPromise = this.doInitialize());
+    while (this.initCbs.length > 0) {
+      const cb = this.initCbs.shift()!;
+      cb();
+    } 
   }
 
-  async #doInitialize(): Promise<void> {
+  private readonly initCbs: InitializeCallback[] = [];
+
+  onInitialized(callback: InitializeCallback): void {
+    if (this.#initPromise) this.#initPromise.then(callback);
+    this.initCbs.push(callback);
+  }
+
+  private async doInitialize(): Promise<void> {
     const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
       await new ManifestLoader().load(this.#options);
     const endpointLookup = new EndpointLookup(endpointsManifest);
