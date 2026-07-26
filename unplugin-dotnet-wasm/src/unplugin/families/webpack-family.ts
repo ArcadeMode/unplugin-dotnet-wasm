@@ -76,6 +76,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   function registerDevServerMiddleware(compiler: { options: WebpackLikeOptions }): void {
     if (!isServe) return;
 
+    ctx.onInitialized(() => {
+      ctx.enableAssetMiddleware();
+    });
+
     compiler.options.devServer ??= {};
     const devServerConfig = compiler.options.devServer as Record<string, unknown>;
     const existingSetup = devServerConfig.setupMiddlewares as
@@ -89,7 +93,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           res: ServerResponse,
           next: (err?: unknown) => void,
         ): void => {
-          ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
         },
       };
@@ -130,8 +133,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           awaitContextInit(c);
         });
         api.onBeforeStartDevServer(({ server }) => {
-          server.middlewares.use((req, res, next) => {
+          ctx.onInitialized(() => {
             ctx.enableAssetMiddleware();
+          });
+          server.middlewares.use((req, res, next) => {
             ctx.assetMiddleware(req, res, next);
           });
         });

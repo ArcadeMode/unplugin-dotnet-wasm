@@ -49,10 +49,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       },
       configureServer(server: ViteDevServer): ViteServerHookResult | void | Promise<void> {
         server.middlewares.use((req, res, next) => {
-          ctx.enableAssetMiddleware();
           ctx.assetMiddleware(req, res, next);
         });
         ctx.onInitialized(() => {
+          ctx.enableAssetMiddleware();
           server.watcher.add(ctx.assetResolver.roots());
         });
       },

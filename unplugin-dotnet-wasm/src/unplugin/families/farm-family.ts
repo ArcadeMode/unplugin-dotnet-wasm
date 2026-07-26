@@ -101,10 +101,12 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       },
       // Farm fires this before compilation (buildStart/initialize)
       configureDevServer(server: FarmDevServer): void {
+        ctx.onInitialized(() => {
+          ctx.enableAssetMiddleware();
+        });
         server.app().use(
           (koaCtx, next) =>
             new Promise<void>((resolve, reject) => {
-              ctx.enableAssetMiddleware();
               let handled = true;
               ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
                 handled = false; // unhandled by middleware
