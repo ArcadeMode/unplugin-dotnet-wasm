@@ -1,6 +1,3 @@
-// The polyfill import MUST be first: ESM evaluates side-effect imports in order, and the
-// .NET JS initializers touch `window` at import time. ./src/polyfill sets globalThis.window.
-import './src/polyfill';
 import { test, expect } from 'vitest';
 import { dotnet } from '_framework/dotnet';
 import { Echo, Counter, AsyncOps, Throws } from 'typeshim';
