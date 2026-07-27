@@ -4,6 +4,8 @@ import {
   FRAMEWORK_JS_REGEX,
   DOTNET_NODE_BUILTINS,
 } from '../../core/constants';
+import { discoverManifests } from '../../core/manifest-parsing/discover';
+import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
 
 type CompilerHooks = {
@@ -24,6 +26,26 @@ type WebpackCompiler = {
   hooks: CompilerHooks;
 };
 
+type WebSocketClient = { send(data: string): void };
+
+// Subset of the webpack-dev-server / @rspack/dev-server `Server` instance handed
+// to `setupMiddlewares(middlewares, devServer)`.
+type WebpackDevServerInstance = {
+  webSocketServer?: { clients: WebSocketClient[] } | null;
+  sendMessage?(clients: WebSocketClient[], type: string, data?: unknown): void;
+  server?: { once(event: 'close', listener: () => void): void } | null;
+};
+
+// Subset of the rsbuild `RsbuildDevServer` handed to `onBeforeStartDevServer`.
+type RsbuildDevServerInstance = {
+  middlewares: {
+    use(
+      handler: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => void,
+    ): void;
+  };
+  sockWrite(type: string, data?: unknown): void;
+};
+
 export interface WebpackFamilyHooks {
   webpack(compiler: WebpackCompiler): void;
   rspack(compiler: WebpackCompiler): void;
@@ -31,21 +53,8 @@ export interface WebpackFamilyHooks {
     setup(api: {
       modifyRspackConfig(fn: (config: unknown) => void): void;
       onAfterCreateCompiler(fn: (ctx: { compiler: unknown }) => void): void;
-      onBeforeStartDevServer(
-        fn: (ctx: {
-          server: {
-            middlewares: {
-              use(
-                handler: (
-                  req: IncomingMessage,
-                  res: ServerResponse,
-                  next: (err?: unknown) => void,
-                ) => void,
-              ): void;
-            };
-          };
-        }) => void,
-      ): void;
+      onBeforeStartDevServer(fn: (ctx: { server: RsbuildDevServerInstance }) => void): void;
+      onCloseDevServer(fn: () => void | Promise<void>): void;
     }): void;
   };
 }
@@ -97,6 +106,35 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           ctx.assetMiddleware(...args);
         },
       });
+
+      // Set up manifest watcher for webpack/rspack
+      const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
+      const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
+      const watcher = new ManifestWatcher({
+        paths,
+        onChange: () => ctx.reinitialize(),
+        logger: ctx.logger,
+      });
+
+      ctx.onReinitialized(() => {
+        const server = devServer as WebpackDevServerInstance;
+        const clients = server.webSocketServer?.clients;
+        if (!clients || clients.length === 0) return;
+        // webpack-dev-server / @rspack/dev-server clients only trigger a full page
+        // reload on the "static-changed" message.
+        if (typeof server.sendMessage === 'function') {
+          server.sendMessage(clients, 'static-changed');
+        } else {
+          for (const client of clients) {
+            client.send(JSON.stringify({ type: 'static-changed' }));
+          }
+        }
+      });
+
+      watcher.start();
+
+      // Dispose on server close
+      (devServer as WebpackDevServerInstance).server?.once('close', () => watcher.dispose());
 
       if (existingSetup) {
         return existingSetup(middlewares, devServer);
@@ -155,6 +193,26 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
             ctx.assetMiddleware(...args);
           });
+
+          // Set up manifest watcher for rsbuild
+          const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
+          const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
+          const watcher = new ManifestWatcher({
+            paths,
+            onChange: () => ctx.reinitialize(),
+            logger: ctx.logger,
+          });
+
+          // rsbuild exposes `sockWrite` as the public HMR channel; "static-changed"
+          // triggers a full page reload on all connected clients.
+          ctx.onReinitialized(() => {
+            server.sockWrite('static-changed');
+          });
+
+          watcher.start();
+
+          // Dispose on server close
+          api.onCloseDevServer(() => watcher.dispose());
         });
       },
     },
