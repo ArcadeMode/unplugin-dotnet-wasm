@@ -21,31 +21,11 @@ type CompilerHooks = {
       fn: (compilation: { contextDependencies: { add(dir: string): void } }) => void,
     ): void;
   };
-  afterEnvironment: {
-    tap(name: string, fn: () => void): void;
-  };
 };
 
 type WebpackCompiler = {
   options: { context?: string; module?: { rules?: unknown[] } };
   hooks: CompilerHooks;
-  watchFileSystem: {
-    watch(
-      files: Iterable<string>,
-      dirs: Iterable<string>,
-      missing: Iterable<string>,
-      startTime: number,
-      options: unknown,
-      callback: (
-        err?: unknown,
-        timeInfoEntries1?: Map<string, unknown> | undefined,
-        timeInfoEntries2?: Map<string, unknown> | undefined,
-        changes?: Set<string> | undefined,
-        removals?: Set<string> | undefined,
-      ) => void,
-      undelayed: (fileName: string, changeTime: number) => void,
-    ): void;
-  } | null;
 };
 
 export interface WebpackFamilyHooks {
@@ -115,13 +95,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
 
     devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
-      const assetMiddlewareEntry = {
+      middlewares.unshift({
         name: 'unplugin-dotnet-wasm',
         middleware: (...args: Parameters<typeof ctx.assetMiddleware>) => {
           ctx.assetMiddleware(...args);
         },
-      };
-      middlewares.unshift(assetMiddlewareEntry);
+      });
 
       if (existingSetup) {
         return existingSetup(middlewares, devServer);
@@ -138,18 +117,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule);
     else opts.module.rules.push(binaryRule, jsParserRule);
 
-    // Ensure minimal aggregateTimeout for watch mode to cope with MSBuild file writes
-    opts.watchOptions = opts.watchOptions || {};
-    const currentTimeout = opts.watchOptions.aggregateTimeout || 0;
-    opts.watchOptions.aggregateTimeout = Math.max(currentTimeout, 1200);
-
     externalizeNodeBuiltins(opts);
   }
 
-  function watchContentRoots(compiler: {
-    hooks?: CompilerHooks;
-    watchFileSystem?: WebpackCompiler['watchFileSystem'];
-  }): void {
+  function watchContentRoots(compiler: { hooks?: CompilerHooks }): void {
     if (!isServe) return;
 
     compiler.hooks?.thisCompilation.tap('unplugin-dotnet-wasm', (compilation) => {
