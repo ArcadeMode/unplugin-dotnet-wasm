@@ -10,6 +10,7 @@ function stubVfs(opts?: {
 }): VirtualFileSystem {
   return {
     list: () => [],
+    listRoots: () => [],
     resolve: opts?.resolve ?? vi.fn().mockReturnValue(undefined),
     resolveFile: opts?.resolveFile ?? vi.fn().mockReturnValue(undefined),
   };

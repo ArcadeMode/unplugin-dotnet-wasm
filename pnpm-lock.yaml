@@ -473,6 +473,9 @@ importers:
       '@rspack/core':
         specifier: '>=1.0.0'
         version: 2.1.2(@swc/helpers@0.5.23)
+      chokidar:
+        specifier: ^4.0.3
+        version: 4.0.3
       rolldown:
         specifier: '>=1.0.0'
         version: 1.1.4

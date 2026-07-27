@@ -27,6 +27,7 @@ export class PluginContext {
   #assetResolver: AssetResolver | null = null;
   #assetMiddleware: ConnectMiddleware | null = null;
   #initPromise: Promise<void> | null = null;
+  readonly #reloadTriggers: Array<() => void> = [];
 
   constructor(
     public readonly options: DotnetWasmOptions,
@@ -63,15 +64,43 @@ export class PluginContext {
     this.initCbs.push(callback);
   }
 
-  private async doInitialize(): Promise<void> {
+  onReload(fn: () => void): void {
+    this.#reloadTriggers.push(fn);
+  }
+
+  triggerReload(): void {
+    for (const fn of this.#reloadTriggers) fn();
+  }
+
+  private async buildAssets(): Promise<{ resolver: AssetResolver; middleware: ConnectMiddleware }> {
     const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
       await new ManifestLoader().load(this.options);
     const endpointLookup = new EndpointLookup(endpointsManifest);
     const vfs = runtimeManifest
       ? buildVfs(runtimeManifest, { logger: this.logger })
       : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
-    this.#assetResolver = new AssetResolver(vfs, endpointLookup);
-    this.#assetMiddleware = createAssetMiddleware(this.assetResolver, this.logger);
+    const resolver = new AssetResolver(vfs, endpointLookup);
+    const middleware = createAssetMiddleware(resolver, this.logger);
+    return { resolver, middleware };
+  }
+
+  async reinitialize(): Promise<void> {
+    try {
+      const { resolver, middleware } = await this.buildAssets();
+      this.#assetResolver = resolver;
+      this.#assetMiddleware = middleware;
+      this.logger.info('dotnet manifests changed: reinitialized asset resolver');
+    } catch (err) {
+      this.logger.error(
+        `manifest reinitialize failed, keeping previous assets: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  private async doInitialize(): Promise<void> {
+    const { resolver, middleware } = await this.buildAssets();
+    this.#assetResolver = resolver;
+    this.#assetMiddleware = middleware;
 
     if (isYarnPnp()) {
       this.logger.warn(
