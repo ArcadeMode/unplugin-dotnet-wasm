@@ -71,10 +71,6 @@ export interface WebpackFamilyHooks {
   };
 }
 
-// The unplugin build context `this` for the `load` hook: `addWatchFile` maps to
-// the webpack loader's `this.addDependency`, so a change to the declared
-// physical file re-runs this loader (the stable-identity module) — no
-// re-resolution of the importer required.
 type LoadHandlerContext = { addWatchFile(id: string): void };
 
 type WebpackLikeOptions = {
@@ -85,12 +81,8 @@ type WebpackLikeOptions = {
   watchOptions?: { aggregateTimeout?: number; ignored?: unknown };
 };
 
-// Recover the importing virtual module's canonical route from whatever form the
-// bundler hands us as the `importer`. webpack passes the raw `\0dotnet-wasm:…`
-// id; rspack materializes the virtual module as a real file under
-// `node_modules/.virtual/` and passes that on-disk path with the id
-// URL-encoded into the filename (e.g. `…/.virtual/%00dotnet-wasm%3A_framework%2Fdotnet.js`).
-// Returns the route after the prefix (e.g. `_framework/dotnet.js`), or null.
+// webpack/rspack give the virtual routes back with weird prefixes.
+// Parse the original virtual route back out without the VIRTUAL_ROUTE_PREFIX.
 function importerVirtualRoute(importer: string | undefined): string | null {
   if (!importer) return null;
   let decoded = importer;
@@ -149,9 +141,8 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     const physical = ctx.assetResolver.resolve(route);
     if (physical === null) return null;
 
-    // Declare the current physical file as a dependency: when a fingerprint
-    // rebuild relocates it, webpack invalidates THIS stable-identity module and
-    // re-runs `load`, which re-resolves to the new physical file.
+    // addWatchFile ensures `load` is re-invoked when the file changes.
+    // i.e. it invalidates the virtual route, important!
     loadCtx.addWatchFile(physical);
 
     if (FRAMEWORK_BINARY_REGEX.test(physical)) {
@@ -162,11 +153,8 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     return ctx.rewriter.rewrite(code) ?? code;
   }
 
-  // Scoped to virtual ids only: unplugin's webpack `load` rule forces
-  // `type: 'javascript/auto'` on every module it is attached to, so without this
-  // filter it would misprocess assets and break child compilations.
   const load = {
-    filter: { id: VIRTUAL_ROUTE_ID_REGEX },
+    filter: { id: VIRTUAL_ROUTE_ID_REGEX }, // virtual ids only!
     handler: async function (this: LoadHandlerContext, id: string): Promise<string | null> {
       if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
 
@@ -199,6 +187,36 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     compiler.hooks?.watchRun?.tapPromise('unplugin-dotnet-wasm', () => ctx.initialize());
   }
 
+  function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {
+    // Set up manifest watcher for webpack/rspack
+    const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
+    const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
+    const watcher = new ManifestWatcher({
+      paths,
+      onChange: () => ctx.reinitialize(),
+      logger: ctx.logger,
+    });
+
+    ctx.onReinitialized(() => {
+      // Request recompile and reload.
+      devServer.invalidate?.();
+
+      const clients = devServer.webSocketServer?.clients ?? [];
+      if (typeof devServer.sendMessage === 'function') {
+        devServer?.sendMessage(clients, 'static-changed'); //webpack-dev-server
+      } else {
+        for (const client of clients) {
+          client.send(JSON.stringify({ type: 'static-changed' })); // @rspack/dev-server
+        }
+      }
+    });
+
+    watcher.start();
+
+    // Dispose on server close
+    devServer.server?.once('close', () => watcher.dispose());
+  }
+
   function registerDevServerMiddleware(compiler: { options: WebpackLikeOptions }): void {
     if (!isServe) return;
 
@@ -207,7 +225,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     const existingSetup = devServerConfig.setupMiddlewares as
       ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
 
-    devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
+    devServerConfig.setupMiddlewares = (
+      middlewares: unknown[],
+      devServer: WebpackDevServerInstance,
+    ): unknown[] => {
       middlewares.unshift({
         name: 'unplugin-dotnet-wasm',
         middleware: (...args: Parameters<typeof ctx.assetMiddleware>) => {
@@ -215,42 +236,8 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
         },
       });
 
-      // Set up manifest watcher for webpack/rspack
-      const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
-      const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
-      const watcher = new ManifestWatcher({
-        paths,
-        onChange: () => ctx.reinitialize(),
-        logger: ctx.logger,
-      });
-
-      ctx.onReinitialized(() => {
-        const server = devServer as WebpackDevServerInstance;
-        // Nudge webpack to recompile so the virtual framework modules re-run
-        // `load` against the freshly reinitialized resolver (relocated assets).
-        server.invalidate?.();
-        const clients = server.webSocketServer?.clients;
-        if (!clients || clients.length === 0) return;
-        // webpack-dev-server / @rspack/dev-server clients only trigger a full page
-        // reload on the "static-changed" message.
-        if (typeof server.sendMessage === 'function') {
-          server.sendMessage(clients, 'static-changed');
-        } else {
-          for (const client of clients) {
-            client.send(JSON.stringify({ type: 'static-changed' }));
-          }
-        }
-      });
-
-      watcher.start();
-
-      // Dispose on server close
-      (devServer as WebpackDevServerInstance).server?.once('close', () => watcher.dispose());
-
-      if (existingSetup) {
-        return existingSetup(middlewares, devServer);
-      }
-      return middlewares;
+      watchStaticWebassetsManifests(devServer);
+      return existingSetup?.(middlewares, devServer) ?? middlewares;
     };
   }
 
