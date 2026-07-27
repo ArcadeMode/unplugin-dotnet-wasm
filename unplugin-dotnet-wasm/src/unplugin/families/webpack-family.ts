@@ -1,9 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { isAbsolute } from 'node:path';
 import {
   FRAMEWORK_BINARY_REGEX,
   FRAMEWORK_JS_REGEX,
   DOTNET_NODE_BUILTINS,
+  VIRTUAL_ROUTE_PREFIX,
+  VIRTUAL_ROUTE_ID_REGEX,
 } from '../../core/constants';
+import { collapseDotSegments, toPosixPath } from '../../core/path-utils';
+import { buildReexportAssetModule } from '../../core/asset-resolution/asset-url-module';
 import { discoverManifests } from '../../core/manifest-parsing/discover';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
@@ -34,6 +40,7 @@ type WebpackDevServerInstance = {
   webSocketServer?: { clients: WebSocketClient[] } | null;
   sendMessage?(clients: WebSocketClient[], type: string, data?: unknown): void;
   server?: { once(event: 'close', listener: () => void): void } | null;
+  invalidate?(callback?: () => void): void;
 };
 
 // Subset of the rsbuild `RsbuildDevServer` handed to `onBeforeStartDevServer`.
@@ -47,6 +54,11 @@ type RsbuildDevServerInstance = {
 };
 
 export interface WebpackFamilyHooks {
+  resolveId(source: string, importer?: string): string | null;
+  load: {
+    filter: { id: RegExp };
+    handler(this: LoadHandlerContext, id: string): Promise<string | null>;
+  };
   webpack(compiler: WebpackCompiler): void;
   rspack(compiler: WebpackCompiler): void;
   rsbuild: {
@@ -58,6 +70,12 @@ export interface WebpackFamilyHooks {
     }): void;
   };
 }
+
+// The unplugin build context `this` for the `load` hook: `addWatchFile` maps to
+// the webpack loader's `this.addDependency`, so a change to the declared
+// physical file re-runs this loader (the stable-identity module) — no
+// re-resolution of the importer required.
+type LoadHandlerContext = { addWatchFile(id: string): void };
 
 type WebpackLikeOptions = {
   context?: string;
@@ -73,6 +91,78 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
   const binaryRule = { test: FRAMEWORK_BINARY_REGEX, type: 'asset/resource' };
   const jsParserRule = { test: FRAMEWORK_JS_REGEX, parser: { url: false } };
+  // Virtual framework JS modules (dev) carry the encoded `_virtual_…dotnet-wasm…`
+  // resource path, so `jsParserRule` (keyed on the physical `_framework` path)
+  // misses them. Disable webpack's `new URL()` asset parsing for them too, so
+  // the .NET runtime's own asset URLs are left intact exactly as in build mode.
+  const virtualJsParserRule = { test: /_virtual_.*dotnet-wasm/, parser: { url: false } };
+
+  function resolveId(source: string, importer?: string): string | null {
+    if (!isServe) return ctx.assetResolver.resolve(source);
+
+    // Absolute specifiers and virtual ids are already resolved. Let the bundler handle them.
+    if (isAbsolute(source) || source.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
+
+    let route = source;
+    if (
+      (source.startsWith('./') || source.startsWith('../')) &&
+      importer?.startsWith(VIRTUAL_ROUTE_PREFIX)
+    ) {
+      const importerRoute = importer.slice(VIRTUAL_ROUTE_PREFIX.length);
+      const importerDir = importerRoute.slice(0, importerRoute.lastIndexOf('/'));
+      route = collapseDotSegments(toPosixPath(`${importerDir}/${source}`));
+    }
+
+    // Canonicalize to the stable, hash-free route (manifest-driven) so the
+    // virtual identity survives fingerprint changes.
+    const canonical = ctx.assetResolver.canonicalRoute(route);
+    if (canonical === null) return null;
+    const physical = ctx.assetResolver.resolve(canonical);
+    if (physical === null) return null;
+    if (FRAMEWORK_JS_REGEX.test(physical) || FRAMEWORK_BINARY_REGEX.test(physical)) {
+      return VIRTUAL_ROUTE_PREFIX + canonical;
+    }
+    return physical;
+  }
+
+  async function readVirtualModule(
+    loadCtx: LoadHandlerContext,
+    route: string,
+  ): Promise<string | null> {
+    const physical = ctx.assetResolver.resolve(route);
+    if (physical === null) return null;
+
+    // Declare the current physical file as a dependency: when a fingerprint
+    // rebuild relocates it, webpack invalidates THIS stable-identity module and
+    // re-runs `load`, which re-resolves to the new physical file.
+    loadCtx.addWatchFile(physical);
+
+    if (FRAMEWORK_BINARY_REGEX.test(physical)) {
+      return buildReexportAssetModule(physical);
+    }
+
+    const code = await readFile(physical, 'utf8');
+    return ctx.rewriter.rewrite(code) ?? code;
+  }
+
+  async function loadHandler(this: LoadHandlerContext, id: string): Promise<string | null> {
+    if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
+
+    const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
+    try {
+      return await readVirtualModule(this, route);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      // Rebuilds can relocate the physical file (new fingerprint), so a missing file is not fatal: reinitialize the resolver and try again.
+      await ctx.reinitialize();
+      return await readVirtualModule(this, route);
+    }
+  }
+
+  // Scoped to virtual ids only: unplugin's webpack `load` rule forces
+  // `type: 'javascript/auto'` on every module it is attached to, so without this
+  // filter it would misprocess assets and break child compilations.
+  const load = { filter: { id: VIRTUAL_ROUTE_ID_REGEX }, handler: loadHandler };
 
   function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
     opts.resolve ??= {};
@@ -118,6 +208,9 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
       ctx.onReinitialized(() => {
         const server = devServer as WebpackDevServerInstance;
+        // Nudge webpack to recompile so the virtual framework modules re-run
+        // `load` against the freshly reinitialized resolver (relocated assets).
+        server.invalidate?.();
         const clients = server.webSocketServer?.clients;
         if (!clients || clients.length === 0) return;
         // webpack-dev-server / @rspack/dev-server clients only trigger a full page
@@ -148,36 +241,24 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     if (opts.context) ctx.setConsumerRoot(opts.context);
     opts.module ??= { rules: [] };
     opts.module.rules ??= [];
-    if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule);
-    else opts.module.rules.push(binaryRule, jsParserRule);
+    if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule, virtualJsParserRule);
+    else opts.module.rules.push(binaryRule, jsParserRule, virtualJsParserRule);
 
     externalizeNodeBuiltins(opts);
   }
 
-  function watchContentRoots(compiler: { hooks?: CompilerHooks }): void {
-    if (!isServe) return;
-
-    compiler.hooks?.thisCompilation.tap('unplugin-dotnet-wasm', (compilation) => {
-      ctx.onInitialized(() => {
-        for (const root of ctx.assetResolver.roots()) {
-          compilation.contextDependencies.add(root);
-        }
-      });
-    });
-  }
-
   return {
+    resolveId,
+    load,
     webpack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
       registerDevServerMiddleware(compiler);
-      watchContentRoots(compiler);
     },
     rspack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
       registerDevServerMiddleware(compiler);
-      watchContentRoots(compiler);
     },
     rsbuild: {
       setup(api) {
@@ -187,7 +268,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
         api.onAfterCreateCompiler(({ compiler }) => {
           const c = compiler as { hooks?: CompilerHooks };
           awaitContextInit(c);
-          watchContentRoots(c);
         });
         api.onBeforeStartDevServer(({ server }) => {
           server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {

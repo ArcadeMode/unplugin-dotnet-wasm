@@ -44,6 +44,25 @@ export class AssetResolver {
     return null;
   }
 
+  /**
+   * Return the canonical, fingerprint-free route for a specifier, or `null` if the specifier is unrecognized.
+   */
+  canonicalRoute(source: string): string | null {
+    const { path } = normalizePath(source);
+    if (path === '') return null;
+
+    for (const probe of new ExtensionProbes(path)) {
+      const match = this.endpointLookup.get(normalizePath(probe));
+      if (match !== undefined) {
+        // Fingerprinted endpoints carry a `label` pointing at their canonical
+        // route; canonical endpoints have none, so the probe route is canonical.
+        return match.label ?? probe;
+      }
+    }
+
+    return null;
+  }
+
   resolvePath(resolved: string | null, path: string, importer?: string): string | null {
     let assetPath: string | null = null;
     if (resolved !== null && BINARY_EXTENSIONS_REGEX.test(resolved)) {

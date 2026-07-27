@@ -19,3 +19,7 @@ export const DOTNET_NODE_BUILTINS = [
 
 export const URL_PROXY_NAMESPACE = '__dotnet-wasm-url-proxy__';
 export const PROXY_SUFFIX = `.${URL_PROXY_NAMESPACE}.js`; // .js because bundlers have to treat it as JS, not another asset type.
+
+// `\0` marks the id as virtual (bundler convention)
+export const VIRTUAL_ROUTE_PREFIX = '\0dotnet-wasm:';
+export const VIRTUAL_ROUTE_ID_REGEX = /^\0dotnet-wasm:/;

@@ -209,3 +209,89 @@ describe('AssetResolver case-insensitive endpoint lookup', () => {
     ]);
   });
 });
+
+describe('AssetResolver.canonicalRoute', () => {
+  const headers = [{ Name: 'Content-Type', Value: 'text/javascript' }];
+
+  function resolver(): AssetResolver {
+    // Fingerprinted endpoints carry a `label` = canonical route; canonical
+    // endpoints have none. `tgzcelqpkb` is an all-letters base36 fingerprint
+    // (no digit) — the case charset heuristics get wrong.
+    const lookup = lookupOf(
+      [
+        '_framework/dotnet.js',
+        { assetFile: '_framework/dotnet.m5tctbrc1n.js', responseHeaders: headers },
+      ],
+      [
+        '_framework/dotnet.runtime.a6jcqbs390.js',
+        {
+          assetFile: '_framework/dotnet.runtime.a6jcqbs390.js',
+          fingerprint: 'a6jcqbs390',
+          label: '_framework/dotnet.runtime.js',
+          responseHeaders: headers,
+        },
+      ],
+      [
+        '_framework/dotnet.native.veuqw8a0w9.wasm',
+        {
+          assetFile: '_framework/dotnet.native.veuqw8a0w9.wasm',
+          fingerprint: 'veuqw8a0w9',
+          label: '_framework/dotnet.native.wasm',
+          responseHeaders: headers,
+        },
+      ],
+      [
+        '_framework/Microsoft.Extensions.Diagnostics.tgzcelqpkb.wasm',
+        {
+          assetFile: '_framework/Microsoft.Extensions.Diagnostics.tgzcelqpkb.wasm',
+          fingerprint: 'tgzcelqpkb',
+          label: '_framework/Microsoft.Extensions.Diagnostics.wasm',
+          responseHeaders: headers,
+        },
+      ],
+    );
+    return new AssetResolver(stubVfs(), lookup);
+  }
+
+  it('maps a fingerprinted JS route to its canonical label', () => {
+    expect(resolver().canonicalRoute('_framework/dotnet.runtime.a6jcqbs390.js')).toBe(
+      '_framework/dotnet.runtime.js',
+    );
+  });
+
+  it('maps a fingerprinted binary route to its canonical label', () => {
+    expect(resolver().canonicalRoute('_framework/dotnet.native.veuqw8a0w9.wasm')).toBe(
+      '_framework/dotnet.native.wasm',
+    );
+  });
+
+  it('canonicalizes an all-letters (no digit) fingerprint via the manifest', () => {
+    expect(
+      resolver().canonicalRoute('_framework/Microsoft.Extensions.Diagnostics.tgzcelqpkb.wasm'),
+    ).toBe('_framework/Microsoft.Extensions.Diagnostics.wasm');
+  });
+
+  it('returns the canonical route itself for an extensionless entry specifier', () => {
+    expect(resolver().canonicalRoute('_framework/dotnet')).toBe('_framework/dotnet.js');
+  });
+
+  it('is idempotent on an already-canonical route', () => {
+    // `dotnet.runtime.js` is the label (canonical), not itself an endpoint here,
+    // so it is unknown; the canonical entry route round-trips to itself.
+    expect(resolver().canonicalRoute('_framework/dotnet.js')).toBe('_framework/dotnet.js');
+  });
+
+  it('collapses dot segments before lookup', () => {
+    expect(resolver().canonicalRoute('/_framework/./dotnet.runtime.a6jcqbs390.js')).toBe(
+      '_framework/dotnet.runtime.js',
+    );
+  });
+
+  it('returns null for an unrecognized specifier', () => {
+    expect(resolver().canonicalRoute('./app.js')).toBeNull();
+  });
+
+  it('returns null for an empty specifier', () => {
+    expect(resolver().canonicalRoute('')).toBeNull();
+  });
+});
