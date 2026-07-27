@@ -24,29 +24,32 @@ File: `src/unplugin/context.ts`
 - Add `reinitialize(): Promise<void>` that runs `buildAssets()` and, **on success only**,
   synchronously swaps `#assetResolver` / `#assetMiddleware`. On failure, log + keep current.
 - Keep getters sync (consumers re-read them per call, so swap is transparent).
-- Add `onReload(fn)` / `#reloadTriggers` so families can register a full-reload callback, and a
-  `triggerReload()` the watcher calls after reinit.
+- Add `onReload(fn)` / `#reloadTriggers` so families can register a full-reload callback. A
+  private `#triggerReload()` is fired inside `reinitialize()`'s try block, **after a successful
+  swap only** (so consumers never reload onto failed/stale assets).
 - Do **not** re-run the type-shim generator on reinit yet (decide later).
+
+> Status: Stages 0–2 done.
 
 ## Stage 1 — Central watcher
 
 File: `src/core/dev-server/manifest-watcher.ts` (new)
 
-- `class ManifestWatcher` constructed with `{ endpointsPath, runtimePath | null, onChange, logger }`.
-- Watch both files (and their dir, to catch dotnet's rename-replace writes) via `fs.watch`.
-- **Debounce** (~50–100ms) to coalesce dotnet's multi-file writes; **single-flight** so only one
-  `onChange` runs at a time, re-running once if a change lands mid-run.
+- `class ManifestWatcher` constructed with `{ paths, onChange, logger, debounceMs? }`.
+- Wraps **chokidar** (v4): `ignoreInitial`, `atomic`, and `awaitWriteFinish` (handles dotnet's
+  rename-replace + partial writes; replaces manual debounce).
+- **Single-flight** so only one `onChange` runs at a time, re-running once if a change lands mid-run.
 - `start()` / `dispose()` for lifecycle; guard against firing after dispose.
-- Manifest paths come from `discoverManifests(options)` (same source as `ManifestLoader`).
 
 ## Stage 2 — Vite (minimal, reference impl)
 
 File: `src/unplugin/families/rollup-family.ts` (`vite.configureServer`)
 
 - Only when `isServe`.
-- Instantiate `ManifestWatcher`; `onChange` = `await ctx.reinitialize()` then
-  `server.ws.send({ type: 'full-reload' })`.
-- `server.httpServer?.once('close', () => watcher.dispose())` (or Vite `buildEnd`/`closeBundle`).
+- Get paths from `discoverManifests(ctx.options)`; `new ManifestWatcher({ paths, onChange: () => ctx.reinitialize(), logger })`.
+- `ctx.onReload(() => server.ws.send({ type: 'full-reload' }))`.
+- `server.httpServer?.once('close', () => watcher.dispose())` (disposal — chokidar holds fs handles;
+  also prevents duplicate watchers on Vite server restart).
 - Verify against `library-app-vite`: rebuild library (`pnpm build:library:nofingerprint`),
   confirm browser reloads and refetches `_framework/*` with new bytes.
 

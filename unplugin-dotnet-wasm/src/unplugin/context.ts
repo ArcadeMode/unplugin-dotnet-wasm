@@ -21,19 +21,18 @@ export class PluginContext {
 
   private readonly initCbs: InitializeCallback[] = [];
   // persists source-file mtimes across builds; internal input to the type-shim generator
-  readonly #changeTracker = new SourceFileChangeTracker();
+  private readonly changeTracker = new SourceFileChangeTracker();
+  private readonly reloadTriggers: Array<() => void> = [];
 
   #consumerRoot = process.cwd();
   #assetResolver: AssetResolver | null = null;
   #assetMiddleware: ConnectMiddleware | null = null;
   #initPromise: Promise<void> | null = null;
-  readonly #reloadTriggers: Array<() => void> = [];
 
   constructor(
     public readonly options: DotnetWasmOptions,
     framework: BundlerFramework,
   ) {
-    //this.#options = options;
     this.logger = createConsoleLogger(options.logLevel ?? 'warn');
     this.rewriter = new BundlerCompatRewriter(framework);
   }
@@ -50,6 +49,11 @@ export class PluginContext {
     return this.#assetResolver;
   }
 
+  get assetMiddleware(): ConnectMiddleware {
+    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before initialize()');
+    return this.#assetMiddleware;
+  }
+
   async initialize(): Promise<void> {
     if (this.#initPromise) return this.#initPromise;
     await (this.#initPromise = this.doInitialize());
@@ -64,32 +68,12 @@ export class PluginContext {
     this.initCbs.push(callback);
   }
 
-  onReload(fn: () => void): void {
-    this.#reloadTriggers.push(fn);
-  }
-
-  triggerReload(): void {
-    for (const fn of this.#reloadTriggers) fn();
-  }
-
-  private async buildAssets(): Promise<{ resolver: AssetResolver; middleware: ConnectMiddleware }> {
-    const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
-      await new ManifestLoader().load(this.options);
-    const endpointLookup = new EndpointLookup(endpointsManifest);
-    const vfs = runtimeManifest
-      ? buildVfs(runtimeManifest, { logger: this.logger })
-      : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
-    const resolver = new AssetResolver(vfs, endpointLookup);
-    const middleware = createAssetMiddleware(resolver, this.logger);
-    return { resolver, middleware };
-  }
-
   async reinitialize(): Promise<void> {
     try {
-      const { resolver, middleware } = await this.buildAssets();
-      this.#assetResolver = resolver;
-      this.#assetMiddleware = middleware;
+      await this.initAssetResolution();
       this.logger.info('dotnet manifests changed: reinitialized asset resolver');
+
+      for (const fn of this.reloadTriggers) fn();
     } catch (err) {
       this.logger.error(
         `manifest reinitialize failed, keeping previous assets: ${(err as Error).message}`,
@@ -97,10 +81,12 @@ export class PluginContext {
     }
   }
 
+  onReinitialized(fn: () => void): void {
+    this.reloadTriggers.push(fn);
+  }
+
   private async doInitialize(): Promise<void> {
-    const { resolver, middleware } = await this.buildAssets();
-    this.#assetResolver = resolver;
-    this.#assetMiddleware = middleware;
+    await this.initAssetResolution();
 
     if (isYarnPnp()) {
       this.logger.warn(
@@ -109,20 +95,28 @@ export class PluginContext {
       return;
     }
     const locator = new NodeModulesLocator(this.#consumerRoot);
-    const discoverer = new FileDiscoverer(this.#assetResolver);
+    const discoverer = new FileDiscoverer(this.#assetResolver!);
     const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.logger);
     const generator = new ShimPackageGenerator(
       locator,
       discoverer,
-      this.#changeTracker,
+      this.changeTracker,
       emitter,
       this.logger,
     );
     await generator.generate();
   }
 
-  get assetMiddleware(): ConnectMiddleware {
-    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before initialize()');
-    return this.#assetMiddleware;
+  private async initAssetResolution(): Promise<void> {
+    const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
+      await new ManifestLoader().load(this.options);
+    const endpointLookup = new EndpointLookup(endpointsManifest);
+    const vfs = runtimeManifest
+      ? buildVfs(runtimeManifest, { logger: this.logger })
+      : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
+    const resolver = new AssetResolver(vfs, endpointLookup);
+    const middleware = createAssetMiddleware(resolver, this.logger);
+    this.#assetResolver = resolver;
+    this.#assetMiddleware = middleware;
   }
 }

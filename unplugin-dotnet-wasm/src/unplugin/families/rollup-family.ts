@@ -3,6 +3,8 @@ import { basename } from 'node:path';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS_REGEX } from '../../core/constants';
 import { buildLiteralPathExportModule } from '../../core/asset-resolution/asset-url-module';
+import { discoverManifests } from '../../core/manifest-parsing/discover';
+import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
 import { pathToFileURL } from 'node:url';
 
@@ -36,6 +38,8 @@ export interface ViteMiddlewares {
 export interface ViteDevServer {
   middlewares: ViteMiddlewares;
   watcher: ViteWatcher;
+  ws: { send: (payload: { type: string }) => void };
+  httpServer?: { once: (event: string, listener: () => void) => void } | null;
 }
 
 export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
@@ -54,6 +58,18 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         ctx.onInitialized(() => {
           server.watcher.add(ctx.assetResolver.roots());
         });
+
+        const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
+        const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
+        const watcher = new ManifestWatcher({
+          paths,
+          onChange: () => ctx.reinitialize(),
+          logger: ctx.logger,
+        });
+        ctx.onReinitialized(() => server.ws.send({ type: 'full-reload' }));
+        watcher.start();
+
+        server.httpServer?.once('close', () => watcher.dispose());
       },
     },
     load: {
