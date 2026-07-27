@@ -32,6 +32,17 @@ type WebpackCompiler = {
   hooks: CompilerHooks;
 };
 
+type WebSocketClient = { send(data: string): void };
+
+// Subset of the webpack-dev-server / @rspack/dev-server `Server` instance handed
+// to `setupMiddlewares(middlewares, devServer)`.
+type WebpackDevServerInstance = {
+  webSocketServer?: { clients: WebSocketClient[] } | null;
+  sendMessage?(clients: WebSocketClient[], type: string, data?: unknown): void;
+  server?: { once(event: 'close', listener: () => void): void } | null;
+  invalidate?(callback?: () => void): void;
+};
+
 // Subset of the rsbuild `RsbuildDevServer` handed to `onBeforeStartDevServer`.
 type RsbuildDevServerInstance = {
   middlewares: {
@@ -168,7 +179,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
         await ctx.reinitialize();
         return await readVirtualModule(this, route);
       }
-    }
+    },
   };
 
   function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
@@ -203,6 +214,38 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           ctx.assetMiddleware(...args);
         },
       });
+
+      // Set up manifest watcher for webpack/rspack
+      const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
+      const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
+      const watcher = new ManifestWatcher({
+        paths,
+        onChange: () => ctx.reinitialize(),
+        logger: ctx.logger,
+      });
+
+      ctx.onReinitialized(() => {
+        const server = devServer as WebpackDevServerInstance;
+        // Nudge webpack to recompile so the virtual framework modules re-run
+        // `load` against the freshly reinitialized resolver (relocated assets).
+        server.invalidate?.();
+        const clients = server.webSocketServer?.clients;
+        if (!clients || clients.length === 0) return;
+        // webpack-dev-server / @rspack/dev-server clients only trigger a full page
+        // reload on the "static-changed" message.
+        if (typeof server.sendMessage === 'function') {
+          server.sendMessage(clients, 'static-changed');
+        } else {
+          for (const client of clients) {
+            client.send(JSON.stringify({ type: 'static-changed' }));
+          }
+        }
+      });
+
+      watcher.start();
+
+      // Dispose on server close
+      (devServer as WebpackDevServerInstance).server?.once('close', () => watcher.dispose());
 
       if (existingSetup) {
         return existingSetup(middlewares, devServer);
