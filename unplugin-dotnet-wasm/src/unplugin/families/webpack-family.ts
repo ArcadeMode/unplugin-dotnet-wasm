@@ -32,17 +32,6 @@ type WebpackCompiler = {
   hooks: CompilerHooks;
 };
 
-type WebSocketClient = { send(data: string): void };
-
-// Subset of the webpack-dev-server / @rspack/dev-server `Server` instance handed
-// to `setupMiddlewares(middlewares, devServer)`.
-type WebpackDevServerInstance = {
-  webSocketServer?: { clients: WebSocketClient[] } | null;
-  sendMessage?(clients: WebSocketClient[], type: string, data?: unknown): void;
-  server?: { once(event: 'close', listener: () => void): void } | null;
-  invalidate?(callback?: () => void): void;
-};
-
 // Subset of the rsbuild `RsbuildDevServer` handed to `onBeforeStartDevServer`.
 type RsbuildDevServerInstance = {
   middlewares: {
@@ -85,17 +74,35 @@ type WebpackLikeOptions = {
   watchOptions?: { aggregateTimeout?: number; ignored?: unknown };
 };
 
+// Recover the importing virtual module's canonical route from whatever form the
+// bundler hands us as the `importer`. webpack passes the raw `\0dotnet-wasm:…`
+// id; rspack materializes the virtual module as a real file under
+// `node_modules/.virtual/` and passes that on-disk path with the id
+// URL-encoded into the filename (e.g. `…/.virtual/%00dotnet-wasm%3A_framework%2Fdotnet.js`).
+// Returns the route after the prefix (e.g. `_framework/dotnet.js`), or null.
+function importerVirtualRoute(importer: string | undefined): string | null {
+  if (!importer) return null;
+  let decoded = importer;
+  if (!importer.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+    if (!importer.includes('dotnet-wasm')) return null;
+    try {
+      decoded = decodeURIComponent(importer);
+    } catch {
+      return null;
+    }
+  }
+  const idx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
+  if (idx === -1) return null;
+  return decoded.slice(idx + VIRTUAL_ROUTE_PREFIX.length);
+}
+
 export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // webpack-cli sets WEBPACK_SERVE; @rspack/cli does not, but its argv contains "serve".
   const isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
-
   const binaryRule = { test: FRAMEWORK_BINARY_REGEX, type: 'asset/resource' };
   const jsParserRule = { test: FRAMEWORK_JS_REGEX, parser: { url: false } };
-  // Virtual framework JS modules (dev) carry the encoded `_virtual_…dotnet-wasm…`
-  // resource path, so `jsParserRule` (keyed on the physical `_framework` path)
-  // misses them. Disable webpack's `new URL()` asset parsing for them too, so
-  // the .NET runtime's own asset URLs are left intact exactly as in build mode.
-  const virtualJsParserRule = { test: /_virtual_.*dotnet-wasm/, parser: { url: false } };
+  // Disable webpack/rspack's `new URL()` asset parsing for virtual identifiers
+  const virtualJsParserRule = { test: /%00dotnet-wasm%3A/i, parser: { url: false } };
 
   function resolveId(source: string, importer?: string): string | null {
     if (!isServe) return ctx.assetResolver.resolve(source);
@@ -104,13 +111,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     if (isAbsolute(source) || source.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
 
     let route = source;
-    if (
-      (source.startsWith('./') || source.startsWith('../')) &&
-      importer?.startsWith(VIRTUAL_ROUTE_PREFIX)
-    ) {
-      const importerRoute = importer.slice(VIRTUAL_ROUTE_PREFIX.length);
-      const importerDir = importerRoute.slice(0, importerRoute.lastIndexOf('/'));
-      route = collapseDotSegments(toPosixPath(`${importerDir}/${source}`));
+    if (source.startsWith('./') || source.startsWith('../')) {
+      const importerRoute = importerVirtualRoute(importer);
+      if (importerRoute !== null) {
+        const importerDir = importerRoute.slice(0, importerRoute.lastIndexOf('/'));
+        route = collapseDotSegments(toPosixPath(`${importerDir}/${source}`));
+      }
     }
 
     // Canonicalize to the stable, hash-free route (manifest-driven) so the
@@ -145,24 +151,25 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     return ctx.rewriter.rewrite(code) ?? code;
   }
 
-  async function loadHandler(this: LoadHandlerContext, id: string): Promise<string | null> {
-    if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
-
-    const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-    try {
-      return await readVirtualModule(this, route);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-      // Rebuilds can relocate the physical file (new fingerprint), so a missing file is not fatal: reinitialize the resolver and try again.
-      await ctx.reinitialize();
-      return await readVirtualModule(this, route);
-    }
-  }
-
   // Scoped to virtual ids only: unplugin's webpack `load` rule forces
   // `type: 'javascript/auto'` on every module it is attached to, so without this
   // filter it would misprocess assets and break child compilations.
-  const load = { filter: { id: VIRTUAL_ROUTE_ID_REGEX }, handler: loadHandler };
+  const load = {
+    filter: { id: VIRTUAL_ROUTE_ID_REGEX },
+    handler: async function (this: LoadHandlerContext, id: string): Promise<string | null> {
+      if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
+
+      const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
+      try {
+        return await readVirtualModule(this, route);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+        // Missing file _can_ mean that the manifest was updated (e.g. new fingerprints), reinit and try again.
+        await ctx.reinitialize();
+        return await readVirtualModule(this, route);
+      }
+    }
+  };
 
   function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
     opts.resolve ??= {};
@@ -196,38 +203,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           ctx.assetMiddleware(...args);
         },
       });
-
-      // Set up manifest watcher for webpack/rspack
-      const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
-      const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
-      const watcher = new ManifestWatcher({
-        paths,
-        onChange: () => ctx.reinitialize(),
-        logger: ctx.logger,
-      });
-
-      ctx.onReinitialized(() => {
-        const server = devServer as WebpackDevServerInstance;
-        // Nudge webpack to recompile so the virtual framework modules re-run
-        // `load` against the freshly reinitialized resolver (relocated assets).
-        server.invalidate?.();
-        const clients = server.webSocketServer?.clients;
-        if (!clients || clients.length === 0) return;
-        // webpack-dev-server / @rspack/dev-server clients only trigger a full page
-        // reload on the "static-changed" message.
-        if (typeof server.sendMessage === 'function') {
-          server.sendMessage(clients, 'static-changed');
-        } else {
-          for (const client of clients) {
-            client.send(JSON.stringify({ type: 'static-changed' }));
-          }
-        }
-      });
-
-      watcher.start();
-
-      // Dispose on server close
-      (devServer as WebpackDevServerInstance).server?.once('close', () => watcher.dispose());
 
       if (existingSetup) {
         return existingSetup(middlewares, devServer);
