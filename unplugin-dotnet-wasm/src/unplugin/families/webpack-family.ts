@@ -10,10 +10,6 @@ type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
   watchRun: {
     tapPromise(name: string, fn: () => Promise<void>): void;
-    tapAsync(
-      name: string,
-      fn: (compiler: { modifiedFiles?: Iterable<string> }, callback: () => void) => void,
-    ): void;
   };
   thisCompilation: {
     tap(
