@@ -68,7 +68,6 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         });
         ctx.onReinitialized(() => server.ws.send({ type: 'full-reload' }));
         watcher.start();
-
         server.httpServer?.once('close', () => watcher.dispose());
       },
     },

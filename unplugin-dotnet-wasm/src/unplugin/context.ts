@@ -75,9 +75,7 @@ export class PluginContext {
 
       for (const fn of this.reloadTriggers) fn();
     } catch (err) {
-      this.logger.error(
-        `manifest reinitialize failed, keeping previous assets: ${(err as Error).message}`,
-      );
+      this.logger.error(`manifest reinitialize failed: ${(err as Error).message}`);
     }
   }
 
