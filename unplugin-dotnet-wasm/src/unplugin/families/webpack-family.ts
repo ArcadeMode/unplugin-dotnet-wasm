@@ -8,7 +8,15 @@ import type { PluginContext } from '../context';
 
 type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
-  watchRun: { tapPromise(name: string, fn: () => Promise<void>): void };
+  watchRun: {
+    tapPromise(name: string, fn: () => Promise<void>): void;
+  };
+  thisCompilation: {
+    tap(
+      name: string,
+      fn: (compilation: { contextDependencies: { add(dir: string): void } }) => void,
+    ): void;
+  };
 };
 
 type WebpackCompiler = {
@@ -47,6 +55,7 @@ type WebpackLikeOptions = {
   resolve?: { fallback?: Record<string, unknown> };
   module?: { rules?: unknown[] };
   devServer?: Record<string, unknown>;
+  watchOptions?: { aggregateTimeout?: number; ignored?: unknown };
 };
 
 export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
@@ -82,18 +91,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
 
     devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
-      const assetMiddlewareEntry = {
+      middlewares.unshift({
         name: 'unplugin-dotnet-wasm',
-        middleware: (
-          req: IncomingMessage,
-          res: ServerResponse,
-          next: (err?: unknown) => void,
-        ): void => {
-          ctx.enableAssetMiddleware();
-          ctx.assetMiddleware(req, res, next);
+        middleware: (...args: Parameters<typeof ctx.assetMiddleware>) => {
+          ctx.assetMiddleware(...args);
         },
-      };
-      middlewares.unshift(assetMiddlewareEntry);
+      });
 
       if (existingSetup) {
         return existingSetup(middlewares, devServer);
@@ -109,30 +112,48 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     opts.module.rules ??= [];
     if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule);
     else opts.module.rules.push(binaryRule, jsParserRule);
+
     externalizeNodeBuiltins(opts);
-    registerDevServerMiddleware({ options: opts });
+  }
+
+  function watchContentRoots(compiler: { hooks?: CompilerHooks }): void {
+    if (!isServe) return;
+
+    compiler.hooks?.thisCompilation.tap('unplugin-dotnet-wasm', (compilation) => {
+      ctx.onInitialized(() => {
+        for (const root of ctx.assetResolver.roots()) {
+          compilation.contextDependencies.add(root);
+        }
+      });
+    });
   }
 
   return {
     webpack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
+      registerDevServerMiddleware(compiler);
+      watchContentRoots(compiler);
     },
     rspack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
+      registerDevServerMiddleware(compiler);
+      watchContentRoots(compiler);
     },
     rsbuild: {
       setup(api) {
-        api.modifyRspackConfig((config) => applyBuildConfig(config, { prepend: true }));
+        api.modifyRspackConfig((config) => {
+          applyBuildConfig(config, { prepend: true });
+        });
         api.onAfterCreateCompiler(({ compiler }) => {
           const c = compiler as { hooks?: CompilerHooks };
           awaitContextInit(c);
+          watchContentRoots(c);
         });
         api.onBeforeStartDevServer(({ server }) => {
-          server.middlewares.use((req, res, next) => {
-            ctx.enableAssetMiddleware();
-            ctx.assetMiddleware(req, res, next);
+          server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
+            ctx.assetMiddleware(...args);
           });
         });
       },

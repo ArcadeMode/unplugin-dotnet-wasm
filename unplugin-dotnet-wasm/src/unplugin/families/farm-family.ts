@@ -104,7 +104,6 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         server.app().use(
           (koaCtx, next) =>
             new Promise<void>((resolve, reject) => {
-              ctx.enableAssetMiddleware();
               let handled = true;
               ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
                 handled = false; // unhandled by middleware
