@@ -126,18 +126,30 @@ Exit criteria: rspack + rsbuild dev reload survive fingerprint change; builds in
 
 ## Phase 3 — rollup family (rollup / vite / rolldown)
 
-Files: `src/unplugin/families/rollup-family.ts`. Already uses `load` (binaries only) and,
-for vite, `server.watcher.add(roots)` + `full-reload`.
+Files: `src/unplugin/families/rollup-family.ts`, shared `src/unplugin/families/virtual-resolution.ts`.
 
-- [ ] **3.1 Assess necessity.** vite already reloads via watcher + `full-reload`; determine
-      whether fingerprint relocation is actually broken here or already handled. Only adopt
-      virtual ids if a real gap exists (avoid churn on a working path).
-- [ ] **3.2 If needed**, align JS handling to the virtual-id + canonicalization approach;
-      keep the existing binary `load` and vite dev-server wiring.
-- [ ] **3.3** Test rollup, vite, rolldown fixtures (dev where applicable + build),
-      fingerprint change.
+- [x] **3.1 Assess necessity.** CONFIRMED broken: the family had no `resolveId`, so it fell
+      through to `base.resolveId` → physical fingerprinted JS path baked into vite's module
+      graph. Binaries were already hash-free via the connect middleware; only framework JS
+      carried the fingerprint.
+- [x] **3.2 Virtual-id JS handling.** Added a family `resolveId` (dev-only) that delegates to
+      the shared `resolveFrameworkId(ctx, source, importer, { binaryAsVirtual: false })` — JS →
+      virtual id, binaries → physical (existing middleware `load` path kept). Widened `load`
+      (filter = virtual-id OR binary regex) to branch: virtual JS → shared `readVirtualModule`
+      (readFile + rewrite + addWatchFile physical & manifests); binary → unchanged
+      `buildLiteralPathExportModule`. Vite-specific: `invalidateVirtualModules(server)` drops
+      cached transforms of `\0dotnet-wasm:` modules from `server.moduleGraph` before
+      `full-reload` (virtual modules have no mtime). Production build path untouched
+      (`ROLLUP_FILE_URL`). Dev-reload scoped to vite (rolldown/rollup have no dev server).
+- [ ] **3.3** E2E: vite fixture dev + fingerprint change (verify no stale/404); rollup +
+      rolldown build regression.
+
+**Dedup:** shared `virtual-resolution.ts` now holds `importerVirtualRoute`, `resolveFrameworkId`,
+`readVirtualModule`, `getManifestWatchPaths`, `LoadHandlerContext`; both webpack-family and
+rollup-family consume it (webpack: `binaryAsVirtual:true`; rollup: `false`).
 
 Exit criteria: three bundlers verified; no regression to the currently-working vite path.
+
 
 ---
 

@@ -17,8 +17,6 @@ import {
   type LoadHandlerContext,
 } from './virtual-resolution';
 
-// The `load` hook `this` for the rollup family: rollup's `emitFile` (build mode)
-// plus `addWatchFile` (dev virtual modules).
 type RollupLoadThis = LoadHandlerContext & {
   emitFile(options: { type: 'asset'; name: string; source: Buffer }): string;
 };
@@ -52,20 +50,10 @@ export interface ViteDevServer {
   httpServer?: { once: (event: string, listener: () => void) => void } | null;
 }
 
-// Minimal structural view of vite's ModuleGraph — enough to drop cached
-// transforms of the framework virtual modules (which have no file mtime for vite
-// to key off). Accessed via a cast so ViteDevServer stays a clean supertype of
-// vite's real server type.
 type ViteModuleGraphLike = {
   idToModuleMap: Map<string, unknown>;
   invalidateModule: (mod: unknown) => void;
 };
-
-// Matches the framework virtual ids AND the physical binary paths this family's
-// `load` hook is responsible for.
-const LOAD_FILTER = new RegExp(
-  `${VIRTUAL_ROUTE_ID_REGEX.source}|${BINARY_EXTENSIONS_REGEX.source}`,
-);
 
 export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   let isServe = false;
@@ -117,7 +105,9 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       },
     },
     load: {
-      filter: { id: LOAD_FILTER },
+      filter: {
+        id: new RegExp(`${VIRTUAL_ROUTE_ID_REGEX.source}|${BINARY_EXTENSIONS_REGEX.source}`),
+      },
       async handler(
         this: RollupLoadThis,
         id: string,
