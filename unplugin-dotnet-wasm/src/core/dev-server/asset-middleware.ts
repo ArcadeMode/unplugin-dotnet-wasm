@@ -40,6 +40,7 @@ export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): 
     const etag = res.getHeader('ETag');
     const ifNoneMatch = req.headers['if-none-match'];
     if (typeof etag === 'string' && ifNoneMatch === etag) {
+      logger.debug(`[serve] middleware: 304 ${pathname} (ETag match ${etag})`);
       res.removeHeader('Content-Length');
       res.statusCode = 304;
       res.end();
@@ -52,7 +53,9 @@ export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): 
       return;
     }
 
-    logger.debug(`serving ${pathname} from ${physicalPath}`);
+    logger.debug(
+      `[serve] middleware: 200 ${pathname} -> ${physicalPath} (${size} bytes, ETag ${String(etag)})`,
+    );
     const stream = createReadStream(physicalPath);
     stream.on('error', (err) => {
       logger.error(`failed streaming ${physicalPath}: ${(err as Error).message}`);

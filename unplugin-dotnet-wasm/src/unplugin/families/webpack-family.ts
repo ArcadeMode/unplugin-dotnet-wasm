@@ -53,6 +53,12 @@ type RsbuildDevServerInstance = {
   sockWrite(type: string, data?: unknown): void;
 };
 
+type Watching = {
+  invalidate?: (callback?: () => void) => void;
+  invalidateWithChangesAndRemovals?: (changed?: Set<string>, removed?: Set<string>) => void;
+};
+type RsbuildCompiler = { watching?: Watching; compilers?: { watching?: Watching }[] };
+
 export interface WebpackFamilyHooks {
   resolveId(source: string, importer?: string): string | null;
   load: {
@@ -101,11 +107,18 @@ function importerVirtualRoute(importer: string | undefined): string | null {
 
 export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // webpack-cli sets WEBPACK_SERVE; @rspack/cli does not, but its argv contains "serve".
-  const isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
+  // rsbuild's dev command is `rsbuild dev` (no "serve"), so it can't be detected here;
+  // the rsbuild dev-server hook flips this to true before compilation starts.
+  let isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
   const binaryRule = { test: FRAMEWORK_BINARY_REGEX, type: 'asset/resource' };
   const jsParserRule = { test: FRAMEWORK_JS_REGEX, parser: { url: false } };
   // Disable webpack/rspack's `new URL()` asset parsing for virtual identifiers
   const virtualJsParserRule = { test: /%00dotnet-wasm%3A/i, parser: { url: false } };
+
+  const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
+  const manifestWatchPaths = [endpointsManifestPath, runtimeManifestPath].filter(
+    (p): p is string => p !== null,
+  );
 
   function resolveId(source: string, importer?: string): string | null {
     if (!isServe) return ctx.assetResolver.resolve(source);
@@ -139,11 +152,16 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     route: string,
   ): Promise<string | null> {
     const physical = ctx.assetResolver.resolve(route);
-    if (physical === null) return null;
+    if (physical === null) {
+      ctx.logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
+      return null;
+    }
 
     // addWatchFile ensures `load` is re-invoked when the file changes.
     // i.e. it invalidates the virtual route, important!
     loadCtx.addWatchFile(physical);
+    // Also depend on the manifests so a manifest change forces this module to rebuild
+    for (const manifestPath of manifestWatchPaths) loadCtx.addWatchFile(manifestPath);
 
     if (FRAMEWORK_BINARY_REGEX.test(physical)) {
       return buildReexportAssetModule(physical);
@@ -164,6 +182,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
         // Missing file _can_ mean that the manifest was updated (e.g. new fingerprints), reinit and try again.
+        ctx.logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
         await ctx.reinitialize();
         return await readVirtualModule(this, route);
       }
@@ -189,10 +208,8 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
   function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {
     // Set up manifest watcher for webpack/rspack
-    const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
-    const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
     const watcher = new ManifestWatcher({
-      paths,
+      paths: manifestWatchPaths,
       onChange: () => ctx.reinitialize(),
       logger: ctx.logger,
     });
@@ -252,6 +269,38 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     externalizeNodeBuiltins(opts);
   }
 
+  function invalidateWatching(w: Watching | undefined, label: string): void {
+    if (!w) {
+      ctx.logger.debug(`[serve] invalidate: ${label} has no watching handle`);
+      return;
+    }
+    if (typeof w.invalidateWithChangesAndRemovals === 'function') {
+      w.invalidateWithChangesAndRemovals(new Set(manifestWatchPaths), new Set());
+    } else if (typeof w.invalidate === 'function') {
+      ctx.logger.debug(`[serve] invalidate: ${label} plain invalidate()`);
+      w.invalidate();
+    } else {
+      ctx.logger.debug(`[serve] invalidate: ${label} exposes no invalidate method`);
+    }
+  }
+
+  function invalidateRsbuild(rsbuildCompiler: RsbuildCompiler | null): void {
+    if (!rsbuildCompiler) {
+      ctx.logger.debug('[serve] invalidate: no compiler captured, cannot invalidate');
+      return;
+    }
+    if (Array.isArray(rsbuildCompiler.compilers)) {
+      ctx.logger.debug(
+        `[serve] invalidate: MultiCompiler with ${rsbuildCompiler.compilers.length} child compiler(s)`,
+      );
+      rsbuildCompiler.compilers.forEach((c, i) => invalidateWatching(c.watching, `child[${i}]`));
+    } else {
+      invalidateWatching(rsbuildCompiler.watching, 'single compiler');
+    }
+  }
+
+  let rsbuildCompiler: RsbuildCompiler | null = null;
+
   return {
     resolveId,
     load,
@@ -271,33 +320,53 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
           applyBuildConfig(config, { prepend: true });
         });
         api.onAfterCreateCompiler(({ compiler }) => {
-          const c = compiler as { hooks?: CompilerHooks };
-          awaitContextInit(c);
+          rsbuildCompiler = compiler as RsbuildCompiler;
+          const isMulti = Array.isArray((compiler as RsbuildCompiler).compilers);
+          ctx.logger.debug(
+            `[serve] onAfterCreateCompiler: captured ${
+              isMulti ? 'MultiCompiler' : 'single Compiler'
+            }; watching present at capture=${Boolean((compiler as RsbuildCompiler).watching)}`,
+          );
+          awaitContextInit(compiler as { hooks?: CompilerHooks });
         });
         api.onBeforeStartDevServer(({ server }) => {
+          isServe = true;
+          ctx.logger.debug(
+            '[serve] onBeforeStartDevServer: registering asset middleware + manifest watcher',
+          );
           server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
             ctx.assetMiddleware(...args);
           });
 
-          // Set up manifest watcher for rsbuild
-          const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
-          const paths = [endpointsManifestPath, runtimeManifestPath].filter((p) => p !== null);
+          ctx.logger.debug(
+            `[serve] manifest watch paths (${manifestWatchPaths.length}): ${manifestWatchPaths.join(', ') || '<none>'}`,
+          );
           const watcher = new ManifestWatcher({
-            paths,
-            onChange: () => ctx.reinitialize(),
+            paths: manifestWatchPaths,
+            onChange: () => {
+              ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
+              return ctx.reinitialize();
+            },
             logger: ctx.logger,
           });
 
-          // rsbuild exposes `sockWrite` as the public HMR channel; "static-changed"
-          // triggers a full page reload on all connected clients.
           ctx.onReinitialized(() => {
-            server.sockWrite('static-changed');
+            ctx.logger.debug(
+              '[serve] onReinitialized: invalidate compiler + sockWrite("full-reload")',
+            );
+            invalidateRsbuild(rsbuildCompiler);
+            server.sockWrite('full-reload', { path: '*' });
+            ctx.logger.debug('[serve] onReinitialized: full-reload sent, handler done');
           });
 
           watcher.start();
+          ctx.logger.debug('[serve] ManifestWatcher started');
 
           // Dispose on server close
-          api.onCloseDevServer(() => watcher.dispose());
+          api.onCloseDevServer(() => {
+            ctx.logger.debug('[serve] onCloseDevServer: disposing manifest watcher');
+            watcher.dispose();
+          });
         });
       },
     },
