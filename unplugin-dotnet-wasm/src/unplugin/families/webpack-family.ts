@@ -1,6 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
 import {
   FRAMEWORK_BINARY_REGEX,
   FRAMEWORK_JS_REGEX,
@@ -8,11 +6,14 @@ import {
   VIRTUAL_ROUTE_PREFIX,
   VIRTUAL_ROUTE_ID_REGEX,
 } from '../../core/constants';
-import { collapseDotSegments, toPosixPath } from '../../core/path-utils';
-import { buildReexportAssetModule } from '../../core/asset-resolution/asset-url-module';
-import { discoverManifests } from '../../core/manifest-parsing/discover';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
+import {
+  getManifestWatchPaths,
+  readVirtualModuleGuarded,
+  resolveVirtualId,
+  type LoadHandlerContext,
+} from './virtual-resolution';
 
 type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
@@ -77,8 +78,6 @@ export interface WebpackFamilyHooks {
   };
 }
 
-type LoadHandlerContext = { addWatchFile(id: string): void };
-
 type WebpackLikeOptions = {
   context?: string;
   resolve?: { fallback?: Record<string, unknown> };
@@ -86,24 +85,6 @@ type WebpackLikeOptions = {
   devServer?: Record<string, unknown>;
   watchOptions?: { aggregateTimeout?: number; ignored?: unknown };
 };
-
-// webpack/rspack give the virtual routes back with weird prefixes.
-// Parse the original virtual route back out without the VIRTUAL_ROUTE_PREFIX.
-function importerVirtualRoute(importer: string | undefined): string | null {
-  if (!importer) return null;
-  let decoded = importer;
-  if (!importer.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-    if (!importer.includes('dotnet-wasm')) return null;
-    try {
-      decoded = decodeURIComponent(importer);
-    } catch {
-      return null;
-    }
-  }
-  const idx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
-  if (idx === -1) return null;
-  return decoded.slice(idx + VIRTUAL_ROUTE_PREFIX.length);
-}
 
 export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // webpack-cli sets WEBPACK_SERVE; @rspack/cli does not, but its argv contains "serve".
@@ -115,60 +96,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // Disable webpack/rspack's `new URL()` asset parsing for virtual identifiers
   const virtualJsParserRule = { test: /%00dotnet-wasm%3A/i, parser: { url: false } };
 
-  const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(ctx.options);
-  const manifestWatchPaths = [endpointsManifestPath, runtimeManifestPath].filter(
-    (p): p is string => p !== null,
-  );
+  const manifestWatchPaths = getManifestWatchPaths(ctx);
 
   function resolveId(source: string, importer?: string): string | null {
     if (!isServe) return ctx.assetResolver.resolve(source);
-
-    // Absolute specifiers and virtual ids are already resolved. Let the bundler handle them.
-    if (isAbsolute(source) || source.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
-
-    let route = source;
-    if (source.startsWith('./') || source.startsWith('../')) {
-      const importerRoute = importerVirtualRoute(importer);
-      if (importerRoute !== null) {
-        const importerDir = importerRoute.slice(0, importerRoute.lastIndexOf('/'));
-        route = collapseDotSegments(toPosixPath(`${importerDir}/${source}`));
-      }
-    }
-
-    // Canonicalize to the stable, hash-free route (manifest-driven) so the
-    // virtual identity survives fingerprint changes.
-    const canonical = ctx.assetResolver.canonicalRoute(route);
-    if (canonical === null) return null;
-    const physical = ctx.assetResolver.resolve(canonical);
-    if (physical === null) return null;
-    if (FRAMEWORK_JS_REGEX.test(physical) || FRAMEWORK_BINARY_REGEX.test(physical)) {
-      return VIRTUAL_ROUTE_PREFIX + canonical;
-    }
-    return physical;
-  }
-
-  async function readVirtualModule(
-    loadCtx: LoadHandlerContext,
-    route: string,
-  ): Promise<string | null> {
-    const physical = ctx.assetResolver.resolve(route);
-    if (physical === null) {
-      ctx.logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
-      return null;
-    }
-
-    // addWatchFile ensures `load` is re-invoked when the file changes.
-    // i.e. it invalidates the virtual route, important!
-    loadCtx.addWatchFile(physical);
-    // Also depend on the manifests so a manifest change forces this module to rebuild
-    for (const manifestPath of manifestWatchPaths) loadCtx.addWatchFile(manifestPath);
-
-    if (FRAMEWORK_BINARY_REGEX.test(physical)) {
-      return buildReexportAssetModule(physical);
-    }
-
-    const code = await readFile(physical, 'utf8');
-    return ctx.rewriter.rewrite(code) ?? code;
+    // webpack/rspack materialize framework binaries as virtual modules too.
+    return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: true });
   }
 
   const load = {
@@ -177,15 +110,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
 
       const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-      try {
-        return await readVirtualModule(this, route);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-        // Missing file _can_ mean that the manifest was updated (e.g. new fingerprints), reinit and try again.
-        ctx.logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
-        await ctx.reinitialize();
-        return await readVirtualModule(this, route);
-      }
+      return readVirtualModuleGuarded(ctx, this, route, manifestWatchPaths);
     },
   };
 
