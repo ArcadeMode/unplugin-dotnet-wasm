@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   FRAMEWORK_BINARY_REGEX,
   FRAMEWORK_JS_REGEX,
@@ -8,6 +7,7 @@ import {
 } from '../../core/constants';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
+import { createRsbuildSetup, type RsbuildHooks } from './rsbuild-dev-server';
 import {
   getManifestWatchPaths,
   readVirtualModuleGuarded,
@@ -15,7 +15,7 @@ import {
   type LoadHandlerContext,
 } from './virtual-resolution';
 
-type CompilerHooks = {
+export type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
   watchRun: {
     tapPromise(name: string, fn: () => Promise<void>): void;
@@ -44,22 +44,6 @@ type WebpackDevServerInstance = {
   invalidate?(callback?: () => void): void;
 };
 
-// Subset of the rsbuild `RsbuildDevServer` handed to `onBeforeStartDevServer`.
-type RsbuildDevServerInstance = {
-  middlewares: {
-    use(
-      handler: (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => void,
-    ): void;
-  };
-  sockWrite(type: string, data?: unknown): void;
-};
-
-type Watching = {
-  invalidate?: (callback?: () => void) => void;
-  invalidateWithChangesAndRemovals?: (changed?: Set<string>, removed?: Set<string>) => void;
-};
-type RsbuildCompiler = { watching?: Watching; compilers?: { watching?: Watching }[] };
-
 export interface WebpackFamilyHooks {
   resolveId(source: string, importer?: string): string | null;
   load: {
@@ -68,14 +52,7 @@ export interface WebpackFamilyHooks {
   };
   webpack(compiler: WebpackCompiler): void;
   rspack(compiler: WebpackCompiler): void;
-  rsbuild: {
-    setup(api: {
-      modifyRspackConfig(fn: (config: unknown) => void): void;
-      onAfterCreateCompiler(fn: (ctx: { compiler: unknown }) => void): void;
-      onBeforeStartDevServer(fn: (ctx: { server: RsbuildDevServerInstance }) => void): void;
-      onCloseDevServer(fn: () => void | Promise<void>): void;
-    }): void;
-  };
+  rsbuild: RsbuildHooks;
 }
 
 type WebpackLikeOptions = {
@@ -194,38 +171,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     externalizeNodeBuiltins(opts);
   }
 
-  function invalidateWatching(w: Watching | undefined, label: string): void {
-    if (!w) {
-      ctx.logger.debug(`[serve] invalidate: ${label} has no watching handle`);
-      return;
-    }
-    if (typeof w.invalidateWithChangesAndRemovals === 'function') {
-      w.invalidateWithChangesAndRemovals(new Set(manifestWatchPaths), new Set());
-    } else if (typeof w.invalidate === 'function') {
-      ctx.logger.debug(`[serve] invalidate: ${label} plain invalidate()`);
-      w.invalidate();
-    } else {
-      ctx.logger.debug(`[serve] invalidate: ${label} exposes no invalidate method`);
-    }
-  }
-
-  function invalidateRsbuild(rsbuildCompiler: RsbuildCompiler | null): void {
-    if (!rsbuildCompiler) {
-      ctx.logger.debug('[serve] invalidate: no compiler captured, cannot invalidate');
-      return;
-    }
-    if (Array.isArray(rsbuildCompiler.compilers)) {
-      ctx.logger.debug(
-        `[serve] invalidate: MultiCompiler with ${rsbuildCompiler.compilers.length} child compiler(s)`,
-      );
-      rsbuildCompiler.compilers.forEach((c, i) => invalidateWatching(c.watching, `child[${i}]`));
-    } else {
-      invalidateWatching(rsbuildCompiler.watching, 'single compiler');
-    }
-  }
-
-  let rsbuildCompiler: RsbuildCompiler | null = null;
-
   return {
     resolveId,
     load,
@@ -239,61 +184,13 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       awaitContextInit(compiler);
       registerDevServerMiddleware(compiler);
     },
-    rsbuild: {
-      setup(api) {
-        api.modifyRspackConfig((config) => {
-          applyBuildConfig(config, { prepend: true });
-        });
-        api.onAfterCreateCompiler(({ compiler }) => {
-          rsbuildCompiler = compiler as RsbuildCompiler;
-          const isMulti = Array.isArray((compiler as RsbuildCompiler).compilers);
-          ctx.logger.debug(
-            `[serve] onAfterCreateCompiler: captured ${
-              isMulti ? 'MultiCompiler' : 'single Compiler'
-            }; watching present at capture=${Boolean((compiler as RsbuildCompiler).watching)}`,
-          );
-          awaitContextInit(compiler as { hooks?: CompilerHooks });
-        });
-        api.onBeforeStartDevServer(({ server }) => {
-          isServe = true;
-          ctx.logger.debug(
-            '[serve] onBeforeStartDevServer: registering asset middleware + manifest watcher',
-          );
-          server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
-            ctx.assetMiddleware(...args);
-          });
-
-          ctx.logger.debug(
-            `[serve] manifest watch paths (${manifestWatchPaths.length}): ${manifestWatchPaths.join(', ') || '<none>'}`,
-          );
-          const watcher = new ManifestWatcher({
-            paths: manifestWatchPaths,
-            onChange: () => {
-              ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
-              return ctx.reinitialize();
-            },
-            logger: ctx.logger,
-          });
-
-          ctx.onReinitialized(() => {
-            ctx.logger.debug(
-              '[serve] onReinitialized: invalidate compiler + sockWrite("full-reload")',
-            );
-            invalidateRsbuild(rsbuildCompiler);
-            server.sockWrite('full-reload', { path: '*' });
-            ctx.logger.debug('[serve] onReinitialized: full-reload sent, handler done');
-          });
-
-          watcher.start();
-          ctx.logger.debug('[serve] ManifestWatcher started');
-
-          // Dispose on server close
-          api.onCloseDevServer(() => {
-            ctx.logger.debug('[serve] onCloseDevServer: disposing manifest watcher');
-            watcher.dispose();
-          });
-        });
+    rsbuild: createRsbuildSetup(ctx, {
+      applyBuildConfig,
+      awaitContextInit,
+      manifestWatchPaths,
+      markServe: () => {
+        isServe = true;
       },
-    },
+    }),
   };
 }
