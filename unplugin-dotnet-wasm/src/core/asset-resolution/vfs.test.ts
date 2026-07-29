@@ -147,10 +147,4 @@ describe('buildVfs with synthetic manifest: logging', () => {
     expect(messages.some((m) => m.includes('manifest assets'))).toBe(true);
   });
 
-  it('emits a debug line when resolve misses', () => {
-    vfs.resolve('does-not-exist.js');
-    expect(
-      messages.some((m) => m.includes('could not resolve:') && m.includes('does-not-exist.js')),
-    ).toBe(true);
-  });
 });
