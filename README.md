@@ -9,12 +9,12 @@
 
 ## Why unplugin-dotnet-wasm
 
-unplugin-dotnet-wasm enables importing .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) through your favorite JavaScript bundler's own module graph: no project configuration surgery, it just works. Compatible with `dotnet build` output to keep your inner dev loop fast, saving the slower `dotnet publish` for when you are actually publishing.
+unplugin-dotnet-wasm enables bundling .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) and [Blazor WebAssembly Apps](https://learn.microsoft.com/en-us/aspnet/core/blazor/) with your favorite JavaScript bundler. Enable [WasmBundlerFriendlyBootConfig](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0#javascript-bundler-support) and install the plugin: no configuration surgery, it just works. Compatible with `dotnet build` output and hooks into each bundler's watch mode and/or dev server to keep your dev loop fast. When you are ready for release it'll bundle the optimized `dotnet publish` output all the same.
 
-Built on [unplugin](https://github.com/unjs/unplugin), so one integration covers Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
+Built on [unplugin](https://github.com/unjs/unplugin) to enable support for Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
 
 > [!TIP]
-> unplugin-dotnet-wasm pairs great with [TypeShim](https://github.com/ArcadeMode/TypeShim) for a seamless .NET > JS experience.
+> unplugin-dotnet-wasm pairs great with [TypeShim](https://github.com/ArcadeMode/TypeShim) for seamless .NET + TypeScript interop.
 
 ## Install
 
