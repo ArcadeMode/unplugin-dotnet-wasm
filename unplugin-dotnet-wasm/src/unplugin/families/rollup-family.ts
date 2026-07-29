@@ -12,7 +12,7 @@ import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
 import {
   getManifestWatchPaths,
-  readVirtualModuleGuarded,
+  getVirtualizedModuleContent,
   resolveVirtualId,
   type LoadHandlerContext,
 } from './virtual-resolution';
@@ -24,6 +24,7 @@ type RollupLoadThis = LoadHandlerContext & {
 export type ViteServerHookResult = () => void | Promise<void>;
 
 export interface RollupFamilyHooks {
+  buildStart(this: unknown): Promise<void>;
   resolveId(source: string, importer?: string): string | null;
   vite: {
     configResolved(config: { root: string; command: string }): void;
@@ -56,13 +57,13 @@ type ViteModuleGraphLike = {
 };
 
 export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
+  // `isServe`: vite dev server (controls middleware)
+  // `isWatch`: watch modes (also true when isServe)
   let isServe = false;
+  let isWatch = false;
   const manifestWatchPaths = getManifestWatchPaths(ctx);
 
-  // Virtual framework modules carry no file mtime, so vite won't drop their
-  // cached transform when the underlying fingerprinted file moves. Invalidate
-  // them explicitly before a reload so the page re-resolves to the new physical.
-  function invalidateVirtualModules(server: ViteDevServer): void {
+  function invalidateAllVirtualModules(server: ViteDevServer): void {
     const graph = (server as { moduleGraph?: ViteModuleGraphLike }).moduleGraph;
     if (!graph) return;
     for (const [id, mod] of graph.idToModuleMap) {
@@ -71,12 +72,24 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   }
 
   function resolveId(source: string, importer?: string): string | null {
-    if (!isServe) return ctx.assetResolver.resolve(source);
-    // Binaries stay physical so the existing connect-middleware `load` path serves them.
-    return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false });
+    if (isWatch) {
+      // watch and serve mode: virtualize ids
+      return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false });
+    }
+    return ctx.assetResolver.resolve(source);
   }
 
   return {
+    async buildStart(this: object): Promise<void> {
+      ctx.logger.debug(`[build] buildStart invoked in rollup-family`);
+      isWatch = (this as { meta?: { watchMode?: boolean } })?.meta?.watchMode ?? false;
+      await ctx.initialize();
+      if (isWatch && !isServe) {
+        // No dev server to control rebuilds, ensure manifests pulled in before every (re)build
+        await ctx.reinitialize();
+      }
+      ctx.logger.debug(`[build] buildStart completed: isWatch=${isWatch}, isServe=${isServe}`);
+    },
     resolveId,
     vite: {
       configResolved(config: { root: string; command: string }): void {
@@ -90,15 +103,15 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         ctx.onInitialized(() => {
           server.watcher.add(ctx.assetResolver.roots());
         });
+        ctx.onReinitialized(() => {
+          invalidateAllVirtualModules(server);
+          server.ws.send({ type: 'full-reload' });
+        });
 
         const watcher = new ManifestWatcher({
           paths: manifestWatchPaths,
           onChange: () => ctx.reinitialize(),
           logger: ctx.logger,
-        });
-        ctx.onReinitialized(() => {
-          invalidateVirtualModules(server);
-          server.ws.send({ type: 'full-reload' });
         });
         watcher.start();
         server.httpServer?.once('close', () => watcher.dispose());
@@ -113,10 +126,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         id: string,
         options?: { ssr?: boolean },
       ): Promise<string | null> {
-        // Virtual framework JS: re-resolve to the current physical file + rewrite (dev only).
         if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+          // One of our routes: re-resolve to the current physical file + rewrite.
           const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-          return readVirtualModuleGuarded(ctx, this, route, manifestWatchPaths);
+          return getVirtualizedModuleContent(ctx, this, route, manifestWatchPaths);
         }
 
         // Framework binaries.

@@ -73,24 +73,24 @@ function getModuleFromVirtualRoute(importer: string | undefined): string | null 
   return decoded.slice(idx + VIRTUAL_ROUTE_PREFIX.length);
 }
 
-export async function readVirtualModuleGuarded(
+export async function getVirtualizedModuleContent(
   ctx: PluginContext,
   loadCtx: LoadHandlerContext,
   route: string,
   extraWatchPaths: readonly string[],
 ): Promise<string | null> {
   try {
-    return await readVirtualModule(ctx, loadCtx, route, extraWatchPaths);
+    return await _getVirtualizedModuleContent(ctx, loadCtx, route, extraWatchPaths);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     // Missing file _can_ mean that the manifest was updated (e.g. new fingerprints), reinit and try again.
     ctx.logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
     await ctx.reinitialize();
-    return await readVirtualModule(ctx, loadCtx, route, extraWatchPaths);
+    return await _getVirtualizedModuleContent(ctx, loadCtx, route, extraWatchPaths);
   }
 }
 
-async function readVirtualModule(
+async function _getVirtualizedModuleContent(
   ctx: PluginContext,
   loadCtx: LoadHandlerContext,
   route: string,

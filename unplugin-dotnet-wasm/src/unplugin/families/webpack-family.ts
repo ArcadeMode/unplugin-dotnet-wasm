@@ -10,7 +10,7 @@ import type { PluginContext } from '../context';
 import { createRsbuildSetup, type RsbuildHooks } from './rsbuild-dev-server';
 import {
   getManifestWatchPaths,
-  readVirtualModuleGuarded,
+  getVirtualizedModuleContent,
   resolveVirtualId,
   type LoadHandlerContext,
 } from './virtual-resolution';
@@ -87,7 +87,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
 
       const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-      return readVirtualModuleGuarded(ctx, this, route, manifestWatchPaths);
+      return getVirtualizedModuleContent(ctx, this, route, manifestWatchPaths);
     },
   };
 
