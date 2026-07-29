@@ -7,6 +7,10 @@
     "build": "vite build --mode development",
     "build:debug": "vite build --mode development",
     "build:release": "vite build --mode production",
+    "watch:debug": "vite build --watch --mode development",
+    "watch:release": "vite build --watch --mode production",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,preview \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,preview \"npm:watch:release\" \"npm:preview\"",
     "dev": "vite --port 5174 --strictPort",
     "dev:release": "vite --port 5174 --strictPort --mode production",
     "preview": "vite preview --open",
@@ -15,6 +19,7 @@
     "clean": "rimraf dist"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0",
     "vite": "^8.0.0"

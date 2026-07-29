@@ -7,6 +7,11 @@
     "build": "vite build --mode development",
     "build:debug": "vite build --mode development",
     "build:release": "vite build --mode production",
+    "watch:debug": "vite build --watch --mode development",
+    "watch:release": "vite build --watch --mode production",
+    "preview": "node --watch dist/entry.js",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,run \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,run \"npm:watch:release\" \"npm:preview\"",
     "test": "node dist/entry.js",
     "serve:debug": "vitest run --mode development --config vitest.harness.config.ts",
     "serve:release": "vitest run --mode production --config vitest.harness.config.ts",
@@ -14,6 +19,7 @@
     "clean": "rimraf dist"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0",
     "vite": "^8.1.5",
