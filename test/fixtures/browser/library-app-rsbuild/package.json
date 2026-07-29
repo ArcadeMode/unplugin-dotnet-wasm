@@ -7,6 +7,10 @@
     "build": "rsbuild build --env-mode development",
     "build:debug": "rsbuild build --env-mode development",
     "build:release": "rsbuild build --env-mode production",
+    "watch:debug": "rsbuild build --watch --env-mode development",
+    "watch:release": "rsbuild build --watch --env-mode production",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,preview \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,preview \"npm:watch:release\" \"npm:preview\"",
     "dev": "rsbuild dev",
     "dev:release": "rsbuild dev --env-mode production",
     "preview": "rsbuild preview",
@@ -16,6 +20,7 @@
   },
   "devDependencies": {
     "@rsbuild/core": "^2.1.0",
+    "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"
   },

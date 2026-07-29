@@ -134,7 +134,7 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
   const patterns = collectPatterns(manifest.Root, []);
 
   const patternCount = patterns.filter((p) => p.pattern === '**').length;
-  logger.info(
+  logger.debug(
     `VFS constructed: ${lookup.size} manifest assets, ${manifest.ContentRoots.length} content root(s), ${patternCount} fallthrough pattern(s)`,
   );
 
@@ -191,7 +191,6 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
       }
     }
 
-    logger.debug(`could not resolve: "${normalizedVP.path}"`);
     return undefined;
   }
 

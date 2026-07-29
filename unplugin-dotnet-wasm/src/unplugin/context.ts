@@ -21,7 +21,8 @@ export class PluginContext {
 
   private readonly initCbs: InitializeCallback[] = [];
   // persists source-file mtimes across builds; internal input to the type-shim generator
-  readonly #changeTracker = new SourceFileChangeTracker();
+  private readonly changeTracker = new SourceFileChangeTracker();
+  private readonly reloadTriggers: Array<() => void> = [];
 
   #consumerRoot = process.cwd();
   #assetResolver: AssetResolver | null = null;
@@ -32,7 +33,6 @@ export class PluginContext {
     public readonly options: DotnetWasmOptions,
     framework: BundlerFramework,
   ) {
-    //this.#options = options;
     this.logger = createConsoleLogger(options.logLevel ?? 'warn');
     this.rewriter = new BundlerCompatRewriter(framework);
   }
@@ -49,6 +49,11 @@ export class PluginContext {
     return this.#assetResolver;
   }
 
+  get assetMiddleware(): ConnectMiddleware {
+    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before initialize()');
+    return this.#assetMiddleware;
+  }
+
   async initialize(): Promise<void> {
     if (this.#initPromise) return this.#initPromise;
     await (this.#initPromise = this.doInitialize());
@@ -63,15 +68,23 @@ export class PluginContext {
     this.initCbs.push(callback);
   }
 
+  async reinitialize(): Promise<void> {
+    try {
+      await this.initAssetResolution();
+      this.logger.info('dotnet staticwebassets manifests changed');
+
+      for (const fn of this.reloadTriggers) fn();
+    } catch (err) {
+      this.logger.error(`manifest reinitialize failed: ${(err as Error).message}`);
+    }
+  }
+
+  onReinitialized(fn: () => void): void {
+    this.reloadTriggers.push(fn);
+  }
+
   private async doInitialize(): Promise<void> {
-    const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
-      await new ManifestLoader().load(this.options);
-    const endpointLookup = new EndpointLookup(endpointsManifest);
-    const vfs = runtimeManifest
-      ? buildVfs(runtimeManifest, { logger: this.logger })
-      : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
-    this.#assetResolver = new AssetResolver(vfs, endpointLookup);
-    this.#assetMiddleware = createAssetMiddleware(this.assetResolver, this.logger);
+    await this.initAssetResolution();
 
     if (isYarnPnp()) {
       this.logger.warn(
@@ -80,20 +93,28 @@ export class PluginContext {
       return;
     }
     const locator = new NodeModulesLocator(this.#consumerRoot);
-    const discoverer = new FileDiscoverer(this.#assetResolver);
+    const discoverer = new FileDiscoverer(this.#assetResolver!);
     const emitter = new TsDefinitionEmitter(this.#consumerRoot, this.logger);
     const generator = new ShimPackageGenerator(
       locator,
       discoverer,
-      this.#changeTracker,
+      this.changeTracker,
       emitter,
       this.logger,
     );
     await generator.generate();
   }
 
-  get assetMiddleware(): ConnectMiddleware {
-    if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before initialize()');
-    return this.#assetMiddleware;
+  private async initAssetResolution(): Promise<void> {
+    const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
+      await new ManifestLoader().load(this.options);
+    const endpointLookup = new EndpointLookup(endpointsManifest);
+    const vfs = runtimeManifest
+      ? buildVfs(runtimeManifest, { logger: this.logger })
+      : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
+    const resolver = new AssetResolver(vfs, endpointLookup);
+    const middleware = createAssetMiddleware(resolver, this.logger);
+    this.#assetResolver = resolver;
+    this.#assetMiddleware = middleware;
   }
 }

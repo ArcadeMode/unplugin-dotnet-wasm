@@ -130,6 +130,7 @@
     }
   },
   "dependencies": {
+    "chokidar": "^4.0.3",
     "unplugin": "^3.3.0",
     "zod": "^3.23.0"
   }

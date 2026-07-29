@@ -1,12 +1,21 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   FRAMEWORK_BINARY_REGEX,
   FRAMEWORK_JS_REGEX,
   DOTNET_NODE_BUILTINS,
+  VIRTUAL_ROUTE_PREFIX,
+  VIRTUAL_ROUTE_ID_REGEX,
 } from '../../core/constants';
+import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
+import { createRsbuildSetup, type RsbuildHooks } from './rsbuild-dev-server';
+import {
+  getManifestWatchPaths,
+  getVirtualizedModuleContent,
+  resolveVirtualId,
+  type LoadHandlerContext,
+} from './virtual-resolution';
 
-type CompilerHooks = {
+export type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
   watchRun: {
     tapPromise(name: string, fn: () => Promise<void>): void;
@@ -24,30 +33,27 @@ type WebpackCompiler = {
   hooks: CompilerHooks;
 };
 
+type WebSocketClient = { send(data: string): void };
+
+// Subset of the webpack-dev-server / @rspack/dev-server `Server` instance handed
+// to `setupMiddlewares(middlewares, devServer)`.
+type WebpackDevServerInstance = {
+  webSocketServer?: { clients: WebSocketClient[] } | null;
+  sendMessage?(clients: WebSocketClient[], type: string, data?: unknown): void;
+  server?: { once(event: 'close', listener: () => void): void } | null;
+  invalidate?(callback?: () => void): void;
+};
+
 export interface WebpackFamilyHooks {
+  buildStart(this: object): Promise<void>;
+  resolveId(source: string, importer?: string): string | null;
+  load: {
+    filter: { id: RegExp };
+    handler(this: LoadHandlerContext, id: string): Promise<string | null>;
+  };
   webpack(compiler: WebpackCompiler): void;
   rspack(compiler: WebpackCompiler): void;
-  rsbuild: {
-    setup(api: {
-      modifyRspackConfig(fn: (config: unknown) => void): void;
-      onAfterCreateCompiler(fn: (ctx: { compiler: unknown }) => void): void;
-      onBeforeStartDevServer(
-        fn: (ctx: {
-          server: {
-            middlewares: {
-              use(
-                handler: (
-                  req: IncomingMessage,
-                  res: ServerResponse,
-                  next: (err?: unknown) => void,
-                ) => void,
-              ): void;
-            };
-          };
-        }) => void,
-      ): void;
-    }): void;
-  };
+  rsbuild: RsbuildHooks;
 }
 
 type WebpackLikeOptions = {
@@ -60,10 +66,33 @@ type WebpackLikeOptions = {
 
 export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // webpack-cli sets WEBPACK_SERVE; @rspack/cli does not, but its argv contains "serve".
-  const isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
-
+  // rsbuild's dev command is `rsbuild dev` (no "serve"), so it can't be detected here;
+  // the rsbuild dev-server hook flips this to true before compilation starts.
+  let isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
+  const isWatch = process.argv.includes('--watch') || process.argv.includes('-w');
   const binaryRule = { test: FRAMEWORK_BINARY_REGEX, type: 'asset/resource' };
   const jsParserRule = { test: FRAMEWORK_JS_REGEX, parser: { url: false } };
+  // Disable webpack/rspack's `new URL()` asset parsing for virtual identifiers
+  const virtualJsParserRule = { test: /%00dotnet-wasm%3A/i, parser: { url: false } };
+
+  const manifestWatchPaths = getManifestWatchPaths(ctx);
+
+  function resolveId(source: string, importer?: string): string | null {
+    if (isWatch || isServe) {
+      return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: true });
+    }
+    return ctx.assetResolver.resolve(source);
+  }
+
+  const load = {
+    filter: { id: VIRTUAL_ROUTE_ID_REGEX }, // virtual ids only!
+    handler: async function (this: LoadHandlerContext, id: string): Promise<string | null> {
+      if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
+
+      const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
+      return getVirtualizedModuleContent(ctx, this, route, manifestWatchPaths);
+    },
+  };
 
   function externalizeNodeBuiltins(opts: WebpackLikeOptions): void {
     opts.resolve ??= {};
@@ -82,6 +111,34 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     compiler.hooks?.watchRun?.tapPromise('unplugin-dotnet-wasm', () => ctx.initialize());
   }
 
+  function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {
+    // Set up manifest watcher for webpack/rspack
+    const watcher = new ManifestWatcher({
+      paths: manifestWatchPaths,
+      onChange: () => ctx.reinitialize(),
+      logger: ctx.logger,
+    });
+
+    ctx.onReinitialized(() => {
+      // Request recompile and reload.
+      devServer.invalidate?.();
+
+      const clients = devServer.webSocketServer?.clients ?? [];
+      if (typeof devServer.sendMessage === 'function') {
+        devServer?.sendMessage(clients, 'static-changed'); //webpack-dev-server
+      } else {
+        for (const client of clients) {
+          client.send(JSON.stringify({ type: 'static-changed' })); // @rspack/dev-server
+        }
+      }
+    });
+
+    watcher.start();
+
+    // Dispose on server close
+    devServer.server?.once('close', () => watcher.dispose());
+  }
+
   function registerDevServerMiddleware(compiler: { options: WebpackLikeOptions }): void {
     if (!isServe) return;
 
@@ -90,7 +147,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     const existingSetup = devServerConfig.setupMiddlewares as
       ((middlewares: unknown[], devServer: unknown) => unknown[]) | undefined;
 
-    devServerConfig.setupMiddlewares = (middlewares: unknown[], devServer: unknown): unknown[] => {
+    devServerConfig.setupMiddlewares = (
+      middlewares: unknown[],
+      devServer: WebpackDevServerInstance,
+    ): unknown[] => {
       middlewares.unshift({
         name: 'unplugin-dotnet-wasm',
         middleware: (...args: Parameters<typeof ctx.assetMiddleware>) => {
@@ -98,10 +158,8 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
         },
       });
 
-      if (existingSetup) {
-        return existingSetup(middlewares, devServer);
-      }
-      return middlewares;
+      watchStaticWebassetsManifests(devServer);
+      return existingSetup?.(middlewares, devServer) ?? middlewares;
     };
   }
 
@@ -110,53 +168,38 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     if (opts.context) ctx.setConsumerRoot(opts.context);
     opts.module ??= { rules: [] };
     opts.module.rules ??= [];
-    if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule);
-    else opts.module.rules.push(binaryRule, jsParserRule);
+    if (prepend) opts.module.rules.unshift(binaryRule, jsParserRule, virtualJsParserRule);
+    else opts.module.rules.push(binaryRule, jsParserRule, virtualJsParserRule);
 
     externalizeNodeBuiltins(opts);
   }
 
-  function watchContentRoots(compiler: { hooks?: CompilerHooks }): void {
-    if (!isServe) return;
-
-    compiler.hooks?.thisCompilation.tap('unplugin-dotnet-wasm', (compilation) => {
-      ctx.onInitialized(() => {
-        for (const root of ctx.assetResolver.roots()) {
-          compilation.contextDependencies.add(root);
-        }
-      });
-    });
-  }
-
   return {
+    async buildStart(this: object): Promise<void> {
+      ctx.logger.debug(`[build] buildStart invoked in webpack-family`);
+      await ctx.initialize();
+      if (isWatch && !isServe) await ctx.reinitialize(); // No dev server to control rebuilds, ensure manifests pulled in before every (re)build
+      ctx.logger.debug(`[build] buildStart completed in webpack-family`);
+    },
+    resolveId,
+    load,
     webpack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
       registerDevServerMiddleware(compiler);
-      watchContentRoots(compiler);
     },
     rspack: (compiler) => {
       applyBuildConfig(compiler.options);
       awaitContextInit(compiler);
       registerDevServerMiddleware(compiler);
-      watchContentRoots(compiler);
     },
-    rsbuild: {
-      setup(api) {
-        api.modifyRspackConfig((config) => {
-          applyBuildConfig(config, { prepend: true });
-        });
-        api.onAfterCreateCompiler(({ compiler }) => {
-          const c = compiler as { hooks?: CompilerHooks };
-          awaitContextInit(c);
-          watchContentRoots(c);
-        });
-        api.onBeforeStartDevServer(({ server }) => {
-          server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
-            ctx.assetMiddleware(...args);
-          });
-        });
+    rsbuild: createRsbuildSetup(ctx, {
+      applyBuildConfig,
+      awaitContextInit,
+      manifestWatchPaths,
+      markServe: () => {
+        isServe = true;
       },
-    },
+    }),
   };
 }

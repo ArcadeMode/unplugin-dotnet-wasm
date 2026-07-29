@@ -4,7 +4,6 @@ import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRuntimeManifest } from '../manifest-parsing/manifest-runtime';
 import { buildVfs, type VirtualFileSystem } from './vfs';
-import { type Logger, NULL_LOGGER } from '../logger';
 
 const SAMPLE_ROOT = resolve(__dirname, '../../../../samples/SampleLibrary');
 const MANIFEST_PATH = resolve(
@@ -102,55 +101,5 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
     const asset = vfs.resolve('dynamic.json');
     expect(asset).toBeDefined();
     expect(asset!.physicalPath).toBe(join(root0, 'dynamic.json'));
-  });
-});
-
-describe('buildVfs with synthetic manifest: logging', () => {
-  let messages: string[];
-  let vfs: VirtualFileSystem;
-
-  beforeAll(() => {
-    messages = [];
-    const logger: Logger = {
-      ...NULL_LOGGER,
-      debug: (msg) => {
-        messages.push(msg);
-      },
-      info: (msg) => {
-        messages.push(msg);
-      },
-    };
-
-    vfs = buildVfs(
-      parseRuntimeManifest(
-        JSON.stringify({
-          ContentRoots: ['/virt/'],
-          Root: {
-            Children: {
-              'app.js': {
-                Children: null,
-                Asset: { ContentRootIndex: 0, SubPath: 'app.js' },
-                Patterns: null,
-              },
-            },
-            Asset: null,
-            Patterns: [{ ContentRootIndex: 0, Pattern: '**', Depth: 0 }],
-          },
-        }),
-      ),
-      { logger },
-    );
-  });
-
-  it('emits an info line summarizing VFS construction', () => {
-    expect(messages.some((m) => m.includes('VFS constructed:'))).toBe(true);
-    expect(messages.some((m) => m.includes('manifest assets'))).toBe(true);
-  });
-
-  it('emits a debug line when resolve misses', () => {
-    vfs.resolve('does-not-exist.js');
-    expect(
-      messages.some((m) => m.includes('could not resolve:') && m.includes('does-not-exist.js')),
-    ).toBe(true);
   });
 });

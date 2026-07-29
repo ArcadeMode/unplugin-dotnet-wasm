@@ -7,11 +7,17 @@
     "build": "rolldown -c rolldown.config.mjs --environment BUILD:development",
     "build:debug": "rolldown -c rolldown.config.mjs --environment BUILD:development",
     "build:release": "rolldown -c rolldown.config.mjs --environment BUILD:production",
+    "watch:debug": "rolldown -c rolldown.config.mjs --watch --environment BUILD:development",
+    "watch:release": "rolldown -c rolldown.config.mjs --watch --environment BUILD:production",
+    "preview": "node --watch dist/entry.js",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,run \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,run \"npm:watch:release\" \"npm:preview\"",
     "test": "node dist/entry.js",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",
     "rolldown": "^1.1.0",
     "typescript": "^5.5.0"

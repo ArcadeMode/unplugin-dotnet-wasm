@@ -7,6 +7,10 @@
     "build": "rollup -c --environment BUILD:development",
     "build:debug": "rollup -c --environment BUILD:development",
     "build:release": "rollup -c --environment BUILD:production",
+    "watch:debug": "rollup -c --watch --environment BUILD:development",
+    "watch:release": "rollup -c --watch --environment BUILD:production",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,preview \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,preview \"npm:watch:release\" \"npm:preview\"",
     "preview": "npx serve dist",
     "test": "echo \"No tests in fixture - build-only package\" && exit 0",
     "typecheck": "tsc --noEmit",
@@ -14,6 +18,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^16.0.0",
+    "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",
     "rollup": "^4.0.0",
     "rollup-plugin-esbuild": "^6.0.0",

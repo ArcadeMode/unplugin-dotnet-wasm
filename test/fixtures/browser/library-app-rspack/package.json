@@ -7,6 +7,10 @@
     "build": "rspack build --mode development",
     "build:debug": "rspack build --mode development",
     "build:release": "rspack build --mode production",
+    "watch:debug": "rspack build --watch --mode development",
+    "watch:release": "rspack build --watch --mode production",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,preview \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,preview \"npm:watch:release\" \"npm:preview\"",
     "dev": "rspack serve --config rspack.config.mjs --port 5174 --mode development",
     "dev:release": "rspack serve --config rspack.config.mjs --port 5174 --mode production",
     "preview": "npx serve dist",
@@ -18,6 +22,7 @@
     "@rspack/cli": "^2.1.0",
     "@rspack/core": "^2.1.0",
     "@rspack/dev-server": "^2.1.0",
+    "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"
   },
