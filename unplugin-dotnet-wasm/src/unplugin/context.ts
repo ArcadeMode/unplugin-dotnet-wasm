@@ -71,7 +71,7 @@ export class PluginContext {
   async reinitialize(): Promise<void> {
     try {
       await this.initAssetResolution();
-      this.logger.info('dotnet manifests changed: reinitialized asset resolver');
+      this.logger.info('dotnet staticwebassets manifests changed');
 
       for (const fn of this.reloadTriggers) fn();
     } catch (err) {
