@@ -279,7 +279,9 @@ runtime.runMain();
 
 The plugin works with the bundler's dev server out of the box - start it as usual (`vite`, `webpack serve`, `rspack serve`, `rsbuild dev`, `farm dev`) and the .NET WASM app boots with no extra config. Assets are served with the exact `Content-Type` / `Cache-Control` / `ETag` the production runtime expects.
 
-> There is no dotnet output watch/HMR _yet_. After a `dotnet build` you should restart the dev server (see [Planned #1](#status--roadmap)).
+### Watch mode
+
+The plugin guarantees that the latest assets are served in watch modes (`vite build --watch`, `webpack --watch`, `rsbuild -w` etc). Supported bundlers are found in the [support matrix](#bundler-support).
 
 ## Configuration
 
