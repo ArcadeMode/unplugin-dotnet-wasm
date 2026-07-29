@@ -57,8 +57,8 @@ type ViteModuleGraphLike = {
 };
 
 export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
-  // `isServe`: vite dev server (controls middleware)
-  // `isWatch`: watch modes (also true when isServe)
+  // `isServe`: vite dev server or vitest (controls middleware)
+  // `isWatch`: watch modes (also true with dev server)
   let isServe = false;
   let isWatch = false;
   const manifestWatchPaths = getManifestWatchPaths(ctx);
@@ -72,11 +72,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   }
 
   function resolveId(source: string, importer?: string): string | null {
-    if (isWatch) {
-      // watch and serve mode: virtualize ids
-      return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false });
-    }
-    return ctx.assetResolver.resolve(source);
+    const virtualize = isWatch || isServe;
+    return virtualize
+      ? resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false })
+      : ctx.assetResolver.resolve(source);
   }
 
   return {
@@ -127,21 +126,22 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         options?: { ssr?: boolean },
       ): Promise<string | null> {
         if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-          // One of our routes: re-resolve to the current physical file + rewrite.
+          ctx.logger.debug(`[load] virtual module load: ${id}`);
           const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
           return getVirtualizedModuleContent(ctx, this, route, manifestWatchPaths);
         }
-
-        // Framework binaries.
+        // else: Framework binaries (see filter)
         if (isServe) {
           const exportPath = options?.ssr
             ? pathToFileURL(id).href // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
             : '/_framework/' + basename(id); // Browser dev server: page origin + connect middleware serve /_framework/*.
+          ctx.logger.debug(`[load] framework binary load: ${id} => ${exportPath}`);
           return buildLiteralPathExportModule(exportPath);
+        } else {
+          const source = await readFile(id);
+          const refId = this.emitFile({ type: 'asset', name: basename(id), source });
+          return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
         }
-        const source = await readFile(id);
-        const refId = this.emitFile({ type: 'asset', name: basename(id), source });
-        return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
       },
     },
   };
