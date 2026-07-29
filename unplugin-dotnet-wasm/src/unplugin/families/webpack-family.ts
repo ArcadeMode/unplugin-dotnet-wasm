@@ -45,6 +45,7 @@ type WebpackDevServerInstance = {
 };
 
 export interface WebpackFamilyHooks {
+  buildStart(this: object): Promise<void>;
   resolveId(source: string, importer?: string): string | null;
   load: {
     filter: { id: RegExp };
@@ -68,6 +69,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // rsbuild's dev command is `rsbuild dev` (no "serve"), so it can't be detected here;
   // the rsbuild dev-server hook flips this to true before compilation starts.
   let isServe = process.env.WEBPACK_SERVE === 'true' || process.argv.includes('serve');
+  const isWatch = process.argv.includes('--watch') || process.argv.includes('-w');
   const binaryRule = { test: FRAMEWORK_BINARY_REGEX, type: 'asset/resource' };
   const jsParserRule = { test: FRAMEWORK_JS_REGEX, parser: { url: false } };
   // Disable webpack/rspack's `new URL()` asset parsing for virtual identifiers
@@ -76,9 +78,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   const manifestWatchPaths = getManifestWatchPaths(ctx);
 
   function resolveId(source: string, importer?: string): string | null {
-    if (!isServe) return ctx.assetResolver.resolve(source);
-    // webpack/rspack materialize framework binaries as virtual modules too.
-    return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: true });
+    if (isWatch || isServe) {
+      return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: true });
+    }
+    return ctx.assetResolver.resolve(source);
   }
 
   const load = {
@@ -172,6 +175,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   }
 
   return {
+    async buildStart(this: object): Promise<void> {
+      ctx.logger.debug(`[build] buildStart invoked in webpack-family`);
+      await ctx.initialize();
+      if (isWatch && !isServe) await ctx.reinitialize(); // No dev server to control rebuilds, ensure manifests pulled in before every (re)build
+      ctx.logger.debug(`[build] buildStart completed in webpack-family`);
+    },
     resolveId,
     load,
     webpack: (compiler) => {
