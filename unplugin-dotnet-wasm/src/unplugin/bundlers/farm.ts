@@ -56,7 +56,7 @@ interface FarmDevServer {
   server?: { once(event: string, listener: () => void): void };
 }
 
-export interface FarmFamilyHooks {
+export interface FarmHooks {
   buildStart(): Promise<void>;
   resolveId(source: string, importer?: string): string | null;
   load: {
@@ -70,7 +70,7 @@ export interface FarmFamilyHooks {
   };
 }
 
-export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
+export function createFarm(ctx: PluginContext): FarmHooks {
   const farmContentAliases = new Map<string, string>();
   const manifestWatchPaths = getManifestWatchPaths(ctx);
   let isNodeTarget = false;
