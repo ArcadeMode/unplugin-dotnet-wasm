@@ -80,10 +80,7 @@ function getModuleFromVirtualRoute(virtualRoute: string | undefined): string | n
   } catch {
     // farm ids aren't percent-encoded;
   }
-  const nulIdx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
-  if (nulIdx !== -1) {
-    return toPosixPath(decoded.slice(nulIdx + VIRTUAL_ROUTE_PREFIX.length));
-  }
+
   const markerIdx = decoded.indexOf(virtualRouteTail);
   if (markerIdx === -1) return null;
   return toPosixPath(decoded.slice(markerIdx + virtualRouteTail.length));
