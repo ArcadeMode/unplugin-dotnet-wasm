@@ -90,7 +90,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
       if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
 
       const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-      return getVirtualizedModuleContent(ctx, this, route, manifestWatchPaths);
+      const result = await getVirtualizedModuleContent(ctx, route);
+      if (result === null) return null;
+      for (const watchPath of [result.path, ...manifestWatchPaths]) this.addWatchFile(watchPath);
+      return result.code;
     },
   };
 

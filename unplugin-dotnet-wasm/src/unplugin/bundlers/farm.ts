@@ -145,7 +145,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       }
 
       if (resolved === null) return null;
-      // Virtual ids are handled by `load`; return them untouched.
+      // Virtual ids are handled by `load`.
       if (resolved.startsWith(VIRTUAL_ROUTE_PREFIX)) return resolved;
       if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(resolved)) {
         // Node: wrap binary assets in a proxy module (see load handler)
@@ -162,11 +162,15 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       filter: { id: new RegExp(`${VIRTUAL_ROUTE_ID_REGEX.source}|${URL_PROXY_NAMESPACE}`) },
       async handler(this: LoadHandlerContext, id: string): Promise<string | null> {
         if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-          // Framework JS virtual module: re-resolve to the current physical file,
+          // re-resolve to the current physical file,
           // register it (+ the manifests) as watch deps, and rewrite its contents.
           const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
           ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
-          return getVirtualizedModuleContent(ctx, this, route, manifestWatchPaths);
+          const result = await getVirtualizedModuleContent(ctx, route);
+          if (result === null) return null;
+          for (const watchPath of [result.path, ...manifestWatchPaths])
+            this.addWatchFile(watchPath);
+          return result.code;
         }
         if (id.endsWith(PROXY_SUFFIX)) {
           const real = id.slice(0, -PROXY_SUFFIX.length).replace(/\\/g, '/');

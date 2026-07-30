@@ -88,40 +88,33 @@ function getModuleFromVirtualRoute(virtualRoute: string | undefined): string | n
 
 export async function getVirtualizedModuleContent(
   ctx: PluginContext,
-  loadCtx: LoadHandlerContext,
   route: string,
-  extraWatchPaths: readonly string[],
-): Promise<string | null> {
+): Promise<{ code: string; path: string } | null> {
   try {
-    return await _getVirtualizedModuleContent(ctx, loadCtx, route, extraWatchPaths);
+    return await _getVirtualizedModuleContent(ctx, route);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     // Missing file _can_ mean that the manifest was updated (e.g. new fingerprints), reinit and try again.
     ctx.logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
     await ctx.reinitialize();
-    return await _getVirtualizedModuleContent(ctx, loadCtx, route, extraWatchPaths);
+    return await _getVirtualizedModuleContent(ctx, route);
   }
 }
 
 async function _getVirtualizedModuleContent(
   ctx: PluginContext,
-  loadCtx: LoadHandlerContext,
   route: string,
-  extraWatchPaths: readonly string[],
-): Promise<string | null> {
+): Promise<{ code: string; path: string } | null> {
   const physical = ctx.assetResolver.resolve(route);
   if (physical === null) {
     ctx.logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
     return null;
   }
 
-  // addWatchFile re-invokes `load` when the file changes (invalidates the virtual route).
-  loadCtx.addWatchFile(physical);
-  // Also depend on the manifests so a manifest change forces this module to rebuild.
-  for (const manifestPath of extraWatchPaths) loadCtx.addWatchFile(manifestPath);
-
-  if (BINARY_EXTENSIONS_REGEX.test(physical)) return buildReexportAssetModule(physical);
+  if (BINARY_EXTENSIONS_REGEX.test(physical)) {
+    return { code: buildReexportAssetModule(physical), path: physical };
+  }
 
   const code = await readFile(physical, 'utf8');
-  return ctx.rewriter.rewrite(code) ?? code;
+  return { code: ctx.rewriter.rewrite(code) ?? code, path: physical };
 }
