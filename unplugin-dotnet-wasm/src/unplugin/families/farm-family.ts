@@ -37,8 +37,10 @@ interface KoaLikeContext {
 
 // Farm's compiler exposes the module graph. `traceModuleGraph` lists the real
 // module ids in Farm's stored form; `invalidateModule` drops a module's cached
-// transform so its `load` hook re-runs. NOTE: never pass a watch-dep path (e.g. a
-// manifest) to a graph API — non-module ids panic in the Rust binding.
+// transform so its `load` hook re-runs; `update` recompiles the given modules and
+// `writeResourcesToDisk` flushes the result (used in watch mode, which has no
+// dev server to push updates). NOTE: never pass a watch-dep path (e.g. a manifest)
+// to a graph API — non-module ids panic in the Rust binding.
 interface FarmTracedModule {
   id: string;
 }
@@ -46,27 +48,30 @@ interface FarmCompiler {
   hasModule(resolvedPath: string): boolean;
   traceModuleGraph(): Promise<{ modules: FarmTracedModule[] }>;
   invalidateModule(moduleId: string): void;
+  update(paths: string[], sync?: boolean): Promise<unknown>;
+  writeResourcesToDisk(): void;
 }
+
+// Farm's HMR engine: recompiles the affected modules and pushes the result to clients.
+type FarmHmrEngine = { hmrUpdate(path: string | string[], force?: boolean): Promise<void> };
 
 interface FarmDevServer {
   app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
-  // Farm's HMR engine: recompiles the affected modules and pushes the result to clients.
-  hmrEngine?: { hmrUpdate(path: string | string[], force?: boolean): Promise<void> };
-  // Access to the underlying compiler / module graph.
-  getCompiler?(): FarmCompiler | undefined;
+  hmrEngine?: FarmHmrEngine;
   // Underlying node http.Server (present once the dev server is listening).
   server?: { once(event: string, listener: () => void): void };
 }
 
 export interface FarmFamilyHooks {
   buildStart(): Promise<void>;
-  resolveId(source: string, importer?: string | null): string | null;
+  resolveId(source: string, importer?: string): string | null;
   load: {
     filter: { id: RegExp };
     handler(id: string): Promise<string | null>;
   };
   farm: {
     config(userConfig: FarmConfig): Record<string, never>;
+    configureCompiler(compiler: FarmCompiler): void;
     configureDevServer(server: FarmDevServer): void;
   };
 }
@@ -75,13 +80,47 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
   const farmContentAliases = new Map<string, string>();
   const manifestWatchPaths = getManifestWatchPaths(ctx);
   let isNodeTarget = false;
-  // `isServe`: farm dev server (enables the connect middleware + ManifestWatcher).
-  // `isWatch`: `farm build --watch` (no dev server; reinit driven from buildStart).
   let isServe = false;
   let isWatch = false;
+  let compiler: FarmCompiler | undefined;
+  let hmrEngine: FarmHmrEngine | undefined;
+  let watcher: ManifestWatcher | undefined;
 
-  // Turn a resolved physical asset path into the id farm should see: a node-target
-  // proxy module, a cross-root alias served via `load`, or the physical path itself.
+  // The stable marker shared by all our framework virtual module ids.
+  const FRAMEWORK_MODULE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1); // 'dotnet-wasm:'
+
+  function startManifestWatcher(): ManifestWatcher {
+    if (watcher) return watcher;
+    watcher = new ManifestWatcher({
+      paths: manifestWatchPaths,
+      onChange: () => ctx.reinitialize(),
+      logger: ctx.logger,
+    });
+    watcher.start();
+    return watcher;
+  }
+
+  async function refreshFrameworkModules(): Promise<void> {
+    if (!compiler) return;
+    try {
+      const graph = await compiler.traceModuleGraph();
+      const dirty = graph.modules
+        .map((m) => m.id)
+        .filter((id) => id.includes(FRAMEWORK_MODULE_MARKER));
+      ctx.logger.debug(`[farm-reload] reinit: ${dirty.length} framework module(s) to invalidate`);
+      if (dirty.length === 0) return;
+      for (const moduleId of dirty) compiler.invalidateModule(moduleId);
+      if (hmrEngine) {
+        await hmrEngine.hmrUpdate(dirty, true);
+      } else {
+        await compiler.update(dirty, true);
+        compiler.writeResourcesToDisk();
+      }
+    } catch (error) {
+      ctx.logger.error(`[farm-reload] failed to refresh framework modules: ${error}`);
+    }
+  }
+
   function finalizePhysicalId(resolved: string): string {
     if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(resolved)) {
       // Node: wrap binary assets in a proxy module (see load handler)
@@ -101,7 +140,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       // No dev server to drive rebuilds: pull manifests in fresh before every (re)build.
       if (isWatch && !isServe) await ctx.reinitialize();
     },
-    resolveId(source: string, importer?: string | null): string | null {
+    resolveId(source: string, importer?: string): string | null {
       if (importer && importer.endsWith(PROXY_SUFFIX)) {
         // resolving the proxy modules import: let farm resolve the real asset natively (is absolute path).
         return null;
@@ -120,10 +159,10 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       }
 
       if (isServe || isWatch) {
-        // Give framework JS a fingerprint-independent virtual identity so hash
+        // resolve a fingerprint-independent virtual identity so hash
         // changes don't bake stale paths into farm's module graph. Binaries stay
         // physical (`binaryAsVirtual: false`) and keep their existing farm handling.
-        const virtual = resolveVirtualId(ctx, source, importer ?? undefined, {
+        const virtual = resolveVirtualId(ctx, source, importer, {
           binaryAsVirtual: false,
         });
         if (virtual !== null) {
@@ -187,9 +226,15 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         }
         return {};
       },
-      // Farm fires this before compilation (buildStart/initialize)
+      configureCompiler(c: FarmCompiler): void {
+        compiler = c;
+        ctx.onReinitialized(refreshFrameworkModules);
+        if (isWatch) startManifestWatcher();
+      },
+      // Fires after the dev server + HMR engine are ready (serve only).
       configureDevServer(server: FarmDevServer): void {
         isServe = true;
+        hmrEngine = server.hmrEngine;
         server.app().use(
           (koaCtx, next) =>
             new Promise<void>((resolve, reject) => {
@@ -205,48 +250,8 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
             }),
         );
 
-        // After the resolver is atomically swapped, force farm to recompile the
-        // framework modules. `hmrUpdate(manifestPaths)` alone is a no-op: it only
-        // queues paths where `compiler.hasModule(path)` is true, and the manifests
-        // are watch-deps, not modules. We also can't map manifest -> modules via a
-        // graph API (non-module ids panic in the Rust binding). Instead, enumerate
-        // the real module ids from the module graph, pick our framework virtual
-        // modules by their stable marker, invalidate each (dropping the cached
-        // transform so `load` re-runs against the fresh resolver), then hmrUpdate
-        // those real ids so farm recompiles + pushes to the browser.
-        const FRAMEWORK_MODULE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1); // 'dotnet-wasm:'
-        ctx.onReinitialized(() => {
-          const compiler = server.getCompiler?.();
-          if (!compiler) {
-            // No compiler access: fall back to the (best-effort) manifest trigger.
-            void server.hmrEngine?.hmrUpdate(manifestWatchPaths, true);
-            return;
-          }
-          void (async () => {
-            try {
-              const graph = await compiler.traceModuleGraph();
-              const dirty = graph.modules
-                .map((m) => m.id)
-                .filter((id) => id.includes(FRAMEWORK_MODULE_MARKER));
-              ctx.logger.debug(
-                `[farm-reload] reinit: ${dirty.length} framework module(s) to invalidate`,
-              );
-              if (dirty.length === 0) return;
-              for (const moduleId of dirty) compiler.invalidateModule(moduleId);
-              await server.hmrEngine?.hmrUpdate(dirty, true);
-            } catch (error) {
-              ctx.logger.error(`[farm-reload] failed to refresh framework modules: ${error}`);
-            }
-          })();
-        });
-
-        const watcher = new ManifestWatcher({
-          paths: manifestWatchPaths,
-          onChange: () => ctx.reinitialize(),
-          logger: ctx.logger,
-        });
-        watcher.start();
-        server.server?.once('close', () => watcher.dispose());
+        const watcher = startManifestWatcher();
+        if (watcher) server.server?.once('close', () => watcher.dispose());
       },
     },
   };

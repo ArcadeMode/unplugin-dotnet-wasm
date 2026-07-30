@@ -22,7 +22,7 @@ export class PluginContext {
   private readonly initCbs: InitializeCallback[] = [];
   // persists source-file mtimes across builds; internal input to the type-shim generator
   private readonly changeTracker = new SourceFileChangeTracker();
-  private readonly reloadTriggers: Array<() => void> = [];
+  private readonly reloadTriggers: Array<() => void | Promise<void>> = [];
 
   #consumerRoot = process.cwd();
   #assetResolver: AssetResolver | null = null;
@@ -73,13 +73,13 @@ export class PluginContext {
       await this.initAssetResolution();
       this.logger.info('dotnet staticwebassets manifests changed');
 
-      for (const fn of this.reloadTriggers) fn();
+      for (const fn of this.reloadTriggers) await fn();
     } catch (err) {
       this.logger.error(`manifest reinitialize failed: ${(err as Error).message}`);
     }
   }
 
-  onReinitialized(fn: () => void): void {
+  onReinitialized(fn: () => void | Promise<void>): void {
     this.reloadTriggers.push(fn);
   }
 

@@ -109,6 +109,9 @@ importers:
       '@farmfe/core':
         specifier: ^1.7.0
         version: 1.7.11(@types/node@26.1.0)
+      concurrently:
+        specifier: ^9.1.0
+        version: 9.2.4
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -301,6 +304,9 @@ importers:
       '@farmfe/core':
         specifier: ^1.7.0
         version: 1.7.11(@types/node@26.1.0)
+      concurrently:
+        specifier: ^9.1.0
+        version: 9.2.4
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
