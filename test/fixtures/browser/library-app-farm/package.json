@@ -7,6 +7,7 @@
     "build": "farm build --mode development",
     "build:debug": "farm build --mode development",
     "build:release": "cross-env DOTNET_RELEASE=1 farm build --mode production",
+    "build:watch": "farm build --watch --mode development",
     "dev": "farm dev --port 5174",
     "dev:release": "cross-env DOTNET_RELEASE=1 farm dev --port 5174",
     "preview": "npx serve dist",
