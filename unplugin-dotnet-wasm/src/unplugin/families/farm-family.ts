@@ -132,44 +132,25 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         return source;
       }
 
+      let resolved: string | null;
       if (isServe || isWatch) {
-        // resolve a fingerprint-independent virtual identity so hash
-        // changes don't bake stale paths into farm's module graph. Binaries stay
-        // physical (`binaryAsVirtual: false`) and keep their existing farm handling.
-        const virtual = resolveVirtualId(ctx, source, importer, {
-          binaryAsVirtual: false,
-        });
-        if (virtual !== null && virtual.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-          return virtual;
+        // virtualize to hide fingerprints from farm's module graph
+        resolved = resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false });
+      } else {
+        resolved = ctx.assetResolver.resolve(source);
+        if (isNodeTarget) {
+          const assetPath = ctx.assetResolver.resolvePath(resolved, source, importer ?? undefined);
+          if (assetPath !== null) resolved = assetPath;
         }
-        if (virtual !== null) {
-          const physical = virtual;
-          // is binary:
-          if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(physical)) {
-            // Node: wrap binary assets in a proxy module (see load handler)
-            return toPosixPath(physical) + PROXY_SUFFIX;
-          }
-          if (parse(physical).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
-            // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
-            farmContentAliases.set(basename(virtual), virtual);
-            return join(ctx.consumerRoot, URL_PROXY_NAMESPACE, basename(virtual));
-          }
-        }
-        // virtual === null: not a framework asset, fall through to physical resolution.
       }
 
-      const resolved = ctx.assetResolver.resolve(source);
-      const assetPath = ctx.assetResolver.resolvePath(resolved, source, importer ?? undefined);
-
-      if (isNodeTarget && assetPath !== null) {
+      if (resolved === null) return null;
+      // Virtual ids are handled by `load`; return them untouched.
+      if (resolved.startsWith(VIRTUAL_ROUTE_PREFIX)) return resolved;
+      if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(resolved)) {
         // Node: wrap binary assets in a proxy module (see load handler)
-        return toPosixPath(assetPath) + PROXY_SUFFIX;
+        return toPosixPath(resolved) + PROXY_SUFFIX;
       }
-
-      if (resolved === null) {
-        return null;
-      }
-
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
         // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
         farmContentAliases.set(basename(resolved), resolved);

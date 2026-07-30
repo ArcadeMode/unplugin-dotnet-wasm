@@ -1,10 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import {
-  FRAMEWORK_BINARY_REGEX,
-  FRAMEWORK_JS_REGEX,
-  VIRTUAL_ROUTE_PREFIX,
-} from '../../core/constants';
+import { FRAMEWORK_BINARY_REGEX, VIRTUAL_ROUTE_PREFIX } from '../../core/constants';
 import { collapseDotSegments, toPosixPath } from '../../core/path-utils';
 import { buildReexportAssetModule } from '../../core/asset-resolution/asset-url-module';
 import { discoverManifests } from '../../core/manifest-parsing/discover';
@@ -50,11 +46,11 @@ export function resolveVirtualId(
   const physical = ctx.assetResolver.resolve(canonical);
   if (physical === null) return null;
 
-  if (FRAMEWORK_JS_REGEX.test(physical)) return VIRTUAL_ROUTE_PREFIX + canonical;
   if (FRAMEWORK_BINARY_REGEX.test(physical)) {
     return opts.binaryAsVirtual ? VIRTUAL_ROUTE_PREFIX + canonical : physical;
   }
-  return physical; // TODO: non-framework stuff will still be fingerprinted, should probably virtualize?
+  // Everything else with a canonical route (framework JS) gets a virtual identity.
+  return VIRTUAL_ROUTE_PREFIX + canonical;
 }
 
 function getModuleFromVirtualRoute(importer: string | undefined): string | null {
