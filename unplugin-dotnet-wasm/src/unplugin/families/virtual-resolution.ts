@@ -59,18 +59,31 @@ export function resolveVirtualId(
 
 function getModuleFromVirtualRoute(importer: string | undefined): string | null {
   if (!importer) return null;
-  let decoded = importer;
-  if (!importer.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-    if (!importer.includes('dotnet-wasm')) return null;
-    try {
-      decoded = decodeURIComponent(importer);
-    } catch {
-      return null;
-    }
+  // webpack / vite / rollup: raw NUL-prefixed virtual id.
+  if (importer.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+    return importer.slice(VIRTUAL_ROUTE_PREFIX.length);
   }
-  const idx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
-  if (idx === -1) return null;
-  return decoded.slice(idx + VIRTUAL_ROUTE_PREFIX.length);
+  if (!importer.includes('dotnet-wasm')) return null;
+  // rspack: an on-disk `.virtual` file with the id URL-encoded into the filename
+  //         (`%00dotnet-wasm%3A%2F...`); percent-decode it back to the NUL form.
+  // farm:   the id is `path.resolve`d (unplugin encodes `\0` as a literal `\0`),
+  //         so it gains a `<cwd>` prefix and OS-native separators.
+  let decoded = importer;
+  try {
+    decoded = decodeURIComponent(importer);
+  } catch {
+    // farm ids aren't percent-encoded; keep the original.
+  }
+  const nulIdx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
+  if (nulIdx !== -1) {
+    return toPosixPath(decoded.slice(nulIdx + VIRTUAL_ROUTE_PREFIX.length));
+  }
+  // farm: the NUL byte is gone (replaced by a literal `\0` then absorbed into the
+  // resolved path), so key off the stable `dotnet-wasm:` marker instead.
+  const marker = VIRTUAL_ROUTE_PREFIX.slice(1); // 'dotnet-wasm:'
+  const markerIdx = decoded.indexOf(marker);
+  if (markerIdx === -1) return null;
+  return toPosixPath(decoded.slice(markerIdx + marker.length));
 }
 
 export async function getVirtualizedModuleContent(
