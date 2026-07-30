@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import { FRAMEWORK_BINARY_REGEX, VIRTUAL_ROUTE_PREFIX } from '../../core/constants';
+import {
+  BINARY_EXTENSIONS_REGEX,
+  JS_MODULE_REGEX,
+  VIRTUAL_ROUTE_PREFIX,
+} from '../../core/constants';
 import { collapseDotSegments, toPosixPath } from '../../core/path-utils';
 import { buildReexportAssetModule } from '../../core/asset-resolution/asset-url-module';
 import { discoverManifests } from '../../core/manifest-parsing/discover';
@@ -46,40 +50,43 @@ export function resolveVirtualId(
   const physical = ctx.assetResolver.resolve(canonical);
   if (physical === null) return null;
 
-  if (FRAMEWORK_BINARY_REGEX.test(physical)) {
+  // dotnet.js contains all imports so we just resolve js files and binary files to virtual ids 
+  // (not to mess with e.g. ts/tsx/css/json/... files that need to be transformed by the bundler).
+  if (JS_MODULE_REGEX.test(physical)) return VIRTUAL_ROUTE_PREFIX + canonical;
+  if (BINARY_EXTENSIONS_REGEX.test(physical)) {
     return opts.binaryAsVirtual ? VIRTUAL_ROUTE_PREFIX + canonical : physical;
   }
-  // Everything else with a canonical route (framework JS) gets a virtual identity.
-  return VIRTUAL_ROUTE_PREFIX + canonical;
+  return physical;
 }
 
-function getModuleFromVirtualRoute(importer: string | undefined): string | null {
-  if (!importer) return null;
-  // webpack / vite / rollup: raw NUL-prefixed virtual id.
-  if (importer.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-    return importer.slice(VIRTUAL_ROUTE_PREFIX.length);
+/**
+ * Get module id from virtual route that has passed through the bundler (and was manipulated along the way).
+ */
+function getModuleFromVirtualRoute(virtualRoute: string | undefined): string | null {
+  if (!virtualRoute) return null;
+  if (virtualRoute.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+    return virtualRoute.slice(VIRTUAL_ROUTE_PREFIX.length);
   }
-  if (!importer.includes('dotnet-wasm')) return null;
-  // rspack: an on-disk `.virtual` file with the id URL-encoded into the filename
-  //         (`%00dotnet-wasm%3A%2F...`); percent-decode it back to the NUL form.
-  // farm:   the id is `path.resolve`d (unplugin encodes `\0` as a literal `\0`),
-  //         so it gains a `<cwd>` prefix and OS-native separators.
-  let decoded = importer;
+
+  // the NUL byte is gone in farm (replaced by a literal `\0`). Search without it.
+  const virtualRouteTail = VIRTUAL_ROUTE_PREFIX.slice(1);
+  if (!virtualRoute.includes(virtualRouteTail)) {
+    return null;
+  }
+
+  let decoded = virtualRoute;
   try {
-    decoded = decodeURIComponent(importer);
+    decoded = decodeURIComponent(virtualRoute);
   } catch {
-    // farm ids aren't percent-encoded; keep the original.
+    // farm ids aren't percent-encoded;
   }
   const nulIdx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
   if (nulIdx !== -1) {
     return toPosixPath(decoded.slice(nulIdx + VIRTUAL_ROUTE_PREFIX.length));
   }
-  // farm: the NUL byte is gone (replaced by a literal `\0` then absorbed into the
-  // resolved path), so key off the stable `dotnet-wasm:` marker instead.
-  const marker = VIRTUAL_ROUTE_PREFIX.slice(1); // 'dotnet-wasm:'
-  const markerIdx = decoded.indexOf(marker);
+  const markerIdx = decoded.indexOf(virtualRouteTail);
   if (markerIdx === -1) return null;
-  return toPosixPath(decoded.slice(markerIdx + marker.length));
+  return toPosixPath(decoded.slice(markerIdx + virtualRouteTail.length));
 }
 
 export async function getVirtualizedModuleContent(
@@ -116,7 +123,7 @@ async function _getVirtualizedModuleContent(
   // Also depend on the manifests so a manifest change forces this module to rebuild.
   for (const manifestPath of extraWatchPaths) loadCtx.addWatchFile(manifestPath);
 
-  if (FRAMEWORK_BINARY_REGEX.test(physical)) return buildReexportAssetModule(physical);
+  if (BINARY_EXTENSIONS_REGEX.test(physical)) return buildReexportAssetModule(physical);
 
   const code = await readFile(physical, 'utf8');
   return ctx.rewriter.rewrite(code) ?? code;

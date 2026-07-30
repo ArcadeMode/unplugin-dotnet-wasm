@@ -10,14 +10,8 @@ import { createFarm } from './bundlers/farm';
 
 export const dotnetWasmUnplugin = createUnplugin(
   (options: DotnetWasmOptions, meta: UnpluginContextMeta) => {
-    const framework = meta.framework;
-    const isRollupFamily =
-      framework === 'rollup' || framework === 'vite' || framework === 'rolldown';
-    const isWebpackFamily =
-      framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
-    const isEsbuildFamily = framework === 'esbuild' || framework === 'bun';
-
-    const ctx = new PluginContext(options, framework as BundlerFramework);
+    const framework = meta.framework as BundlerFramework;
+    const ctx = new PluginContext(options, framework);
 
     const base = {
       name: 'unplugin-dotnet-wasm',
@@ -40,15 +34,15 @@ export const dotnetWasmUnplugin = createUnplugin(
       },
     };
 
-    if (isRollupFamily) {
+    if (framework === 'rollup' || framework === 'vite' || framework === 'rolldown') {
       return { ...base, ...createRollupFamily(ctx) };
     }
 
-    if (isWebpackFamily) {
+    if (framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild') {
       return { ...base, ...createWebpackFamily(ctx) };
     }
 
-    if (isEsbuildFamily) {
+    if (framework === 'esbuild' || framework === 'bun') {
       return {
         name: base.name,
         enforce: base.enforce,
