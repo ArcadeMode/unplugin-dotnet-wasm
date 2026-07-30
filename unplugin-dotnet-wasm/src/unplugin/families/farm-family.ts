@@ -35,12 +35,6 @@ interface KoaLikeContext {
   respond: boolean;
 }
 
-// Farm's compiler exposes the module graph. `traceModuleGraph` lists the real
-// module ids in Farm's stored form; `invalidateModule` drops a module's cached
-// transform so its `load` hook re-runs; `update` recompiles the given modules and
-// `writeResourcesToDisk` flushes the result (used in watch mode, which has no
-// dev server to push updates). NOTE: never pass a watch-dep path (e.g. a manifest)
-// to a graph API — non-module ids panic in the Rust binding.
 interface FarmTracedModule {
   id: string;
 }
@@ -87,7 +81,6 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
   let watcher: ManifestWatcher | undefined;
 
   // The stable marker shared by all our framework virtual module ids.
-  const FRAMEWORK_MODULE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1); // 'dotnet-wasm:'
 
   function startManifestWatcher(): ManifestWatcher {
     if (watcher) return watcher;
@@ -100,13 +93,13 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
     return watcher;
   }
 
-  async function refreshFrameworkModules(): Promise<void> {
+  async function invalidateModules(): Promise<void> {
     if (!compiler) return;
     try {
       const graph = await compiler.traceModuleGraph();
       const dirty = graph.modules
         .map((m) => m.id)
-        .filter((id) => id.includes(FRAMEWORK_MODULE_MARKER));
+        .filter((id) => id.includes(VIRTUAL_ROUTE_PREFIX.slice(1))); // split the leading null byte, module graph ids are encoded
       ctx.logger.debug(`[farm-reload] reinit: ${dirty.length} framework module(s) to invalidate`);
       if (dirty.length === 0) return;
       for (const moduleId of dirty) compiler.invalidateModule(moduleId);
@@ -121,19 +114,6 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
     }
   }
 
-  function finalizePhysicalId(resolved: string): string {
-    if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(resolved)) {
-      // Node: wrap binary assets in a proxy module (see load handler)
-      return toPosixPath(resolved) + PROXY_SUFFIX;
-    }
-    if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
-      // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
-      farmContentAliases.set(basename(resolved), resolved);
-      return join(ctx.consumerRoot, URL_PROXY_NAMESPACE, basename(resolved));
-    }
-    return resolved;
-  }
-
   return {
     async buildStart(): Promise<void> {
       await ctx.initialize();
@@ -146,15 +126,9 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         return null;
       }
 
-      if (source.endsWith(PROXY_SUFFIX)) {
-        return source; // handled by load handler
-      }
-
-      // Farm (unlike rollup/vite) re-runs the full resolver when a module is
-      // invalidated, resolving it by its own id instead of treating a `\0`-prefixed
-      // source as already-resolved. Return our virtual ids unchanged so `load`
-      // handles them; otherwise farm's native resolver fails ("Can not resolve").
-      if (source.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+      // Farm wonks out sometimes and re-resolves virtual ids / inserted proxy modules
+      if (source.endsWith(PROXY_SUFFIX) || source.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+        // Lets `load` handle
         return source;
       }
 
@@ -165,8 +139,21 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
         const virtual = resolveVirtualId(ctx, source, importer, {
           binaryAsVirtual: false,
         });
+        if (virtual !== null && virtual.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+          return virtual;
+        }
         if (virtual !== null) {
-          return virtual.startsWith(VIRTUAL_ROUTE_PREFIX) ? virtual : finalizePhysicalId(virtual);
+          const physical = virtual;
+          // is binary:
+          if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(physical)) {
+            // Node: wrap binary assets in a proxy module (see load handler)
+            return toPosixPath(physical) + PROXY_SUFFIX;
+          }
+          if (parse(physical).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
+            // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
+            farmContentAliases.set(basename(virtual), virtual);
+            return join(ctx.consumerRoot, URL_PROXY_NAMESPACE, basename(virtual));
+          }
         }
         // virtual === null: not a framework asset, fall through to physical resolution.
       }
@@ -228,7 +215,7 @@ export function createFarmFamily(ctx: PluginContext): FarmFamilyHooks {
       },
       configureCompiler(c: FarmCompiler): void {
         compiler = c;
-        ctx.onReinitialized(refreshFrameworkModules);
+        ctx.onReinitialized(invalidateModules);
         if (isWatch) startManifestWatcher();
       },
       // Fires after the dev server + HMR engine are ready (serve only).
