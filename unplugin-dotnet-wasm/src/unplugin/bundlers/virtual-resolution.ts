@@ -50,7 +50,7 @@ export function resolveVirtualId(
   const physical = ctx.assetResolver.resolve(canonical);
   if (physical === null) return null;
 
-  // dotnet.js contains all imports so we just resolve js files and binary files to virtual ids 
+  // dotnet.js contains all imports so we just resolve js files and binary files to virtual ids
   // (not to mess with e.g. ts/tsx/css/json/... files that need to be transformed by the bundler).
   if (JS_MODULE_REGEX.test(physical)) return VIRTUAL_ROUTE_PREFIX + canonical;
   if (BINARY_EXTENSIONS_REGEX.test(physical)) {
