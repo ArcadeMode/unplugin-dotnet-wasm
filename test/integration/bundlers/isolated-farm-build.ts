@@ -73,12 +73,20 @@ await build({
 
       // Extract the real DiscoveryError message from Farm's stderr output and rethrow
       // so callers can assert on the message (e.g. in publish.test.ts).
+      // Farm's native core also prints a source code frame of the throw statement, which
+      // contains the *unexpanded* template literal (`...${manifestDir}`, context);`). Scan
+      // every occurrence and skip that code-frame line, picking the resolved runtime path.
       const PREFIX = 'Endpoints manifest not found at';
-      const idx = stderrOutput.indexOf(PREFIX);
-      if (idx !== -1) {
-        const rest = stderrOutput.slice(idx + PREFIX.length).trim();
+      let searchIdx = stderrOutput.indexOf(PREFIX);
+      while (searchIdx !== -1) {
+        const rest = stderrOutput.slice(searchIdx + PREFIX.length).trim();
         const path = rest.split(/\r?\n/)[0].trim();
-        throw new Error(`${PREFIX} ${path}`);
+        // The code-frame line still contains the literal `${...}` template; the real
+        // runtime message has an expanded absolute path. Skip the former.
+        if (path && !path.includes('${')) {
+          throw new Error(`${PREFIX} ${path}`);
+        }
+        searchIdx = stderrOutput.indexOf(PREFIX, searchIdx + PREFIX.length);
       }
       throw err;
     }
