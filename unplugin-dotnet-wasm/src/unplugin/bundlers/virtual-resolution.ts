@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import {
-  FRAMEWORK_BINARY_REGEX,
-  FRAMEWORK_JS_REGEX,
+  BINARY_EXTENSIONS_REGEX,
+  JS_MODULE_REGEX,
   VIRTUAL_ROUTE_PREFIX,
 } from '../../core/constants';
 import { collapseDotSegments, toPosixPath } from '../../core/path-utils';
@@ -50,65 +50,71 @@ export function resolveVirtualId(
   const physical = ctx.assetResolver.resolve(canonical);
   if (physical === null) return null;
 
-  if (FRAMEWORK_JS_REGEX.test(physical)) return VIRTUAL_ROUTE_PREFIX + canonical;
-  if (FRAMEWORK_BINARY_REGEX.test(physical)) {
+  // dotnet.js contains all imports so we just resolve js files and binary files to virtual ids
+  // (not to mess with e.g. ts/tsx/css/json/... files that need to be transformed by the bundler).
+  if (JS_MODULE_REGEX.test(physical)) return VIRTUAL_ROUTE_PREFIX + canonical;
+  if (BINARY_EXTENSIONS_REGEX.test(physical)) {
     return opts.binaryAsVirtual ? VIRTUAL_ROUTE_PREFIX + canonical : physical;
   }
-  return physical; // TODO: non-framework stuff will still be fingerprinted, should probably virtualize?
+  return physical;
 }
 
-function getModuleFromVirtualRoute(importer: string | undefined): string | null {
-  if (!importer) return null;
-  let decoded = importer;
-  if (!importer.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-    if (!importer.includes('dotnet-wasm')) return null;
-    try {
-      decoded = decodeURIComponent(importer);
-    } catch {
-      return null;
-    }
+/**
+ * Get module id from virtual route that has passed through the bundler (and was manipulated along the way).
+ */
+function getModuleFromVirtualRoute(virtualRoute: string | undefined): string | null {
+  if (!virtualRoute) return null;
+  if (virtualRoute.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+    return virtualRoute.slice(VIRTUAL_ROUTE_PREFIX.length);
   }
-  const idx = decoded.indexOf(VIRTUAL_ROUTE_PREFIX);
-  if (idx === -1) return null;
-  return decoded.slice(idx + VIRTUAL_ROUTE_PREFIX.length);
+
+  // the NUL byte is gone in farm (replaced by a literal `\0`). Search without it.
+  const virtualRouteTail = VIRTUAL_ROUTE_PREFIX.slice(1);
+  if (!virtualRoute.includes(virtualRouteTail)) {
+    return null;
+  }
+
+  let decoded = virtualRoute;
+  try {
+    decoded = decodeURIComponent(virtualRoute);
+  } catch {
+    // farm ids aren't percent-encoded;
+  }
+
+  const markerIdx = decoded.indexOf(virtualRouteTail);
+  if (markerIdx === -1) return null;
+  return toPosixPath(decoded.slice(markerIdx + virtualRouteTail.length));
 }
 
 export async function getVirtualizedModuleContent(
   ctx: PluginContext,
-  loadCtx: LoadHandlerContext,
   route: string,
-  extraWatchPaths: readonly string[],
-): Promise<string | null> {
+): Promise<{ code: string; path: string } | null> {
   try {
-    return await _getVirtualizedModuleContent(ctx, loadCtx, route, extraWatchPaths);
+    return await _getVirtualizedModuleContent(ctx, route);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     // Missing file _can_ mean that the manifest was updated (e.g. new fingerprints), reinit and try again.
     ctx.logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
     await ctx.reinitialize();
-    return await _getVirtualizedModuleContent(ctx, loadCtx, route, extraWatchPaths);
+    return await _getVirtualizedModuleContent(ctx, route);
   }
 }
 
 async function _getVirtualizedModuleContent(
   ctx: PluginContext,
-  loadCtx: LoadHandlerContext,
   route: string,
-  extraWatchPaths: readonly string[],
-): Promise<string | null> {
+): Promise<{ code: string; path: string } | null> {
   const physical = ctx.assetResolver.resolve(route);
   if (physical === null) {
     ctx.logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
     return null;
   }
 
-  // addWatchFile re-invokes `load` when the file changes (invalidates the virtual route).
-  loadCtx.addWatchFile(physical);
-  // Also depend on the manifests so a manifest change forces this module to rebuild.
-  for (const manifestPath of extraWatchPaths) loadCtx.addWatchFile(manifestPath);
-
-  if (FRAMEWORK_BINARY_REGEX.test(physical)) return buildReexportAssetModule(physical);
+  if (BINARY_EXTENSIONS_REGEX.test(physical)) {
+    return { code: buildReexportAssetModule(physical), path: physical };
+  }
 
   const code = await readFile(physical, 'utf8');
-  return ctx.rewriter.rewrite(code) ?? code;
+  return { code: ctx.rewriter.rewrite(code) ?? code, path: physical };
 }

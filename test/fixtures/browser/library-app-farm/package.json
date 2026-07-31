@@ -7,6 +7,10 @@
     "build": "farm build --mode development",
     "build:debug": "farm build --mode development",
     "build:release": "cross-env DOTNET_RELEASE=1 farm build --mode production",
+    "watch:debug": "farm build --watch --mode development",
+    "watch:release": "cross-env DOTNET_RELEASE=1 farm build --watch --mode production",
+    "watch:preview:debug": "npm run build:debug && concurrently -k -n watch,preview \"npm:watch:debug\" \"npm:preview\"",
+    "watch:preview:release": "npm run build:release && concurrently -k -n watch,preview \"npm:watch:release\" \"npm:preview\"",
     "dev": "farm dev --port 5174",
     "dev:release": "cross-env DOTNET_RELEASE=1 farm dev --port 5174",
     "preview": "npx serve dist",
@@ -17,6 +21,7 @@
   "devDependencies": {
     "@farmfe/cli": "^1.0.5",
     "@farmfe/core": "^1.7.0",
+    "concurrently": "^9.1.0",
     "cross-env": "^7.0.3",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"

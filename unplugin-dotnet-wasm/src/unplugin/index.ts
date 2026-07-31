@@ -3,21 +3,15 @@ import type { DotnetWasmOptions } from '../types';
 import type { BundlerFramework } from '../core/bundler-compat-rewriter';
 import { FRAMEWORK_JS_REGEX } from '../core/constants';
 import { PluginContext } from './context';
-import { createRollupFamily } from './families/rollup-family';
-import { createWebpackFamily } from './families/webpack-family';
-import { createEsbuildFamily } from './families/esbuild-family';
-import { createFarmFamily } from './families/farm-family';
+import { createRollupFamily } from './bundlers/rollup-family';
+import { createWebpackFamily } from './bundlers/webpack-family';
+import { createEsbuildFamily } from './bundlers/esbuild-family';
+import { createFarm } from './bundlers/farm';
 
 export const dotnetWasmUnplugin = createUnplugin(
   (options: DotnetWasmOptions, meta: UnpluginContextMeta) => {
-    const framework = meta.framework;
-    const isRollupFamily =
-      framework === 'rollup' || framework === 'vite' || framework === 'rolldown';
-    const isWebpackFamily =
-      framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild';
-    const isEsbuildFamily = framework === 'esbuild' || framework === 'bun';
-
-    const ctx = new PluginContext(options, framework as BundlerFramework);
+    const framework = meta.framework as BundlerFramework;
+    const ctx = new PluginContext(options, framework);
 
     const base = {
       name: 'unplugin-dotnet-wasm',
@@ -40,15 +34,15 @@ export const dotnetWasmUnplugin = createUnplugin(
       },
     };
 
-    if (isRollupFamily) {
+    if (framework === 'rollup' || framework === 'vite' || framework === 'rolldown') {
       return { ...base, ...createRollupFamily(ctx) };
     }
 
-    if (isWebpackFamily) {
+    if (framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild') {
       return { ...base, ...createWebpackFamily(ctx) };
     }
 
-    if (isEsbuildFamily) {
+    if (framework === 'esbuild' || framework === 'bun') {
       return {
         name: base.name,
         enforce: base.enforce,
@@ -57,6 +51,6 @@ export const dotnetWasmUnplugin = createUnplugin(
       };
     }
 
-    return { ...base, ...createFarmFamily(ctx) };
+    return { ...base, ...createFarm(ctx) };
   },
 );
