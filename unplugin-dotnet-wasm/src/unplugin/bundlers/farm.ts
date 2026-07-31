@@ -80,7 +80,10 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   let hmrEngine: FarmHmrEngine | undefined;
   let watcher: ManifestWatcher | undefined;
 
-  // The stable marker shared by all our framework virtual module ids.
+  function isSameDriveRoot(p: string): boolean {
+    // Farm does not like cross-drive roots (e.g. C:\ vs D:\)
+    return parse(p).root.toLowerCase() === parse(ctx.consumerRoot).root.toLowerCase();
+  }
 
   function startManifestWatcher(): ManifestWatcher {
     if (watcher) return watcher;
@@ -166,8 +169,10 @@ export function createFarm(ctx: PluginContext): FarmHooks {
           ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
           const result = await getVirtualizedModuleContent(ctx, route);
           if (result === null) return null;
-          for (const watchPath of [result.path, ...manifestWatchPaths])
-            this.addWatchFile(watchPath);
+          for (const watchPath of [result.path, ...manifestWatchPaths]) {
+            // Farm cannot watch files across drive roots, skip those (mostly nuget files so static anyway)
+            if (isSameDriveRoot(watchPath)) this.addWatchFile(watchPath);
+          }
           return result.code;
         }
         if (id.endsWith(PROXY_SUFFIX)) {
