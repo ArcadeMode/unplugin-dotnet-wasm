@@ -117,8 +117,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   return {
     async buildStart(): Promise<void> {
       await ctx.initialize();
-      // No dev server to drive rebuilds: pull manifests in fresh before every (re)build.
-      if (isWatch && !isServe) await ctx.reinitialize();
     },
     resolveId(source: string, importer?: string): string | null {
       if (importer && importer.endsWith(PROXY_SUFFIX)) {
