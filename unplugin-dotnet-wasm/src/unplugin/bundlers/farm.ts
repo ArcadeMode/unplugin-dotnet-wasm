@@ -52,6 +52,8 @@ type FarmHmrEngine = { hmrUpdate(path: string | string[], force?: boolean): Prom
 interface FarmDevServer {
   app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
   hmrEngine?: FarmHmrEngine;
+  // Farm's WsServer: broadcast channel to connected HMR clients.
+  ws?: { clients: Set<{ rawSend(payload: string): void }> };
   // Underlying node http.Server (present once the dev server is listening).
   server?: { once(event: string, listener: () => void): void };
 }
@@ -77,7 +79,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   let isServe = false;
   let isWatch = false;
   let compiler: FarmCompiler | undefined;
-  let hmrEngine: FarmHmrEngine | undefined;
+  let devServer: FarmDevServer | undefined;
   let watcher: ManifestWatcher | undefined;
 
   function isSameDriveRoot(p: string): boolean {
@@ -106,10 +108,14 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       ctx.logger.debug(`[farm-reload] reinit: ${dirty.length} framework module(s) to invalidate`);
       if (dirty.length === 0) return;
       for (const moduleId of dirty) compiler.invalidateModule(moduleId);
-      if (hmrEngine) {
-        await hmrEngine.hmrUpdate(dirty, true);
+      await compiler.update(dirty, true);
+      if (isServe) {
+        const clients = devServer?.ws?.clients;
+        if (clients) for (const client of clients) client.rawSend("{ type: 'full-reload' }");
+        ctx.logger.debug(
+          `[farm-reload] serve: recompiled + full-reload (${clients?.size ?? 0} client(s))`,
+        );
       } else {
-        await compiler.update(dirty, true);
         compiler.writeResourcesToDisk();
       }
     } catch (error) {
@@ -209,7 +215,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       // Fires after the dev server + HMR engine are ready (serve only).
       configureDevServer(server: FarmDevServer): void {
         isServe = true;
-        hmrEngine = server.hmrEngine;
+        devServer = server;
         server.app().use(
           (koaCtx, next) =>
             new Promise<void>((resolve, reject) => {
