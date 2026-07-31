@@ -14,7 +14,7 @@ npm i -D unplugin-dotnet-wasm
 ```
 
 > [!IMPORTANT]  
-> Your .NET WebAssembly project must have [WasmBundlerFriendlyBootConfig](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0#javascript-bundler-support) set to `true` for it to be .
+> Your .NET WebAssembly project must have [WasmBundlerFriendlyBootConfig](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0#javascript-bundler-support) set to `true`.
 
 ## Usage
 
