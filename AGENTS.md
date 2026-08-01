@@ -22,7 +22,7 @@ pnpm test:e2e --bundler=vite --platform=node
 pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=vite --platform=browser
 ```
 
-- Implemented bundlers today: `vite`, `webpack`, `esbuild` (others skipped via capabilities).
+- Implemented bundlers: `vite`, `webpack`, `esbuild`, `rollup`, `rolldown`, `rspack`, `rsbuild`, `farm`, `bun` (gated by capabilities: e.g. bun/esbuild skip watch/server).
 - Skip the isolated vite node SSR spec: `SKIP_VITE_NODE_SERVER=1`
 - JUnit: `test/e2e/test-results/{browser,node}/<bundler>/*.junit.xml`
 - Materialized fixtures: `test/fixture-builder/.materialized/` (gitignored)

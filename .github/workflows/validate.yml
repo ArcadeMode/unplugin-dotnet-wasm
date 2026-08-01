@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        bundler: [vite, webpack, esbuild]
+        bundler: [vite, webpack, esbuild, rollup, rolldown, rspack, rsbuild, farm, bun]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -102,6 +102,9 @@ jobs:
 
       - name: Warm up .NET SDK
         run: dotnet --info
+
+      - uses: oven-sh/setup-bun@v2
+        if: matrix.bundler == 'bun'
 
       - run: pnpm install
 
