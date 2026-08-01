@@ -37,14 +37,22 @@ for (const fingerprint of [true, false] as const) {
         await page.goto(fixture.baseUrl);
 
         const bootTs = await waitForInit(page);
-        await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:3', 'INCREMENT:6']);
+        await expectMessages(consoleMsgs, [
+          'NUGET_STATICWEBASSET:ok',
+          'INCREMENT:3',
+          'INCREMENT:6',
+        ]);
 
         await fixture.buildLibrary({ altered: true });
         await fixture.build();
         await page.reload();
 
         await waitForInit(page, bootTs);
-        await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
+        await expectMessages(consoleMsgs, [
+          'NUGET_STATICWEBASSET:ok',
+          'INCREMENT:5',
+          'INCREMENT:10',
+        ]);
       });
     });
   });
