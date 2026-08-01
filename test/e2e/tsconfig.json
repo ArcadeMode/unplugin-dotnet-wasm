@@ -11,6 +11,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src"],
-  "exclude": ["templates", ".materialized"]
+  "include": ["tests", "playwright.config.ts"]
 }

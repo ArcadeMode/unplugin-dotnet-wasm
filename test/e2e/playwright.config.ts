@@ -1,9 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
 /**
- * The fixture-builder owns its own dev servers (each spec materializes and
- * starts a fixture), so there is no top-level `webServer` here. Specs manage
- * lifecycle via `buildFixture` / `Fixture.dispose`.
+ * Browser E2E suite. Specs drive the `@dotnet-wasm-bundler/fixture-builder`
+ * harness, which materializes a project + isolated .NET Library, owns its own
+ * dev server, and cleans up on `Fixture.dispose` — so there is no top-level
+ * `webServer` here.
  */
 export default defineConfig({
   testDir: 'tests',
@@ -12,7 +13,7 @@ export default defineConfig({
   timeout: 180_000,
   fullyParallel: false,
   workers: 1,
-  reporter: [['list'], ['junit', { outputFile: 'test-results/fixture-builder.junit.xml' }]],
+  reporter: [['list'], ['junit', { outputFile: 'test-results/e2e.junit.xml' }]],
   use: {
     headless: true,
     trace: 'retain-on-failure',

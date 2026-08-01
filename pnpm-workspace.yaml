@@ -4,6 +4,7 @@ packages:
   - 'test/fixtures/*/library-app-*'
   - 'test/integration'
   - 'test/fixture-builder'
+  - 'test/e2e'
 allowBuilds:
   core-js: true
   esbuild: true

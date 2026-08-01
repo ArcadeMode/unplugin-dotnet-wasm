@@ -1,0 +1,20 @@
+{
+  "name": "@dotnet-wasm-bundler/e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test:e2e:browser": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf test-results"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/node": "^22.0.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@dotnet-wasm-bundler/fixture-builder": "workspace:*"
+  }
+}

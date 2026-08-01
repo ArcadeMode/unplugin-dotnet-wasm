@@ -7,12 +7,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test:e2e:browser": "playwright test",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf .materialized test-results"
+    "clean": "rimraf .materialized"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.0",
     "@types/node": "^22.0.0",
     "concurrently": "^9.1.0",
     "rimraf": "^6.0.0",

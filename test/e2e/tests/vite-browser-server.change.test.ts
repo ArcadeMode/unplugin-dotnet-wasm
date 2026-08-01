@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { buildFixture, type Fixture } from '../src/index';
+import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 
 /**
  * Phase 1 vertical slice: vite / browser / server.
