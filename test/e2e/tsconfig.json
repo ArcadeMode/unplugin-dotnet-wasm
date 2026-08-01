@@ -11,5 +11,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["tests", "playwright.config.ts"]
+  "include": ["tests", "helpers", "playwright.config.ts", "vitest.e2e.config.ts"]
 }

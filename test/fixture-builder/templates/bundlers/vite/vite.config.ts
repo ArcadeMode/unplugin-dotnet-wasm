@@ -8,6 +8,7 @@ if (!projectRoot) {
 }
 const configuration = (process.env.DOTNET_CONFIGURATION ?? 'Debug') as 'Debug' | 'Release';
 const isPublish = process.env.DOTNET_IS_PUBLISH === 'true';
+const platform = process.env.DOTNET_FIXTURE_PLATFORM === 'node' ? 'node' : 'browser';
 
 // The isolated Library is an out-of-tree sibling of this app (../Library), so
 // vite's recursive dev-server watcher does not scan it. This guard is kept as
@@ -36,8 +37,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    rollupOptions: {
-      input: resolve(__dirname, 'index.html'),
-    },
+    // Node: bundle the entry to a runnable `dist/entry.js`. Browser: emit from
+    // the HTML document.
+    rollupOptions:
+      platform === 'node'
+        ? {
+            input: resolve(__dirname, 'src/entry.ts'),
+            preserveEntrySignatures: 'strict',
+            output: { format: 'es', entryFileNames: 'entry.js' },
+          }
+        : {
+            input: resolve(__dirname, 'index.html'),
+          },
   },
 });

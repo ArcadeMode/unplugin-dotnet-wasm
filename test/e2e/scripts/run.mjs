@@ -19,9 +19,8 @@ if (values.platform) env.FIXTURE_PLATFORM = values.platform;
 let command;
 let args;
 if (values.platform === 'node') {
-  // Node E2E specs (vitest) arrive with the node platform templates (Phase 3).
-  console.error('node platform E2E is not implemented yet (Phase 3).');
-  process.exit(1);
+  command = 'npx';
+  args = ['vitest', 'run', '--config', 'vitest.e2e.config.ts'];
 } else {
   command = 'npx';
   args = ['playwright', 'test', '--project=chromium'];

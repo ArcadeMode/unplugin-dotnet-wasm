@@ -90,6 +90,11 @@ function generatePackageJson(
     buildMode: options.buildMode,
     port,
   });
+  // Every node fixture runs its built artifact the same way; the bundlers all
+  // emit `dist/entry.js`, so the `start` script is platform-universal.
+  if (options.platform === 'node') {
+    scripts.start ??= 'node dist/entry.js';
+  }
   // Deps are intentionally omitted — inherited via upward node_modules nesting.
   const pkg = {
     name: `@dotnet-wasm-bundler/materialized-${id}`,

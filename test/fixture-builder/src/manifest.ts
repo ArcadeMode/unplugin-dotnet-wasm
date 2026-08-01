@@ -37,8 +37,39 @@ const vite: BundlerManifest = {
   },
 };
 
+const webpack: BundlerManifest = {
+  configFiles: ['webpack.config.mjs'],
+  scripts({ port, buildMode }) {
+    const mode = buildMode === 'publish' ? 'production' : 'development';
+    const config = '--config webpack.config.mjs';
+    return {
+      // One-shot build → `dist/` (dist + watch serve modes).
+      build: `webpack ${config} --mode ${mode}`,
+      // Rebuild-on-change (watch serve mode).
+      watch: `webpack ${config} --watch --mode ${mode}`,
+      // Dev server (server serve mode) on the allocated port.
+      dev: `webpack serve ${config} --port ${port} --mode ${mode}`,
+    };
+  },
+};
+
+const esbuild: BundlerManifest = {
+  configFiles: ['esbuild.config.mjs'],
+  scripts({ platform }) {
+    return {
+      // One-shot build → `dist/` (dist + watch serve modes). esbuild has no dev
+      // server; the config selects its target from the platform argument.
+      build: `node esbuild.config.mjs ${platform}`,
+      // Rebuild-on-change (watch serve mode).
+      watch: `node esbuild.config.mjs ${platform} --watch`,
+    };
+  },
+};
+
 const MANIFESTS: Partial<Record<Bundler, BundlerManifest>> = {
   vite,
+  webpack,
+  esbuild,
 };
 
 export function getManifest(bundler: Bundler): BundlerManifest {

@@ -3,9 +3,9 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../helpers/permute-fixture';
 
 /**
- * Dev server change test: mid-test rebuilds the dotnet library and asserts 
- * the pushed reload surfaces the altered behavior in the browser. 
- * 
+ * Dev server change test: mid-test rebuilds the dotnet library and asserts
+ * the pushed reload surfaces the altered behavior in the browser.
+ *
  * This is a regression test for the dev server's auto-reload on dotnet changes.
  */
 permuteFixture({ platform: 'browser', serveMode: 'server' }, (params) => {

@@ -1,4 +1,7 @@
 import { rmSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
+import { join } from 'node:path';
+import sirv from 'sirv';
 import { buildLibrary, dotnetConfigFor } from './dotnet';
 import { ManagedProcess, NPM, killPort, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
@@ -37,6 +40,7 @@ export class Fixture {
   private readonly keepOnDispose: boolean;
   private readonly rootDir: string;
   private server?: ManagedProcess;
+  private staticServer?: Server;
 
   constructor(init: FixtureInit) {
     this.dir = init.project.dir;
@@ -63,6 +67,7 @@ export class Fixture {
       DOTNET_PROJECT_ROOT: this.libraryDir,
       DOTNET_CONFIGURATION: configuration,
       DOTNET_IS_PUBLISH: String(isPublish),
+      DOTNET_FIXTURE_PLATFORM: this.platform,
     };
   }
 
@@ -95,6 +100,36 @@ export class Fixture {
   /** One-shot `build` script → `dist/`. */
   build(): Promise<RunResult> {
     return this.runScript('build');
+  }
+
+  /**
+   * Execute the built node artifact (`node dist/entry.js`) to completion and
+   * return its output. Node `dist` serve mode only; the entry prints
+   * `GREETING:<value>` on stdout for assertions.
+   */
+  run(): Promise<RunResult> {
+    return this.runScript('start');
+  }
+
+  /**
+   * Serve the built `dist/` statically on the allocated port (browser `dist`
+   * serve mode). Runs in-process so teardown is a clean `server.close()` — no
+   * child process to orphan. Call {@link build} first; after an altered rebuild,
+   * rebuild and `page.reload()` to pick up the new bundle.
+   */
+  async serve(): Promise<void> {
+    if (this.serveMode !== 'dist') {
+      throw new Error(`Fixture.serve() supports serveMode "dist" only (got "${this.serveMode}").`);
+    }
+    if (this.platform !== 'browser') {
+      throw new Error(`Fixture.serve() supports platform "browser" only (got "${this.platform}").`);
+    }
+    const handler = sirv(join(this.dir, 'dist'), { dev: true, single: true });
+    this.staticServer = createServer((req, res) => handler(req, res));
+    await new Promise<void>((resolvePromise, reject) => {
+      this.staticServer!.once('error', reject);
+      this.staticServer!.listen(this.port, resolvePromise);
+    });
   }
 
   /** Start the long-running runtime for the serve mode and wait until ready. */
@@ -137,6 +172,10 @@ export class Fixture {
   async stop(): Promise<void> {
     await this.server?.stop();
     this.server = undefined;
+    if (this.staticServer) {
+      await new Promise<void>((resolvePromise) => this.staticServer!.close(() => resolvePromise()));
+      this.staticServer = undefined;
+    }
     // The npm.cmd → node → bundler chain can orphan the real dev server past
     // the wrapper's tree-kill; ensure nothing keeps holding the port (and, via
     // its cwd, the materialized dir) before removal.

@@ -6,6 +6,7 @@
   "scripts": {
     "test:e2e": "node scripts/run.mjs",
     "test:e2e:browser": "playwright test",
+    "test:e2e:node": "vitest run --config vitest.e2e.config.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf test-results"
   },
@@ -13,7 +14,8 @@
     "@playwright/test": "^1.50.0",
     "@types/node": "^22.0.0",
     "rimraf": "^6.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
   },
   "dependencies": {
     "@dotnet-wasm-bundler/fixture-builder": "workspace:*"
