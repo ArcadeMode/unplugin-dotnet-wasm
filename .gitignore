@@ -16,3 +16,6 @@ node_modules/.dotnet-vfs/
 
 ## Vite
 *.local
+
+## Local planning notes
+*-plan.md

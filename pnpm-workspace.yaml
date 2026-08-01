@@ -3,6 +3,7 @@ packages:
   - 'samples/*'
   - 'test/fixtures/*/library-app-*'
   - 'test/integration'
+  - 'test/fixture-builder'
 allowBuilds:
   core-js: true
   esbuild: true
