@@ -64,7 +64,10 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(join(TEMPLATES_DIR, 'shared', 'tsconfig.base.json'), join(dir, 'tsconfig.json'));
 
   // Isolated .NET Library copy, out-of-tree sibling of the app (../Library).
-  cpSync(join(TEMPLATES_DIR, 'library'), libraryDir, { recursive: true });
+  cpSync(join(TEMPLATES_DIR, 'library'), libraryDir, {
+    recursive: true,
+    filter: (src) => !/[\\/](bin|obj)([\\/]|$)/.test(src),
+  });
 
   // Bundler config(s), copied verbatim into the app.
   const manifest = getManifest(options.bundler);
