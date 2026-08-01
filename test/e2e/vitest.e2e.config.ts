@@ -17,9 +17,8 @@ export default defineConfig({
     include: ['tests/vitest/**/*.test.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,
-    // Fixtures use unique materialized dirs + ephemeral ports — safe to parallelize.
-    fileParallelism: true,
-    maxWorkers: 2,
+    fileParallelism: false,
+    maxWorkers: 1,
     reporters: ['default', 'junit'],
     outputFile: {
       junit: resolve(__dirname, `test-results/node/${bundler}/${configName}.junit.xml`),

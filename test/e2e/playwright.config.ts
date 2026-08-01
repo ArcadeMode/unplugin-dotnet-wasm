@@ -16,9 +16,8 @@ export default defineConfig({
   testDir: 'tests/playwright',
   // .NET restore + build on first materialization can be slow.
   timeout: 180_000,
-  // Fixtures use unique materialized dirs + ephemeral ports — safe to parallelize.
-  fullyParallel: true,
-  workers: 2,
+  fullyParallel: false,
+  workers: 1,
   outputDir: resolve(__dirname, `test-results/browser/${bundler}`),
   reporter: [
     ['list'],
