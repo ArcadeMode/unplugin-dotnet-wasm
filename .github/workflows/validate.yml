@@ -37,6 +37,9 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      - name: Warm up .NET SDK
+        run: dotnet --info
+
       - run: pnpm install
 
       - name: Build plugin
