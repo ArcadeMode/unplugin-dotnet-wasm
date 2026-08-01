@@ -6,10 +6,19 @@ export function trackConsoleMessages(page: Page): ConsoleMessage[] {
   return seen;
 }
 
-export async function expectMessages(seen: ConsoleMessage[], expected: string[]): Promise<void> {
-  const texts = seen.map((msg) => msg.text());
+export async function expectMessages(
+  seen: ConsoleMessage[],
+  expected: string[],
+  timeout = 30_000,
+): Promise<void> {
   await expect
-    .poll(() => expected.every((line) => texts.includes(line)), { timeout: 1_000 })
+    .poll(
+      () => {
+        const texts = seen.map((msg) => msg.text());
+        return expected.every((line) => texts.includes(line));
+      },
+      { timeout },
+    )
     .toBe(true);
 }
 
