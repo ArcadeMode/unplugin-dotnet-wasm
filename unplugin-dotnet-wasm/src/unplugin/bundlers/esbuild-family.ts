@@ -9,14 +9,21 @@ import {
 } from '../../core/constants';
 import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
+import { getManifestWatchPaths } from './virtual-resolution';
 
 type EsbuildHandlerOpts = { filter: RegExp; namespace?: string };
 type EsbuildOnResolveCallbackArgs = { path: string; namespace?: string; importer?: string };
 type EsbuildOnResolveCallbackResult = { path: string; namespace?: string } | null;
-type EsbuildOnLoadCallbackResult = { contents: string; loader: 'js'; resolveDir?: string } | null;
+type EsbuildOnLoadCallbackResult = {
+  contents: string;
+  loader: 'js';
+  resolveDir?: string;
+  watchFiles?: string[];
+} | null;
 
 interface EsbuildBuild {
   initialOptions: { absWorkingDir?: string; external?: string[]; loader?: Record<string, string> };
+  onStart: (cb: () => void | Promise<void>) => void;
   onResolve: (
     opts: EsbuildHandlerOpts,
     cb: (args: EsbuildOnResolveCallbackArgs) => EsbuildOnResolveCallbackResult,
@@ -55,6 +62,21 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       }
     }
 
+    // esbuild watch: onStart runs every rebuild. First pass initializes; later
+    // passes reinitialize so fingerprint moves refresh the resolver. Out-of-tree
+    // .NET changes are observed via watchFiles on framework/proxy loads.
+    let initialized = false;
+    build.onStart(async () => {
+      if (!initialized) {
+        await ctx.initialize();
+        initialized = true;
+      } else {
+        await ctx.reinitialize();
+      }
+    });
+
+    const manifestWatchPaths = () => getManifestWatchPaths(ctx);
+
     // Resolve binary assets through proxy modules that re-import the real asset by its absolute path.
     build.onResolve({ filter: /.*/ }, (args) => {
       if (args.importer?.endsWith(PROXY_SUFFIX)) {
@@ -85,6 +107,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
         contents: buildNewUrlAssetProxyModule(realPath),
         loader: 'js' as const,
         resolveDir: dirname(realPath),
+        watchFiles: [realPath, ...manifestWatchPaths()],
       };
     });
 
@@ -94,8 +117,18 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       // we rewrite them to silence the warnings end users cannot resolve anyway.
       const source = await readFile(args.path, 'utf-8');
       const fixed = ctx.rewriter.rewrite(source);
-      if (!fixed) return null;
-      return { contents: fixed, loader: 'js' as const };
+      if (!fixed) {
+        return {
+          contents: source,
+          loader: 'js' as const,
+          watchFiles: [args.path, ...manifestWatchPaths()],
+        };
+      }
+      return {
+        contents: fixed,
+        loader: 'js' as const,
+        watchFiles: [args.path, ...manifestWatchPaths()],
+      };
     });
   };
 
