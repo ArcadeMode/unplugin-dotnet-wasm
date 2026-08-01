@@ -12,7 +12,13 @@ public class Counter
         _value = initial;
     }
 
-    public void Increment() => _value++;
+    // The fixture-builder toggles the step via `-p:LibraryAltered=true` to prove
+    // an altered rebuild took effect: baseline increments by 3, altered by 5.
+#if LIBRARY_ALTERED
+    public void Increment() => _value += 5;
+#else
+    public void Increment() => _value += 3;
+#endif
 
     public int Value => _value;
 }

@@ -4,8 +4,10 @@ import { permuteFixture } from '../helpers/permute-fixture-node';
 
 /**
  * Node dist change test: builds the bundle against a baseline library, executes
- * `dist/entry.js` and asserts the baseline greeting, rebuilds the library from
- * the altered branch, rebuilds the bundle, and asserts the altered greeting.
+ * `dist/entry.js` and asserts the baseline interop, rebuilds the library from
+ * the altered branch, rebuilds the bundle, and asserts the altered interop.
+ * Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6); altered increments by
+ * 5 (→ INCREMENT:5, INCREMENT:10).
  *
  * Runs for every implemented bundler that produces a runnable node artifact;
  * unsupported bundlers appear as visible skips.
@@ -22,9 +24,10 @@ permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
     await fixture?.dispose();
   });
 
-  test('greeting flips Hello → Hola after an altered rebuild', async () => {
+  test('interop reflects the altered rebuild', async () => {
     const baseline = await fixture.run();
-    expect(baseline.stdout).toContain('GREETING:Hello, world');
+    expect(baseline.stdout).toContain('INCREMENT:3');
+    expect(baseline.stdout).toContain('INCREMENT:6');
 
     // The change trigger: rebuild the library from the altered branch, then
     // rebuild the bundle so it picks up the new wasm assets.
@@ -32,6 +35,7 @@ permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
     await fixture.build();
 
     const altered = await fixture.run();
-    expect(altered.stdout).toContain('GREETING:Hola, world');
+    expect(altered.stdout).toContain('INCREMENT:5');
+    expect(altered.stdout).toContain('INCREMENT:10');
   });
 });

@@ -4,24 +4,10 @@ import {
   supports,
   type FixtureParameters,
 } from '@dotnet-wasm-bundler/fixture-builder';
-
-/** Runner shard filter (set by scripts/run.mjs from `--bundler` / `--platform`). */
-function envFilter(): Partial<FixtureParameters> {
-  const filter: Partial<FixtureParameters> = {};
-  if (process.env.FIXTURE_BUNDLER) {
-    filter.bundler = process.env.FIXTURE_BUNDLER as FixtureParameters['bundler'];
-  }
-  if (process.env.FIXTURE_PLATFORM) {
-    filter.platform = process.env.FIXTURE_PLATFORM as FixtureParameters['platform'];
-  }
-  return filter;
-}
+import { envFilter } from './envFilter';
 
 /**
- * Vitest twin of the Playwright `permuteFixture`: emits one `describe` per
- * fixture parameter combination matching `filter`, keeping enumeration and
- * capability gating out of node spec files. Supported combinations run;
- * unsupported ones become visible skips.
+ * Emit one `describe` per fixture parameter permutation (preserving `fixed` dimensions)
  */
 export function permuteFixture(
   filter: Partial<FixtureParameters>,

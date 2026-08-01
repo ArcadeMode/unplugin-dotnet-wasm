@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <!-- The fixture-builder toggles behavior via `-p:LibraryAltered=true`,
-       compiled through the `#if LIBRARY_ALTERED` directive in Echo.cs. -->
+       compiled through the `#if LIBRARY_ALTERED` directive in Counter.cs. -->
   <PropertyGroup Condition="'$(LibraryAltered)' == 'true'">
     <DefineConstants>$(DefineConstants);LIBRARY_ALTERED</DefineConstants>
   </PropertyGroup>

@@ -59,8 +59,7 @@ export function materialize(input: MaterializeInput): MaterializedProject {
 
   // Shared assets: entry + html + base tsconfig.
   mkdirSync(join(dir, 'src'), { recursive: true });
-  const entrySrc = options.platform === 'node' ? 'entry.node.ts' : 'entry.browser.ts';
-  cpSync(join(TEMPLATES_DIR, 'shared', entrySrc), join(dir, 'src', 'entry.ts'));
+  cpSync(join(TEMPLATES_DIR, 'shared', 'entry.ts'), join(dir, 'src', 'entry.ts'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'index.html'), join(dir, 'index.html'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'tsconfig.base.json'), join(dir, 'tsconfig.json'));
 

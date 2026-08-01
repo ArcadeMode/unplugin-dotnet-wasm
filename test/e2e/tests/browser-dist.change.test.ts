@@ -1,12 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../helpers/permute-fixture';
+import { trackConsoleMessages, expectMessages, waitForInit } from '../helpers/assertions';
 
 /**
  * Browser dist change test: builds the bundle against a baseline library, serves
- * `dist/` statically, asserts the baseline greeting, rebuilds the library from
+ * `dist/` statically, asserts the baseline interop, rebuilds the library from
  * the altered branch, rebuilds the bundle, reloads the page, and asserts the
- * altered greeting.
+ * altered interop. Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6);
+ * altered increments by 5 (→ INCREMENT:5, INCREMENT:10).
  *
  * Runs for every implemented bundler whose `dist` output boots in a browser;
  * unsupported bundlers appear as visible skips.
@@ -24,30 +26,18 @@ permuteFixture({ platform: 'browser', serveMode: 'dist' }, (params) => {
     await fixture?.dispose();
   });
 
-  test('greeting flips Hello → Hola after an altered rebuild + reload', async ({ page }) => {
+  test('interop reflects the altered rebuild after a manual reload', async ({ page }) => {
+    const consoleMsgs = trackConsoleMessages(page);
     await page.goto(fixture.baseUrl);
-    await page.waitForFunction(() => (globalThis as any).__libReady === true, null, {
-      timeout: 15_000,
-    });
+    
+    const bootTs = await waitForInit(page);
+    await expectMessages(consoleMsgs, ['INCREMENT:3', 'INCREMENT:6']);
 
-    const baseline = await page.evaluate(() => (globalThis as any).__lib.greet('world'));
-    expect(baseline).toBe('Hello, world');
-
-    // The change trigger: rebuild the library from the altered branch, rebuild
-    // the bundle, then reload to load the new wasm.
     await fixture.buildLibrary({ altered: true });
     await fixture.build();
     await page.reload();
 
-    await page.waitForFunction(
-      () =>
-        (globalThis as any).__libReady === true &&
-        (globalThis as any).__lib.greet('world') === 'Hola, world',
-      null,
-      { timeout: 15_000 },
-    );
-
-    const altered = await page.evaluate(() => (globalThis as any).__lib.greet('world'));
-    expect(altered).toBe('Hola, world');
+    await waitForInit(page, bootTs);
+    await expectMessages(consoleMsgs, ['INCREMENT:5', 'INCREMENT:10']);
   });
 });
