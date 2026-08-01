@@ -185,7 +185,10 @@ export class Fixture {
       env: this.scriptEnv,
     });
     try {
-      await this.waitForPort();
+      // Wait for the pre-allocated port to accept connections (not port
+      // allocation). Default 5s is tight when vite + plugin init runs under
+      // parallel Playwright workers; 15s covers that without masking hangs.
+      await this.waitForPort(15_000);
     } catch (err) {
       const reason = this.server.hasExited ? 'server process exited early' : 'port never opened';
       throw new Error(

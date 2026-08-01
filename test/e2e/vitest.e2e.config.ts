@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const bundler = process.env.FIXTURE_BUNDLER ?? 'all';
+const configName = `e2e-vitest-${bundler}-node-${process.platform}`;
 
 // Node-platform E2E: executes built `dist/entry.js` artifacts and asserts their
 // stdout. Browser E2E runs under Playwright (`playwright.config.ts`); the two
@@ -12,10 +17,12 @@ export default defineConfig({
     include: ['tests/vitest/**/*.test.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,
-    fileParallelism: false,
+    // Fixtures use unique materialized dirs + ephemeral ports — safe to parallelize.
+    fileParallelism: true,
+    maxWorkers: 4,
     reporters: ['default', 'junit'],
     outputFile: {
-      junit: resolve(__dirname, 'test-results/e2e-node.junit.xml'),
+      junit: resolve(__dirname, `test-results/node/${bundler}/${configName}.junit.xml`),
     },
   },
 });
