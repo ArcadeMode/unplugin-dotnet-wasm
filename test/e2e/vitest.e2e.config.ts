@@ -19,7 +19,7 @@ export default defineConfig({
     hookTimeout: 180_000,
     // Fixtures use unique materialized dirs + ephemeral ports — safe to parallelize.
     fileParallelism: true,
-    maxWorkers: 4,
+    maxWorkers: 2,
     reporters: ['default', 'junit'],
     outputFile: {
       junit: resolve(__dirname, `test-results/node/${bundler}/${configName}.junit.xml`),

@@ -18,7 +18,7 @@ export default defineConfig({
   timeout: 180_000,
   // Fixtures use unique materialized dirs + ephemeral ports — safe to parallelize.
   fullyParallel: true,
-  workers: 4,
+  workers: 2,
   outputDir: resolve(__dirname, `test-results/browser/${bundler}`),
   reporter: [
     ['list'],
