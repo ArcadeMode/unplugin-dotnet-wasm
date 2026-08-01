@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:e2e": "node scripts/run.mjs",
     "test:e2e:browser": "playwright test",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf test-results"

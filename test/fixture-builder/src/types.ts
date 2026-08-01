@@ -15,6 +15,13 @@ export type ServeMode = 'dist' | 'server' | 'watch';
 /** `debug` → `dotnet build -c Debug`; `publish` → `dotnet publish -c Release`. */
 export type BuildMode = 'debug' | 'publish';
 
+/** The three orthogonal dimensions that identify a fixture instance. */
+export interface FixtureParameters {
+  bundler: Bundler;
+  platform: Platform;
+  serveMode: ServeMode;
+}
+
 export interface BuildFixtureOptions {
   bundler: Bundler;
   platform: Platform;

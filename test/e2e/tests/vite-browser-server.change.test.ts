@@ -1,25 +1,18 @@
 import { test, expect } from '@playwright/test';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { permuteFixture } from '../helpers/permute-fixture';
 
 /**
- * Phase 1 vertical slice: vite / browser / server.
- *
- * Boots a dev server against a freshly built (baseline) library, asserts the
- * baseline greeting, rebuilds the isolated library with `altered: true`, and
- * asserts the pushed reload surfaces the altered greeting — all without a
- * manual server restart.
+ * Dev server change test: mid-test rebuilds the dotnet library and asserts 
+ * the pushed reload surfaces the altered behavior in the browser. 
+ * 
+ * This is a regression test for the dev server's auto-reload on dotnet changes.
  */
-test.describe('[vite][browser][server] library change test', () => {
+permuteFixture({ platform: 'browser', serveMode: 'server' }, (params) => {
   let fixture: Fixture;
 
   test.beforeAll(async () => {
-    fixture = await buildFixture({
-      bundler: 'vite',
-      platform: 'browser',
-      serveMode: 'server',
-      buildMode: 'debug',
-      fingerprint: false,
-    });
+    fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint: false });
     await fixture.start();
   });
 

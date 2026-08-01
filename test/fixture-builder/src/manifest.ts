@@ -48,3 +48,8 @@ export function getManifest(bundler: Bundler): BundlerManifest {
   }
   return manifest;
 }
+
+/** Whether the fixture builder has a template/manifest for `bundler`. */
+export function isBundlerImplemented(bundler: Bundler): boolean {
+  return MANIFESTS[bundler] !== undefined;
+}
