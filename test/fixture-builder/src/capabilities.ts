@@ -55,12 +55,12 @@ export const CAPABILITIES: Record<Bundler, BundlerCapabilities> = {
   esbuild: {
     build: true,
     publish: true,
-    watch: true,
+    watch: false,
     devServerBrowser: false,
     devServerNode: false,
   },
   farm: { build: true, publish: true, watch: true, devServerBrowser: true, devServerNode: false },
-  bun: { build: true, publish: true, watch: true, devServerBrowser: false, devServerNode: false },
+  bun: { build: true, publish: true, watch: false, devServerBrowser: false, devServerNode: false },
 };
 
 /**
