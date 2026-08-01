@@ -9,12 +9,12 @@ if (!projectRoot) {
 const configuration = (process.env.DOTNET_CONFIGURATION ?? 'Debug') as 'Debug' | 'Release';
 const isPublish = process.env.DOTNET_IS_PUBLISH === 'true';
 
-// The isolated Library copy lives inside the project root, so its churning
-// bin/obj build output (e.g. obj/.../tmp-webcil/*.wasm) would otherwise be
-// picked up by vite's recursive dev-server watcher. On Windows a mid-run
-// `dotnet build` locks those transient files and vite's chokidar watcher
-// throws an uncaught EBUSY that kills the dev server. Exclude the whole
-// Library dir — the plugin's own ManifestWatcher drives reloads.
+// The isolated Library is an out-of-tree sibling of this app (../Library), so
+// vite's recursive dev-server watcher does not scan it. This guard is kept as
+// defense-in-depth: if the plugin ever pulls a physical Library/bin|obj asset
+// into the module graph, vite could try to watch the churning build output and
+// (on Windows) a mid-run `dotnet build` file lock throws an uncaught EBUSY that
+// kills the dev server. The plugin's own ManifestWatcher drives reloads.
 const normalizedLibrary = projectRoot.replace(/\\/g, '/');
 
 export default defineConfig({

@@ -14,9 +14,11 @@ export const MATERIALIZED_ROOT = join(PACKAGE_ROOT, '.materialized');
 export interface MaterializedProject {
   /** Unique identifier for this instance. */
   id: string;
-  /** Materialized project root (contains package.json, config, src, Library). */
+  /** Instance root; contains the sibling `app/` and `Library/` dirs. */
+  rootDir: string;
+  /** The node project root (`<rootDir>/app`): package.json, config, src. */
   dir: string;
-  /** The isolated .NET Library copy inside the project. */
+  /** The isolated .NET Library copy (`<rootDir>/Library`), referenced out-of-tree as `../Library`. */
   libraryDir: string;
 }
 
@@ -38,15 +40,21 @@ function makeId(input: MaterializeInput): string {
  * the project lives under the fixture-builder package so Node resolves
  * `node_modules` upward. An empty local `node_modules` is created so the
  * plugin's type-shim generator writes into this isolated dir.
+ *
+ * Layout: `<id>/app` (the node project) and `<id>/Library` (the isolated .NET
+ * Library) are siblings, so the app references the Library out-of-tree via
+ * `../Library` and no bundler dev-server watcher ever scans the Library's
+ * churning bin/obj output.
  */
 export function materialize(input: MaterializeInput): MaterializedProject {
   const { options, port } = input;
   const id = makeId(input);
-  const dir = join(MATERIALIZED_ROOT, id);
-  const libraryDir = join(dir, 'Library');
+  const rootDir = join(MATERIALIZED_ROOT, id);
+  const dir = join(rootDir, 'app');
+  const libraryDir = join(rootDir, 'Library');
 
   mkdirSync(dir, { recursive: true });
-  // Anchor plugin shim-package generation to this isolated project.
+  // Anchor plugin shim-package generation to this isolated app project.
   mkdirSync(join(dir, 'node_modules'), { recursive: true });
 
   // Shared assets: entry + html + base tsconfig.
@@ -56,10 +64,10 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(join(TEMPLATES_DIR, 'shared', 'index.html'), join(dir, 'index.html'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'tsconfig.base.json'), join(dir, 'tsconfig.json'));
 
-  // Isolated .NET Library copy (mutated only via gitignored bin/obj on build).
+  // Isolated .NET Library copy, out-of-tree sibling of the app (../Library).
   cpSync(join(TEMPLATES_DIR, 'library'), libraryDir, { recursive: true });
 
-  // Bundler config(s), copied verbatim.
+  // Bundler config(s), copied verbatim into the app.
   const manifest = getManifest(options.bundler);
   for (const file of manifest.configFiles) {
     cpSync(join(TEMPLATES_DIR, 'bundlers', options.bundler, file), join(dir, file));
@@ -67,7 +75,7 @@ export function materialize(input: MaterializeInput): MaterializedProject {
 
   writeFileSync(join(dir, 'package.json'), generatePackageJson(id, options, port), 'utf8');
 
-  return { id, dir, libraryDir };
+  return { id, rootDir, dir, libraryDir };
 }
 
 function generatePackageJson(

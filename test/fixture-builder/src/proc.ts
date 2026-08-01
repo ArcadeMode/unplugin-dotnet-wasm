@@ -1,8 +1,55 @@
-import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
+import { execFileSync, spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import type { RunResult } from './types';
 
 /** `npm` executable name for the current platform. */
 export const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
+/**
+ * Best-effort kill of whatever process is listening on `port`.
+ *
+ * The dev server is launched via `npm run dev`, so the real bundler process is
+ * a grandchild of the spawned `npm.cmd` wrapper. On Windows that chain can
+ * orphan the bundler past a wrapper tree-kill, leaving it alive with its cwd
+ * inside the materialized dir (which then blocks removal). Killing by port
+ * reliably targets the actual server regardless of a broken parent-PID chain.
+ */
+export function killPort(port: number): void {
+  try {
+    if (process.platform === 'win32') {
+      const out = execFileSync('netstat', ['-ano', '-p', 'tcp'], { encoding: 'utf8' });
+      const pids = new Set<string>();
+      for (const line of out.split(/\r?\n/)) {
+        const cols = line.trim().split(/\s+/);
+        // Columns: TCP  <local>  <foreign>  LISTENING  <pid>
+        if (cols.length >= 5 && cols[0] === 'TCP' && cols[3] === 'LISTENING') {
+          if (cols[1].endsWith(`:${port}`)) pids.add(cols[4]);
+        }
+      }
+      for (const pid of pids) {
+        try {
+          execFileSync('taskkill', ['/PID', pid, '/T', '/F'], { stdio: 'ignore' });
+        } catch {
+          /* already gone */
+        }
+      }
+    } else {
+      try {
+        const out = execFileSync('lsof', ['-ti', `tcp:${port}`], { encoding: 'utf8' });
+        for (const pid of out.split(/\s+/).filter(Boolean)) {
+          try {
+            process.kill(Number(pid), 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }
+      } catch {
+        /* lsof missing or nothing listening */
+      }
+    }
+  } catch {
+    /* best effort — teardown must not throw */
+  }
+}
 
 /** Accumulates stdout/stderr from a child process. */
 export interface LogSink {

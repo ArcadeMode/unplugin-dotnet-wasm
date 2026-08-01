@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs';
 import { buildLibrary, dotnetConfigFor } from './dotnet';
-import { ManagedProcess, NPM, runToCompletion, spawnManaged } from './proc';
+import { ManagedProcess, NPM, killPort, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
 import type {
@@ -35,11 +35,13 @@ export class Fixture {
   readonly port: number;
 
   private readonly keepOnDispose: boolean;
+  private readonly rootDir: string;
   private server?: ManagedProcess;
 
   constructor(init: FixtureInit) {
     this.dir = init.project.dir;
     this.libraryDir = init.project.libraryDir;
+    this.rootDir = init.project.rootDir;
     this.bundler = init.bundler;
     this.platform = init.platform;
     this.serveMode = init.serveMode;
@@ -135,14 +137,19 @@ export class Fixture {
   async stop(): Promise<void> {
     await this.server?.stop();
     this.server = undefined;
+    // The npm.cmd → node → bundler chain can orphan the real dev server past
+    // the wrapper's tree-kill; ensure nothing keeps holding the port (and, via
+    // its cwd, the materialized dir) before removal.
+    killPort(this.port);
   }
 
-  /** Stop and remove the materialized dir (unless `keepOnDispose`). */
+  /** Stop and remove the whole materialized instance (unless `keepOnDispose`). */
   async dispose(): Promise<void> {
     await this.stop();
     if (!this.keepOnDispose) {
-      // Windows may briefly hold handles after tree-kill; retry the removal.
-      rmSync(this.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      // Remove the instance root (both app/ and Library/). Windows may briefly
+      // hold handles after tree-kill; retry the removal.
+      rmSync(this.rootDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   }
 }
