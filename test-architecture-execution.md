@@ -5,7 +5,12 @@ Each phase lists scope, validation, and the milestone that gates the next phase.
 Principle: **land infrastructure primitives first, prove one vertical slice end-to-end, then fan out,
 then migrate coverage, then delete old — behind dual-green in CI throughout.**
 
-## Phase 0 — Isolation + concurrency basics
+**Status (2026-08-01):** Phases 0-4 complete and verified (branch `test-architecture-isolation`,
+dual-green: old `test/integration` matrix untouched + new `test/e2e` suite green for vite/webpack/esbuild).
+Phases 5-8 not started. See Phase 4's notes below for a deliberate deviation from this document's
+original text (the `dotnetOutputDir` option-permutation sub-bullet was dropped, not ported).
+
+## Phase 0 — Isolation + concurrency basics ✅ DONE
 
 Rationale: keep only what matters for correctness under parallelism; skip the heavy machinery
 (no process-tree kill gate, no build cache, no build semaphore).
@@ -24,7 +29,7 @@ Validation / milestone:
 - `dispose()` removes the temp dir and stops the server under normal completion.
 - **GATE:** parallel isolation proven; proceed to the vertical slice.
 
-## Phase 1 — fixture-builder core + first vertical slice (vite/browser/server)
+## Phase 1 — fixture-builder core + first vertical slice (vite/browser/server) ✅ DONE
 
 Scope:
 - Scaffold `test/fixture-builder` package (union devDeps, workspace entry, `.materialized/` gitignore).
@@ -42,7 +47,7 @@ Validation / milestone:
 - **GATE:** full path (materialize → build → serve → rebuild → reload → assert → dispose) green,
   Windows + Linux.
 
-## Phase 2 — Capability catalog + thin runner
+## Phase 2 — Capability catalog + thin runner ✅ DONE
 
 Scope:
 - `capabilities.ts`: per-bundler `{ build, publish, watch, devServerBrowser, devServerNode }`.
@@ -55,7 +60,7 @@ Validation / milestone:
 - Unsupported combos skip via capability gate, not hardcoded lists.
 - **GATE:** dispatch + gating replace the runner's role for the vite slice.
 
-## Phase 3 — Template additional bundlers (webpack, esbuild) browser + node
+## Phase 3 — Template additional bundlers (webpack, esbuild) browser + node ✅ DONE
 
 Scope:
 - `bundlers/webpack/` (dev server browser; node build/watch), `bundlers/esbuild/`
@@ -67,23 +72,36 @@ Validation / milestone:
 - esbuild (no dev server) correctly gated out of `server`.
 - **GATE:** capability catalog proven across a dev-server and a non-dev-server bundler.
 
-## Phase 4 — Port integration coverage (retire isolated-build + `none`)
+## Phase 4 — Port integration coverage (retire isolated-build + `none`) ✅ DONE
 
 Scope:
 - Port build/publish **artifact assertions** onto `fx.build()` output (wasm present, byte-length,
   counts, `.dat`/`.pdb`, `Library*.wasm`, entry references wasm).
-- Add env-driven plugin-option knobs (`isPublish`, `dotnetOutputDir`, missing-dir) to configs;
-  port the option-permutation + `DiscoveryError` tests.
-- Fold **no-build ⇒ discovery error** in as every fixture's first `it` (assert exit code +
-  plugin message). Replace "no unresolved warnings" with positive exit-0 + artifact checks.
-- Port type-shims coverage.
+- ~~Add env-driven plugin-option knobs (`isPublish`, `dotnetOutputDir`, missing-dir) to configs;
+  port the option-permutation + `DiscoveryError` tests.~~ **DEVIATION (deliberate):** the
+  `dotnetOutputDir` explicit-path option axis was dropped entirely rather than ported — deemed
+  unnecessary API surface (`BuildFixtureOptions.dotnetOutputDir` / `skipLibraryBuild` were tried
+  and rejected; see `/memories/repo/fixture-builder-gotchas.md`). `isPublish` is still covered via
+  `buildMode: 'publish'`.
+- Fold **no-build ⇒ discovery error** in (assert exit code + plugin message). Replace "no
+  unresolved warnings" with positive exit-0 + artifact checks. **Actual shape:** implemented as
+  one dedicated `DiscoveryError` describe block per publish fixture set (`publish.test.ts`'s
+  "DiscoveryError when publish output is absent"), rather than literally the first `it` of every
+  fixture — same coverage, simpler structure.
+- Port type-shims coverage. **Renamed to "package shims"** (`package-shims.test.ts`) — also
+  verifies the `_framework/dotnet` node_modules shim package, not just the `typeshim` package.
+  Required a root-cause template fix: `test/fixture-builder/templates/library/wwwroot/_framework/dotnet.d.ts`
+  (real .NET wasm SDK projects ship this as a hand-authored source file, not a build artifact).
 
 Validation / milestone:
 - All former `isolated-build` assertions reproduced via real CLI output.
 - `none` cell behavior reproduced per-run without a matrix dimension.
-- **GATE:** `test/integration/bundlers/` no longer referenced by any ported spec.
+- **GATE:** `test/integration/bundlers/` no longer referenced by any ported spec. ✅ confirmed via
+  grep (0 matches for `integration/bundlers|isolated-.*-build` under `test/e2e/**`).
+- Full validation: `build.test.ts`, `publish.test.ts`, `package-shims.test.ts`, `dist.test.ts` all
+  green across all 3 currently-implemented bundlers (vite/webpack/esbuild), 54/54 non-skipped tests.
 
-## Phase 5 — `watch` serve mode
+## Phase 5 — `watch` serve mode ⬜ NOT STARTED
 
 Scope:
 - Browser: watcher + `sirv` static server; rebuild → wait for dist stabilization → `page.reload()`.
@@ -95,7 +113,7 @@ Validation / milestone:
 - No flakiness over N repeated runs (define N in CI).
 - **GATE:** watch signal proven robust before fanning out.
 
-## Phase 6 — Vite node dev-server isolated test
+## Phase 6 — Vite node dev-server isolated test ⬜ NOT STARTED
 
 Scope:
 - Single isolated spec: vite node `server` (SSR builds & runs), independently skippable.
@@ -104,7 +122,14 @@ Validation / milestone:
 - Passes in isolation; failure/flake does not affect the node suite.
 - **GATE:** node dev-server coverage captured as one maintainable unit.
 
-## Phase 7 — Remaining bundlers
+## Phase 7 — Remaining bundlers ⬜ NOT STARTED
+
+Note: at the plugin-source level (not the fixture-builder harness), watch-mode and dev-server
+fingerprint-survival are already implemented and verified for vite/rollup/rolldown/webpack/rspack/farm
+(see `virtual-module-plan.md` / `watch-plan.md` / `manifest-watch-plan.md`). rsbuild's watch path is
+partial (low priority) and esbuild/bun have no watch/dev-server virtual-module support yet — this
+phase's "template the remaining bundlers into the fixture-builder harness" work is independent of
+that and still not started.
 
 Scope:
 - Template `rollup`, `rolldown`, `rspack`, `rsbuild`, `farm`, `bun`; wire capabilities.
@@ -114,7 +139,7 @@ Validation / milestone:
 - Full bundler set green for its supported capabilities across serve modes.
 - **GATE:** parity with the current matrix's bundler coverage.
 
-## Phase 8 — Dual-green, cutover, deletion
+## Phase 8 — Dual-green, cutover, deletion ⬜ NOT STARTED
 
 Scope:
 - Run **old matrix + new suite** in CI simultaneously; per-bundler CI workers on the new suite.

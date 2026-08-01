@@ -20,7 +20,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
     let fixture: Fixture;
 
     beforeAll(async () => {
-      fixture = await buildFixture({ ...params, buildMode: 'publish', fingerprint: false });
+      fixture = await buildFixture({ ...params, buildMode: 'publish' });
       await fixture.buildLibrary();
       const result = await fixture.build();
       expect(result.exitCode).toBe(0);
@@ -67,7 +67,6 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
       const fixture = await buildFixture({
         ...params,
         buildMode: 'publish',
-        fingerprint: false,
       });
       try {
         const expectedDir = libraryPublishDir(fixture);

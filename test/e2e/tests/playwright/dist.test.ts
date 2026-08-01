@@ -12,33 +12,40 @@ import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers
  *
  * Runs for every implemented bundler whose `dist` output boots in a browser;
  * unsupported bundlers appear as visible skips.
+ *
+ * Dual-fingerprint smoke: this is the only change test that also runs with
+ * `fingerprint: false` (SDK default is true everywhere else).
  */
-permuteFixture({ platform: 'browser', serveMode: 'dist' }, (params) => {
-  let fixture: Fixture;
+for (const fingerprint of [true, false] as const) {
+  test.describe(`[fingerprint=${fingerprint}]`, () => {
+    permuteFixture({ platform: 'browser', serveMode: 'dist' }, (params) => {
+      let fixture: Fixture;
 
-  test.beforeAll(async () => {
-    fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint: false });
-    await fixture.buildLibrary();
-    await fixture.build();
-    await fixture.serve();
+      test.beforeAll(async () => {
+        fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint });
+        await fixture.buildLibrary();
+        await fixture.build();
+        await fixture.serve();
+      });
+
+      test.afterAll(async () => {
+        await fixture?.dispose();
+      });
+
+      test('interop reflects the altered rebuild after a manual reload', async ({ page }) => {
+        const consoleMsgs = trackConsoleMessages(page);
+        await page.goto(fixture.baseUrl);
+
+        const bootTs = await waitForInit(page);
+        await expectMessages(consoleMsgs, ['INCREMENT:3', 'INCREMENT:6']);
+
+        await fixture.buildLibrary({ altered: true });
+        await fixture.build();
+        await page.reload();
+
+        await waitForInit(page, bootTs);
+        await expectMessages(consoleMsgs, ['INCREMENT:5', 'INCREMENT:10']);
+      });
+    });
   });
-
-  test.afterAll(async () => {
-    await fixture?.dispose();
-  });
-
-  test('interop reflects the altered rebuild after a manual reload', async ({ page }) => {
-    const consoleMsgs = trackConsoleMessages(page);
-    await page.goto(fixture.baseUrl);
-
-    const bootTs = await waitForInit(page);
-    await expectMessages(consoleMsgs, ['INCREMENT:3', 'INCREMENT:6']);
-
-    await fixture.buildLibrary({ altered: true });
-    await fixture.build();
-    await page.reload();
-
-    await waitForInit(page, bootTs);
-    await expectMessages(consoleMsgs, ['INCREMENT:5', 'INCREMENT:10']);
-  });
-});
+}

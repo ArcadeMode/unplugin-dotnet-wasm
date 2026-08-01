@@ -16,7 +16,7 @@ permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
   let fixture: Fixture;
 
   beforeAll(async () => {
-    fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint: false });
+    fixture = await buildFixture({ ...params, buildMode: 'debug' });
     await fixture.buildLibrary();
     await fixture.build();
   });

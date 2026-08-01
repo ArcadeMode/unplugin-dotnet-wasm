@@ -11,7 +11,7 @@ import type { BuildFixtureOptions } from './types';
  */
 export async function buildFixture(options: BuildFixtureOptions): Promise<Fixture> {
   const buildMode = options.buildMode ?? 'debug';
-  const fingerprint = options.fingerprint ?? false;
+  const fingerprint = options.fingerprint ?? true;
   const keepOnDispose = options.keepOnDispose ?? false;
   const port = options.port ?? (await allocatePort());
 
