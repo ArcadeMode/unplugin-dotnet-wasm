@@ -3,6 +3,13 @@ import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
 import sirv from 'sirv';
 import { buildLibrary, dotnetConfigFor } from './dotnet';
+import {
+  snapshotDist,
+  waitForDistChange,
+  waitForDistReady,
+  type DistInventory,
+  type WaitForDistOptions,
+} from './dist-ready';
 import { ManagedProcess, NPM, killPort, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
@@ -40,6 +47,7 @@ export class Fixture {
   private readonly keepOnDispose: boolean;
   private readonly rootDir: string;
   private server?: ManagedProcess;
+  private nodeRunner?: ManagedProcess;
   private staticServer?: Server;
 
   constructor(init: FixtureInit) {
@@ -59,6 +67,10 @@ export class Fixture {
     return `http://localhost:${this.port}`;
   }
 
+  get distPath(): string {
+    return join(this.dir, 'dist');
+  }
+
   /** Env passed to every bundler script: locates the Library, selects config. */
   private get scriptEnv(): NodeJS.ProcessEnv {
     const { configuration, isPublish } = dotnetConfigFor(this.buildMode);
@@ -71,9 +83,14 @@ export class Fixture {
     };
   }
 
-  /** Buffered dev-server/watcher output (empty until `start()`). */
+  /** Buffered bundler watcher / dev-server output (empty until `start()`). */
   get logs(): string {
     return this.server?.output ?? '';
+  }
+
+  /** Buffered `node --watch` output (node watch mode only). */
+  get nodeLogs(): string {
+    return this.nodeRunner?.output ?? '';
   }
 
   /**
@@ -105,10 +122,24 @@ export class Fixture {
   /**
    * Execute the built node artifact (`node dist/entry.js`) to completion and
    * return its output. Node `dist` serve mode only; the entry prints
-   * `GREETING:<value>` on stdout for assertions.
+   * `INCREMENT:<n>` on stdout for assertions.
    */
   run(): Promise<RunResult> {
     return this.runScript('start');
+  }
+
+  /** Snapshot of every file under `dist/` (path → mtime + size). */
+  snapshotDist(): DistInventory {
+    return snapshotDist(this.distPath);
+  }
+
+  /**
+   * Wait until `dist/` differs from `baseline` and then stays quiet (rebuild
+   * complete). Capture the baseline with {@link snapshotDist} before triggering
+   * the library rebuild.
+   */
+  waitForDistChange(baseline: DistInventory, opts?: WaitForDistOptions): Promise<DistInventory> {
+    return waitForDistChange(this.distPath, baseline, opts);
   }
 
   /**
@@ -124,21 +155,25 @@ export class Fixture {
     if (this.platform !== 'browser') {
       throw new Error(`Fixture.serve() supports platform "browser" only (got "${this.platform}").`);
     }
-    const handler = sirv(join(this.dir, 'dist'), { dev: true, single: true });
-    this.staticServer = createServer((req, res) => handler(req, res));
-    await new Promise<void>((resolvePromise, reject) => {
-      this.staticServer!.once('error', reject);
-      this.staticServer!.listen(this.port, resolvePromise);
-    });
+    await this.startStaticServer();
   }
 
   /** Start the long-running runtime for the serve mode and wait until ready. */
   async start(): Promise<void> {
-    if (this.serveMode !== 'server') {
-      throw new Error(
-        `Fixture.start() currently supports serveMode "server" only (got "${this.serveMode}").`,
-      );
+    if (this.serveMode === 'server') {
+      await this.startDevServer();
+      return;
     }
+    if (this.serveMode === 'watch') {
+      await this.startWatch();
+      return;
+    }
+    throw new Error(
+      `Fixture.start() supports serveMode "server" or "watch" (got "${this.serveMode}").`,
+    );
+  }
+
+  private async startDevServer(): Promise<void> {
     if (this.platform !== 'browser') {
       throw new Error(
         `serveMode "server" currently supports platform "browser" only (got "${this.platform}").`,
@@ -159,9 +194,71 @@ export class Fixture {
     }
   }
 
+  private async startWatch(): Promise<void> {
+    this.server = spawnManaged(NPM, ['run', 'watch'], {
+      cwd: this.dir,
+      env: this.scriptEnv,
+    });
+    try {
+      await waitForDistReady(this.distPath);
+    } catch (err) {
+      const reason = this.server.hasExited ? 'watcher process exited early' : 'dist never settled';
+      throw new Error(
+        `Watch build failed to produce dist/ (${reason}).\n--- watcher output ---\n${this.server.output}\n--- end output ---`,
+        { cause: err },
+      );
+    }
+
+    if (this.platform === 'browser') {
+      await this.startStaticServer();
+      return;
+    }
+
+    if (this.platform === 'node') {
+      this.nodeRunner = spawnManaged(process.execPath, ['--watch', 'dist/entry.js'], {
+        cwd: this.dir,
+        env: this.scriptEnv,
+      });
+      try {
+        // Wait for the second increment so both baseline markers are present
+        // before the test body runs (INCREMENT: matches the first line alone).
+        await this.nodeRunner.waitForLog(/INCREMENT:6/, 30_000);
+      } catch (err) {
+        throw new Error(
+          `node --watch failed to print INCREMENT:6.\n--- node output ---\n${this.nodeRunner.output}\n--- end output ---\n--- watcher output ---\n${this.server.output}\n--- end output ---`,
+          { cause: err },
+        );
+      }
+      return;
+    }
+
+    throw new Error(`Unsupported platform for watch: ${this.platform}`);
+  }
+
+  private async startStaticServer(): Promise<void> {
+    const handler = sirv(this.distPath, { dev: true, single: true });
+    this.staticServer = createServer((req, res) => handler(req, res));
+    await new Promise<void>((resolvePromise, reject) => {
+      this.staticServer!.once('error', reject);
+      this.staticServer!.listen(this.port, resolvePromise);
+    });
+  }
+
   waitForLog(pattern: RegExp, opts: WaitForLogOptions = {}): Promise<void> {
     if (!this.server) throw new Error('No running server; call start() first.');
     return this.server.waitForLog(pattern, opts.timeout);
+  }
+
+  /**
+   * Wait for a pattern in `node --watch` stdout, optionally ignoring earlier
+   * output via `fromIndex` (use `nodeLogs.length` before the rebuild).
+   */
+  waitForNodeLog(
+    pattern: RegExp,
+    opts: WaitForLogOptions & { fromIndex?: number } = {},
+  ): Promise<void> {
+    if (!this.nodeRunner) throw new Error('No node --watch process; call start() in node watch.');
+    return this.nodeRunner.waitForLog(pattern, opts.timeout ?? 30_000, opts.fromIndex ?? 0);
   }
 
   waitForPort(timeoutMs = 5_000): Promise<void> {
@@ -170,13 +267,15 @@ export class Fixture {
 
   /** Stop the running server/watcher, if any. */
   async stop(): Promise<void> {
+    await this.nodeRunner?.stop();
+    this.nodeRunner = undefined;
     await this.server?.stop();
     this.server = undefined;
     if (this.staticServer) {
       await new Promise<void>((resolvePromise) => this.staticServer!.close(() => resolvePromise()));
       this.staticServer = undefined;
     }
-    // The npm.cmd → node → bundler chain can orphan the real dev server past
+    // The npm.cmd → node → bundler chain can orphan the real process past
     // the wrapper's tree-kill; ensure nothing keeps holding the port (and, via
     // its cwd, the materialized dir) before removal.
     killPort(this.port);

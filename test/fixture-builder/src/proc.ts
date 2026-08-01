@@ -104,7 +104,7 @@ export class ManagedProcess implements LogSink {
   private _stdout = '';
   private _stderr = '';
   private _output = '';
-  private readonly waiters: Array<{ re: RegExp; resolve: () => void }> = [];
+  private readonly waiters: Array<{ re: RegExp; fromIndex: number; resolve: () => void }> = [];
   private exited = false;
 
   constructor(private readonly child: ChildProcess) {
@@ -136,25 +136,32 @@ export class ManagedProcess implements LogSink {
     else this._stderr += text;
     this._output += text;
     for (let i = this.waiters.length - 1; i >= 0; i--) {
-      if (this.waiters[i].re.test(this._output)) {
-        this.waiters[i].resolve();
+      const waiter = this.waiters[i];
+      if (waiter.re.test(this._output.slice(waiter.fromIndex))) {
+        waiter.resolve();
         this.waiters.splice(i, 1);
       }
     }
   }
 
-  waitForLog(pattern: RegExp, timeoutMs = 5_000): Promise<void> {
-    if (pattern.test(this._output)) return Promise.resolve();
+  /**
+   * Wait until `pattern` matches process output. Pass `fromIndex` to ignore
+   * earlier log content (e.g. detect a `node --watch` restart).
+   */
+  waitForLog(pattern: RegExp, timeoutMs = 5_000, fromIndex = 0): Promise<void> {
+    if (pattern.test(this._output.slice(fromIndex))) return Promise.resolve();
     return new Promise((resolvePromise, reject) => {
       const timer = setTimeout(() => {
         reject(
           new Error(
-            `Timed out after ${timeoutMs}ms waiting for ${pattern} in process output:\n${this._output}`,
+            `Timed out after ${timeoutMs}ms waiting for ${pattern} in process output` +
+              ` (fromIndex=${fromIndex}):\n${this._output.slice(fromIndex)}`,
           ),
         );
       }, timeoutMs);
       this.waiters.push({
         re: pattern,
+        fromIndex,
         resolve: () => {
           clearTimeout(timer);
           resolvePromise();
