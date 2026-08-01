@@ -176,7 +176,8 @@ export class Fixture {
   private async startDevServer(): Promise<void> {
     if (this.platform !== 'browser') {
       throw new Error(
-        `serveMode "server" currently supports platform "browser" only (got "${this.platform}").`,
+        `Fixture.start() for serveMode "server" supports platform "browser" only ` +
+          `(got "${this.platform}"). For vite node server (Vitest SSR), use runScript("dev").`,
       );
     }
     this.server = spawnManaged(NPM, ['run', 'dev'], {

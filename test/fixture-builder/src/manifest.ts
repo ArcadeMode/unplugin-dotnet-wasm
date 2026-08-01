@@ -23,16 +23,21 @@ function viteMode(buildMode: BuildMode): 'development' | 'production' {
 }
 
 const vite: BundlerManifest = {
-  configFiles: ['vite.config.ts'],
-  scripts({ port, buildMode }) {
+  // Harness files are only used for node `server` (Vitest SSR); harmless on browser.
+  configFiles: ['vite.config.ts', 'vitest.harness.config.ts', 'runtime.harness.test.ts'],
+  scripts({ port, buildMode, platform }) {
     const mode = viteMode(buildMode);
     return {
       // One-shot build → `dist/` (dist + watch serve modes).
       build: `vite build --mode ${mode}`,
       // Rebuild-on-change (watch serve mode).
       watch: `vite build --watch --mode ${mode}`,
-      // Dev server (server serve mode) on the allocated port.
-      dev: `vite --port ${port} --strictPort --mode ${mode}`,
+      // Browser: HTTP dev server. Node: Vitest SSR pipeline (the only node
+      // "dev server" path — see Phase 6 / vite-node-server.test.ts).
+      dev:
+        platform === 'node'
+          ? `vitest run --mode ${mode} --config vitest.harness.config.ts`
+          : `vite --port ${port} --strictPort --mode ${mode}`,
     };
   },
 };
