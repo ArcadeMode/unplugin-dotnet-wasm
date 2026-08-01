@@ -25,10 +25,12 @@ export default defineConfig(() => {
     }),
   ];
 
-  // E2E artifact assertions expect hashed binaries under `dist/assets/` (not
-  // rsbuild's default `static/assets` / `static/wasm`).
+  // E2E artifact assertions / dist-ready checks expect JS + binaries under
+  // `dist/assets/` (not rsbuild's default `static/js` / `static/wasm`).
   const distPath = {
     root: resolve(__dirname, 'dist'),
+    js: 'assets',
+    jsAsync: 'assets',
     assets: 'assets',
     wasm: 'assets',
   };

@@ -67,19 +67,33 @@ export function inventoryEqual(a: DistInventory, b: DistInventory): boolean {
 }
 
 /**
- * True when `dist/` is past emptyOutDir / mid-clean and contains a runnable
- * entry chunk. Paths mirror `entryChunkPath` in the e2e helpers:
+ * Entry chunk shapes across fixture bundlers (mirrors e2e `entryChunkPath`):
  * - `entry.js` (node; browser esbuild/bun)
  * - `assets/entry.js` (webpack/rspack/rollup/rolldown)
- * - `assets/index-<hash>.js` (vite) / `assets/index.<hash>.js` (farm)
+ * - `assets/index.js` / `assets/index[-._]<hash>.js` (vite/farm/rsbuild)
  */
-export function isDistReady(inv: DistInventory): boolean {
-  if (inv.size === 0) return false;
+function hasEntryBundle(inv: DistInventory): boolean {
   if (inv.has('entry.js') || inv.has('assets/entry.js')) return true;
   for (const key of inv.keys()) {
-    if (/^assets\/index[-.][^/]+\.js$/.test(key)) return true;
+    if (/^assets\/index([._-][^/]+)?\.js$/.test(key)) return true;
   }
   return false;
+}
+
+function hasWasmAsset(inv: DistInventory): boolean {
+  for (const key of inv.keys()) {
+    if (key.endsWith('.wasm')) return true;
+  }
+  return false;
+}
+
+/**
+ * True when `dist/` is past emptyOutDir / mid-clean: has a runnable entry
+ * chunk and at least one `.wasm` (avoids settling while vite still emitting
+ * framework assets).
+ */
+export function isDistReady(inv: DistInventory): boolean {
+  return hasEntryBundle(inv) && hasWasmAsset(inv);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -89,7 +103,7 @@ function sleep(ms: number): Promise<void> {
 /**
  * Wait until `dist/` differs from `baseline` and then remains unchanged for
  * `quietMs` (covers multi-file non-atomic emits). Never settles on an empty
- * or entry-less inventory (vite/webpack clean mid-rebuild).
+ * or incomplete inventory (vite/webpack clean mid-rebuild).
  */
 export async function waitForDistChange(
   distDir: string,
@@ -136,8 +150,8 @@ export async function waitForDistChange(
 }
 
 /**
- * Wait until `dist/` has a runnable entry and stays unchanged for `quietMs`
- * (initial watch emit).
+ * Wait until `dist/` has a runnable entry + wasm and stays unchanged for
+ * `quietMs` (initial watch emit).
  */
 export async function waitForDistReady(
   distDir: string,

@@ -88,7 +88,7 @@ export class Fixture {
     return this.server?.output ?? '';
   }
 
-  /** Buffered `node --watch` output (node watch mode only). */
+  /** Buffered `node dist/entry.js` output (node watch mode only). */
   get nodeLogs(): string {
     return this.nodeRunner?.output ?? '';
   }
@@ -219,24 +219,40 @@ export class Fixture {
     }
 
     if (this.platform === 'node') {
-      this.nodeRunner = spawnManaged(process.execPath, ['--watch', 'dist/entry.js'], {
-        cwd: this.dir,
-        env: this.scriptEnv,
-      });
-      try {
-        // Wait for the second increment so both baseline markers are present
-        // before the test body runs (INCREMENT: matches the first line alone).
-        await this.nodeRunner.waitForLog(/INCREMENT:6/, 30_000);
-      } catch (err) {
-        throw new Error(
-          `node --watch failed to print INCREMENT:6.\n--- node output ---\n${this.nodeRunner.output}\n--- end output ---\n--- watcher output ---\n${this.server.output}\n--- end output ---`,
-          { cause: err },
-        );
-      }
+      // One-shot run (not `node --watch`): auto-restart races vite/webpack
+      // mid-emit and can boot against missing hashed .wasm files.
+      await this.runNode({ waitFor: /INCREMENT:6/ });
       return;
     }
 
     throw new Error(`Unsupported platform for watch: ${this.platform}`);
+  }
+
+  /** Stop the node artifact runner, if any. */
+  async stopNode(): Promise<void> {
+    await this.nodeRunner?.stop();
+    this.nodeRunner = undefined;
+  }
+
+  /**
+   * Run `node dist/entry.js` once and wait for `waitFor` in its output.
+   * Call {@link stopNode} before a library/watch rebuild so the runner cannot
+   * observe a partial `dist/`.
+   */
+  async runNode(opts: { waitFor: RegExp; timeout?: number }): Promise<void> {
+    await this.stopNode();
+    this.nodeRunner = spawnManaged(process.execPath, ['dist/entry.js'], {
+      cwd: this.dir,
+      env: this.scriptEnv,
+    });
+    try {
+      await this.nodeRunner.waitForLog(opts.waitFor, opts.timeout ?? 30_000);
+    } catch (err) {
+      throw new Error(
+        `node dist/entry.js failed to print ${opts.waitFor}.\n--- node output ---\n${this.nodeRunner.output}\n--- end output ---\n--- watcher output ---\n${this.server?.output ?? ''}\n--- end output ---`,
+        { cause: err },
+      );
+    }
   }
 
   private async startStaticServer(): Promise<void> {
@@ -251,18 +267,6 @@ export class Fixture {
   waitForLog(pattern: RegExp, opts: WaitForLogOptions = {}): Promise<void> {
     if (!this.server) throw new Error('No running server; call start() first.');
     return this.server.waitForLog(pattern, opts.timeout);
-  }
-
-  /**
-   * Wait for a pattern in `node --watch` stdout, optionally ignoring earlier
-   * output via `fromIndex` (use `nodeLogs.length` before the rebuild).
-   */
-  waitForNodeLog(
-    pattern: RegExp,
-    opts: WaitForLogOptions & { fromIndex?: number } = {},
-  ): Promise<void> {
-    if (!this.nodeRunner) throw new Error('No node --watch process; call start() in node watch.');
-    return this.nodeRunner.waitForLog(pattern, opts.timeout ?? 30_000, opts.fromIndex ?? 0);
   }
 
   waitForPort(timeoutMs = 5_000): Promise<void> {

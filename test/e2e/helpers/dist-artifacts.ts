@@ -10,8 +10,8 @@ export function distAssetsDir(fixture: Fixture): string {
 /**
  * Absolute path to the built entry chunk. Bundler/platform-specific:
  * - node: `dist/entry.js` (universal; see materialize.ts's generated `start` script).
- * - browser: `dist/assets/entry.js` (webpack), `dist/entry.js` (esbuild), or
- *   vite's hashed `dist/assets/index-<hash>.js`.
+ * - browser: `dist/assets/entry.js` (webpack/rspack/…), `dist/entry.js` (esbuild),
+ *   or `dist/assets/index.js` / `index[-._]<hash>.js` (vite/farm/rsbuild).
  */
 export function entryChunkPath(fixture: Fixture): string {
   const dist = join(fixture.dir, 'dist');
@@ -24,7 +24,7 @@ export function entryChunkPath(fixture: Fixture): string {
   if (existsSync(flatEntry)) return flatEntry;
 
   const assetsDir = join(dist, 'assets');
-  const hashed = readdirSync(assetsDir).find((f) => /^index-.*\.js$/.test(f));
+  const hashed = readdirSync(assetsDir).find((f) => /^index([._-].+)?\.js$/.test(f));
   if (!hashed) throw new Error(`Could not locate the browser entry chunk under ${dist}`);
   return join(assetsDir, hashed);
 }

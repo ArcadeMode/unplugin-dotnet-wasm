@@ -9,7 +9,7 @@ export interface BundlerCapabilities {
   build: boolean;
   /** `dotnet publish -c Release` variant builds + boots. */
   publish: boolean;
-  /** `--watch` output (statically served in browser / `node --watch`). */
+  /** `--watch` output (statically served in browser / one-shot `node`). */
   watch: boolean;
   /** Dev server with HMR/websocket reload, browser platform. */
   devServerBrowser: boolean;

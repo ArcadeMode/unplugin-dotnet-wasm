@@ -8,7 +8,7 @@ export type Platform = 'browser' | 'node';
  * How the fixture is served/run:
  * - `dist`   — one-shot build, static-serve output (boot check).
  * - `server` — dev server (HMR/websocket). Runs the change test.
- * - `watch`  — bundler `--watch` output, statically served / `node --watch`.
+ * - `watch`  — bundler `--watch` output, statically served / one-shot `node dist/entry.js`.
  */
 export type ServeMode = 'dist' | 'server' | 'watch';
 
