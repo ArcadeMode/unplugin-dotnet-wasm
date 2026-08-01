@@ -29,7 +29,7 @@ permuteFixture({ platform: 'browser', serveMode: 'dist' }, (params) => {
   test('interop reflects the altered rebuild after a manual reload', async ({ page }) => {
     const consoleMsgs = trackConsoleMessages(page);
     await page.goto(fixture.baseUrl);
-    
+
     const bootTs = await waitForInit(page);
     await expectMessages(consoleMsgs, ['INCREMENT:3', 'INCREMENT:6']);
 

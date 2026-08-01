@@ -7,8 +7,10 @@ export function trackConsoleMessages(page: Page): ConsoleMessage[] {
 }
 
 export async function expectMessages(seen: ConsoleMessage[], expected: string[]): Promise<void> {
-  const texts = seen.map(msg => msg.text());
-  await expect.poll(() => expected.every(line => texts.includes(line)), { timeout: 1_000 }).toBe(true);
+  const texts = seen.map((msg) => msg.text());
+  await expect
+    .poll(() => expected.every((line) => texts.includes(line)), { timeout: 1_000 })
+    .toBe(true);
 }
 
 /**
