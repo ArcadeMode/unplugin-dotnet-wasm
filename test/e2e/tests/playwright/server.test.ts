@@ -17,6 +17,7 @@ permuteFixture({ platform: 'browser', serveMode: 'server' }, (params) => {
 
   test.beforeAll(async () => {
     fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint: false });
+    await fixture.buildLibrary();
     await fixture.start();
   });
 

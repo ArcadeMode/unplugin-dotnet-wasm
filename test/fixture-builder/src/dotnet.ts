@@ -13,6 +13,20 @@ export function dotnetConfigFor(buildMode: BuildMode): DotnetConfig {
     : { configuration: 'Debug', isPublish: false };
 }
 
+/** Target framework moniker used everywhere a Library is built/discovered. */
+export const TARGET_FRAMEWORK = 'net10.0';
+
+/**
+ * The .NET build/publish output dir the plugin's discovery would resolve for
+ * `libraryDir` + `buildMode` (mirrors `discoverManifests`'s own path
+ * computation). Used to point the plugin's explicit `dotnetOutputDir` option at
+ * a fixture's own real output.
+ */
+export function libraryOutputDir(libraryDir: string, buildMode: BuildMode): string {
+  const { configuration, isPublish } = dotnetConfigFor(buildMode);
+  return join(libraryDir, 'bin', configuration, TARGET_FRAMEWORK, isPublish ? 'publish' : '');
+}
+
 export interface BuildLibraryParams {
   libraryDir: string;
   buildMode: BuildMode;

@@ -30,8 +30,6 @@ export interface BuildFixtureOptions {
   buildMode?: BuildMode;
   /** Default `false`. Maps to `-p:WasmFingerprintAssets`. */
   fingerprint?: boolean;
-  /** Initial library state. Default `false` (baseline greeting). */
-  altered?: boolean;
   /** Explicit port; default an ephemeral free port. */
   port?: number;
   /** Keep the materialized dir after `dispose()`. Default `false`. */

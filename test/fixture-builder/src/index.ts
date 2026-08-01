@@ -1,6 +1,7 @@
 export { buildFixture } from './build-fixture';
 export { Fixture } from './fixture';
 export type { FixtureInit } from './fixture';
+export { libraryOutputDir } from './dotnet';
 export {
   CAPABILITIES,
   supports,
