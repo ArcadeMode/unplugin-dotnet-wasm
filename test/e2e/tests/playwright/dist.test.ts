@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
-import { permuteFixture } from '../helpers/permute-fixture';
-import { trackConsoleMessages, expectMessages, waitForInit } from '../helpers/assertions';
+import { permuteFixture } from '../../helpers/permute-fixture';
+import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
 /**
  * Browser dist change test: builds the bundle against a baseline library, serves

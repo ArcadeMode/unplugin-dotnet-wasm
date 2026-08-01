@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from 'vitest';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
-import { permuteFixture } from '../helpers/permute-fixture-node';
+import { permuteFixture } from '../../helpers/permute-fixture-node';
 
 /**
  * Node dist change test: builds the bundle against a baseline library, executes

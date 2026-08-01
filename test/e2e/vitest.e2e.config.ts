@@ -3,12 +3,13 @@ import { resolve } from 'node:path';
 
 // Node-platform E2E: executes built `dist/entry.js` artifacts and asserts their
 // stdout. Browser E2E runs under Playwright (`playwright.config.ts`); the two
-// never overlap because Playwright matches `*.change.test.ts` / `*.spec.ts`.
+// never overlap because each runner owns a directory — Playwright drives
+// `tests/playwright/`, vitest drives `tests/vitest/`.
 export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    include: ['tests/**/*.e2e.test.ts'],
+    include: ['tests/vitest/**/*.test.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,
     fileParallelism: false,
