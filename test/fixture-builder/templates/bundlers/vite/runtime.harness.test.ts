@@ -4,17 +4,21 @@ import { Counter } from 'typeshim';
 
 /**
  * Boots .NET WASM under Vitest-node (Vite SSR / serve pipeline) and asserts
- * baseline interop. Increment step is 3 when the library is unaltered.
+ * interop. Increment step is 3 when unaltered, 5 when LibraryAltered=true —
+ * the outer e2e suite asserts the INCREMENT:* lines on stdout.
  */
 test('boots .NET WASM under Vitest node (dev server) and runs interop', async () => {
   const runtime = await dotnet.create();
   runtime.runMain();
 
+  const tsState = (globalThis as any)[Symbol.for('@typeshim')];
+  expect(typeof tsState).toBe('object');
+  expect(tsState).not.toBeNull();
+  console.log('NUGET_STATICWEBASSET:ok');
+
   const counter = new Counter(0);
   counter.Increment();
-  expect(counter.Value).toBe(3);
-  console.log('INCREMENT:3');
+  console.log(`INCREMENT:${counter.Value}`);
   counter.Increment();
-  expect(counter.Value).toBe(6);
-  console.log('INCREMENT:6');
+  console.log(`INCREMENT:${counter.Value}`);
 });

@@ -41,3 +41,35 @@ export function libraryFrameworkDir(fixture: Fixture): string {
 export function libraryPublishDir(fixture: Fixture): string {
   return libraryOutputDir(fixture.libraryDir, 'publish');
 }
+
+/** SDK fingerprinted user assembly: `Library.<hash>.wasm` (not bare `Library.wasm`). */
+const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
+
+/**
+ * Assert `Library*.wasm` naming matches `fixture.fingerprint` in a directory
+ * that contains framework / bundled assets (Library `_framework` or `dist/assets`).
+ */
+export function expectFingerprintLayout(dir: string, fingerprint: boolean): void {
+  const libraryWasms = readdirSync(dir).filter((f) => /^Library.*\.wasm$/.test(f));
+  const hasCanonical = libraryWasms.includes('Library.wasm');
+  const fingerprinted = libraryWasms.filter((f) => FINGERPRINTED_LIBRARY_RE.test(f));
+
+  if (fingerprint) {
+    if (fingerprinted.length === 0) {
+      throw new Error(
+        `Expected fingerprinted Library.<hash>.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
+      );
+    }
+  } else {
+    if (!hasCanonical) {
+      throw new Error(
+        `Expected canonical Library.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
+      );
+    }
+    if (fingerprinted.length > 0) {
+      throw new Error(
+        `Expected no fingerprinted Library.<hash>.wasm under ${dir}, found: ${fingerprinted.join(', ')}`,
+      );
+    }
+  }
+}

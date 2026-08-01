@@ -3,7 +3,12 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFixture, type Fixture, type RunResult } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
-import { distAssetsDir, entryChunkPath, libraryFrameworkDir } from '../../helpers/dist-artifacts';
+import {
+  distAssetsDir,
+  entryChunkPath,
+  expectFingerprintLayout,
+  libraryFrameworkDir,
+} from '../../helpers/dist-artifacts';
 
 /**
  * Reproduces the legacy `build.test.ts` artifact assertions on the new
@@ -68,6 +73,10 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
   it('Library*.wasm is present (user assembly emitted)', () => {
     const files = readdirSync(distAssetsDir(fixture));
     expect(files.some((f) => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
+  });
+
+  it('Library _framework fingerprint layout matches fixture.fingerprint', () => {
+    expectFingerprintLayout(libraryFrameworkDir(fixture), fixture.fingerprint);
   });
 
   it('entry chunk references a *.wasm asset URL', () => {

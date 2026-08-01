@@ -32,7 +32,7 @@ permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
     await page.goto(fixture.baseUrl);
 
     const bootTs = await waitForInit(page);
-    await expectMessages(consoleMsgs, ['INCREMENT:3', 'INCREMENT:6']);
+    await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:3', 'INCREMENT:6']);
 
     const baseline = fixture.snapshotDist();
     await fixture.buildLibrary({ altered: true });
@@ -40,6 +40,6 @@ permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
     await page.reload();
 
     await waitForInit(page, bootTs);
-    await expectMessages(consoleMsgs, ['INCREMENT:5', 'INCREMENT:10']);
+    await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
   });
 });

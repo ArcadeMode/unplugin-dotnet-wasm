@@ -25,6 +25,7 @@ permuteFixture({ platform: 'node', serveMode: 'watch' }, (params) => {
   });
 
   test('interop reflects the altered rebuild after watch re-emit + node restart', async () => {
+    expect(fixture.nodeLogs).toContain('NUGET_STATICWEBASSET:ok');
     expect(fixture.nodeLogs).toContain('INCREMENT:3');
     expect(fixture.nodeLogs).toContain('INCREMENT:6');
 
@@ -35,6 +36,7 @@ permuteFixture({ platform: 'node', serveMode: 'watch' }, (params) => {
     await fixture.waitForNodeLog(/INCREMENT:10/, { fromIndex: logMark, timeout: 60_000 });
 
     const after = fixture.nodeLogs.slice(logMark);
+    expect(after).toContain('NUGET_STATICWEBASSET:ok');
     expect(after).toContain('INCREMENT:5');
     expect(after).toContain('INCREMENT:10');
   }, 180_000);
