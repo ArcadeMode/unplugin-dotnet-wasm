@@ -66,13 +66,30 @@ export function inventoryEqual(a: DistInventory, b: DistInventory): boolean {
   return true;
 }
 
+/**
+ * True when `dist/` is past emptyOutDir / mid-clean and contains a runnable
+ * entry chunk. Paths mirror `entryChunkPath` in the e2e helpers:
+ * - `entry.js` (node; browser esbuild/bun)
+ * - `assets/entry.js` (webpack/rspack/rollup/rolldown)
+ * - `assets/index-<hash>.js` (vite) / `assets/index.<hash>.js` (farm)
+ */
+export function isDistReady(inv: DistInventory): boolean {
+  if (inv.size === 0) return false;
+  if (inv.has('entry.js') || inv.has('assets/entry.js')) return true;
+  for (const key of inv.keys()) {
+    if (/^assets\/index[-.][^/]+\.js$/.test(key)) return true;
+  }
+  return false;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
 /**
  * Wait until `dist/` differs from `baseline` and then remains unchanged for
- * `quietMs` (covers multi-file non-atomic emits).
+ * `quietMs` (covers multi-file non-atomic emits). Never settles on an empty
+ * or entry-less inventory (vite/webpack clean mid-rebuild).
  */
 export async function waitForDistChange(
   distDir: string,
@@ -90,7 +107,13 @@ export async function waitForDistChange(
 
   while (Date.now() < deadline) {
     const current = snapshotDist(distDir);
-    if (!sawChange) {
+
+    if (!isDistReady(current)) {
+      // Wipe / partial emit: count as change so we don't hang, but never quiet.
+      if (!inventoryEqual(current, baseline)) sawChange = true;
+      quietSince = null;
+      last = current;
+    } else if (!sawChange) {
       if (!inventoryEqual(current, baseline)) {
         sawChange = true;
         quietSince = Date.now();
@@ -108,12 +131,12 @@ export async function waitForDistChange(
 
   throw new Error(
     `Timed out after ${timeoutMs}ms waiting for dist/ to change and stabilize` +
-      ` (sawChange=${sawChange}, files=${last.size}).`,
+      ` (sawChange=${sawChange}, ready=${isDistReady(last)}, files=${last.size}).`,
   );
 }
 
 /**
- * Wait until `dist/` is non-empty and stays unchanged for `quietMs`
+ * Wait until `dist/` has a runnable entry and stays unchanged for `quietMs`
  * (initial watch emit).
  */
 export async function waitForDistReady(
@@ -130,7 +153,7 @@ export async function waitForDistReady(
 
   while (Date.now() < deadline) {
     const current = snapshotDist(distDir);
-    if (current.size === 0) {
+    if (!isDistReady(current)) {
       quietSince = null;
       last = current;
     } else if (!inventoryEqual(current, last)) {
