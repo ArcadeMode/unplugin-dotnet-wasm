@@ -80,31 +80,24 @@ function hasEntryBundle(inv: DistInventory): boolean {
   return false;
 }
 
-function hasWasmAsset(inv: DistInventory): boolean {
+const MIN_WASM_ASSETS = 20;
+
+function wasmAssetCount(inv: DistInventory): number {
+  let n = 0;
   for (const key of inv.keys()) {
-    if (key.endsWith('.wasm')) return true;
+    if (key.endsWith('.wasm')) n += 1;
   }
-  return false;
+  return n;
 }
 
-/**
- * True when `dist/` is past emptyOutDir / mid-clean: has a runnable entry
- * chunk and at least one `.wasm` (avoids settling while vite still emitting
- * framework assets).
- */
 export function isDistReady(inv: DistInventory): boolean {
-  return hasEntryBundle(inv) && hasWasmAsset(inv);
+  return hasEntryBundle(inv) && wasmAssetCount(inv) >= MIN_WASM_ASSETS;
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-/**
- * Wait until `dist/` differs from `baseline` and then remains unchanged for
- * `quietMs` (covers multi-file non-atomic emits). Never settles on an empty
- * or incomplete inventory (vite/webpack clean mid-rebuild).
- */
 export async function waitForDistChange(
   distDir: string,
   baseline: DistInventory,
@@ -123,7 +116,6 @@ export async function waitForDistChange(
     const current = snapshotDist(distDir);
 
     if (!isDistReady(current)) {
-      // Wipe / partial emit: count as change so we don't hang, but never quiet.
       if (!inventoryEqual(current, baseline)) sawChange = true;
       quietSince = null;
       last = current;
@@ -145,14 +137,11 @@ export async function waitForDistChange(
 
   throw new Error(
     `Timed out after ${timeoutMs}ms waiting for dist/ to change and stabilize` +
-      ` (sawChange=${sawChange}, ready=${isDistReady(last)}, files=${last.size}).`,
+      ` (sawChange=${sawChange}, ready=${isDistReady(last)}, files=${last.size},` +
+      ` wasm=${wasmAssetCount(last)}).`,
   );
 }
 
-/**
- * Wait until `dist/` has a runnable entry + wasm and stays unchanged for
- * `quietMs` (initial watch emit).
- */
 export async function waitForDistReady(
   distDir: string,
   opts: WaitForDistOptions = {},
@@ -183,5 +172,8 @@ export async function waitForDistReady(
     await sleep(pollMs);
   }
 
-  throw new Error(`Timed out after ${timeoutMs}ms waiting for initial dist/ emit.`);
+  throw new Error(
+    `Timed out after ${timeoutMs}ms waiting for initial dist/ emit` +
+      ` (ready=${isDistReady(last)}, files=${last.size}, wasm=${wasmAssetCount(last)}).`,
+  );
 }
