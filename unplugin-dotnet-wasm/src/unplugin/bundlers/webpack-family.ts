@@ -79,7 +79,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
   function resolveId(source: string, importer?: string): string | null {
     if (isWatch || isServe) {
-      return resolveVirtualId(ctx, source, importer, { binaryAsVirtual: true });
+      return resolveVirtualId(ctx, source, importer, { binaryAs: 'virtualReexport' });
     }
     return ctx.assetResolver.resolve(source);
   }

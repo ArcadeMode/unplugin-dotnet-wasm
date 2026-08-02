@@ -74,7 +74,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   function resolveId(source: string, importer?: string): string | null {
     const virtualize = isWatch || isServe;
     return virtualize
-      ? resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false })
+      ? resolveVirtualId(ctx, source, importer, { binaryAs: 'physical' })
       : ctx.assetResolver.resolve(source);
   }
 
