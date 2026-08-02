@@ -18,6 +18,8 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "@dotnet-wasm-bundler/fixture-builder": "workspace:*"
+    "@dotnet-wasm-bundler/fixture-builder": "workspace:*",
+    "execa": "^10.0.1",
+    "p-limit": "^6.2.0"
   }
 }

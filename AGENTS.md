@@ -11,16 +11,19 @@ Run all commands from repo root unless noted.
 
 ## Fixture-builder E2E - `test/e2e` (CI)
 
-CI shards by **os × bundler** and runs browser then node sequentially. Fingerprint /
-build-mode / serve-mode live in the tests (default fingerprint true).
+CI shards by **os × bundler**; `run.mjs` fans out browser∥node in parallel when
+`--platform` is omitted. Fingerprint / build-mode / serve-mode live in the tests
+(default fingerprint true). At least one of `--bundler` / `--platform` is required.
 
 ```
 pnpm build:plugin
+pnpm test:e2e --bundler=vite
 pnpm test:e2e --bundler=vite --platform=browser
-pnpm test:e2e --bundler=vite --platform=node
+pnpm test:e2e --platform=node
 # equivalent:
-pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=vite --platform=browser
+pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=vite
 ```
+
 
 - Implemented bundlers: `vite`, `webpack`, `esbuild`, `rollup`, `rolldown`, `rspack`, `rsbuild`, `farm`, `bun` (gated by capabilities: e.g. bun/esbuild skip watch/server).
 - Skip the isolated vite node SSR spec: `SKIP_VITE_NODE_SERVER=1`
