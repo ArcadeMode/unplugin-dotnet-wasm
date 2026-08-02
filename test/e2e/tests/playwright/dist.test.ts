@@ -10,8 +10,8 @@ for (const fingerprint of [true, false] as const) {
         let fixture: Fixture;
 
         test.beforeAll(async () => {
-          fixture = await buildFixture({ ...params, buildMode, fingerprint });
-          await fixture.buildLibrary();
+          fixture = await buildFixture({ ...params, buildMode });
+          await fixture.buildLibrary({ fingerprint });
           await fixture.build();
           await fixture.serve();
         });
@@ -31,7 +31,7 @@ for (const fingerprint of [true, false] as const) {
             'INCREMENT:6',
           ]);
 
-          await fixture.buildLibrary({ altered: true });
+          await fixture.buildLibrary({ fingerprint, altered: true });
           await fixture.build();
           await page.reload();
 

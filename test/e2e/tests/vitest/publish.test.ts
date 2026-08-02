@@ -17,8 +17,8 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
       let fixture: Fixture;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'publish', fingerprint });
-        await fixture.buildLibrary();
+        fixture = await buildFixture({ ...params, buildMode: 'publish' });
+        await fixture.buildLibrary({ fingerprint });
         const result = await fixture.build();
         expect(result.exitCode).toBe(0);
       }, 120_000);
@@ -53,8 +53,8 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
         );
       });
 
-      it('Library _framework fingerprint layout matches fixture.fingerprint', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fixture.fingerprint);
+      it('Library _framework fingerprint layout matches requested fingerprint', () => {
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
       });
 
       it('entry chunk references a *.wasm asset URL', () => {

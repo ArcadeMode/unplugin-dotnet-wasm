@@ -28,7 +28,6 @@ export interface FixtureInit {
   platform: Platform;
   serveMode: ServeMode;
   buildMode: BuildMode;
-  fingerprint: boolean;
   port: number;
   keepOnDispose: boolean;
 }
@@ -41,7 +40,6 @@ export class Fixture {
   readonly platform: Platform;
   readonly serveMode: ServeMode;
   readonly buildMode: BuildMode;
-  readonly fingerprint: boolean;
   readonly port: number;
 
   private readonly keepOnDispose: boolean;
@@ -57,7 +55,6 @@ export class Fixture {
     this.platform = init.platform;
     this.serveMode = init.serveMode;
     this.buildMode = init.buildMode;
-    this.fingerprint = init.fingerprint;
     this.port = init.port;
     this.keepOnDispose = init.keepOnDispose;
   }
@@ -88,14 +85,15 @@ export class Fixture {
   }
 
   /**
-   * (Re)build the isolated Library. Passing `altered: true` is the change
-   * trigger for the change test.
+   * (Re)build the isolated Library. `fingerprint` maps to
+   * `-p:WasmFingerprintAssets` (default `true`, SDK default). Passing
+   * `altered: true` is the change trigger for the change test.
    */
-  async buildLibrary(opts: { altered?: boolean } = {}): Promise<void> {
+  async buildLibrary(opts: { fingerprint?: boolean; altered?: boolean } = {}): Promise<void> {
     await buildLibrary({
       libraryDir: this.libraryDir,
       buildMode: this.buildMode,
-      fingerprint: this.fingerprint,
+      fingerprint: opts.fingerprint ?? true,
       altered: opts.altered ?? false,
     });
   }

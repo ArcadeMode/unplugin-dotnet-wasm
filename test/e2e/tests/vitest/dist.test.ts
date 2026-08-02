@@ -9,8 +9,8 @@ for (const fingerprint of [true, false] as const) {
         let fixture: Fixture;
 
         beforeAll(async () => {
-          fixture = await buildFixture({ ...params, buildMode, fingerprint });
-          await fixture.buildLibrary();
+          fixture = await buildFixture({ ...params, buildMode });
+          await fixture.buildLibrary({ fingerprint });
           await fixture.build();
         });
 
@@ -24,7 +24,7 @@ for (const fingerprint of [true, false] as const) {
           expect(baseline.stdout).toContain('INCREMENT:3');
           expect(baseline.stdout).toContain('INCREMENT:6');
 
-          await fixture.buildLibrary({ altered: true });
+          await fixture.buildLibrary({ fingerprint, altered: true });
           await fixture.build();
 
           const altered = await fixture.run();

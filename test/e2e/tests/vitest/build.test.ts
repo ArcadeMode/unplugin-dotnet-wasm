@@ -17,8 +17,8 @@ for (const fingerprint of [true, false] as const) {
       let buildResult: RunResult;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint });
-        await fixture.buildLibrary();
+        fixture = await buildFixture({ ...params, buildMode: 'debug' });
+        await fixture.buildLibrary({ fingerprint });
         buildResult = await fixture.build();
       }, 120_000);
 
@@ -71,8 +71,8 @@ for (const fingerprint of [true, false] as const) {
         expect(files.some((f) => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
       });
 
-      it('Library _framework fingerprint layout matches fixture.fingerprint', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fixture.fingerprint);
+      it('Library _framework fingerprint layout matches requested fingerprint', () => {
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
       });
 
       it('entry chunk references a *.wasm asset URL', () => {

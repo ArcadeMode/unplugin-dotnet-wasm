@@ -46,8 +46,9 @@ export function libraryPublishDir(fixture: Fixture): string {
 const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
 
 /**
- * Assert `Library*.wasm` naming matches `fixture.fingerprint` in a directory
- * that contains framework / bundled assets (Library `_framework` or `dist/assets`).
+ * Assert `Library*.wasm` naming matches the requested fingerprint flag in a
+ * directory that contains framework / bundled assets (Library `_framework` or
+ * `dist/assets`).
  */
 export function expectFingerprintLayout(dir: string, fingerprint: boolean): void {
   const libraryWasms = readdirSync(dir).filter((f) => /^Library.*\.wasm$/.test(f));

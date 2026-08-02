@@ -23,8 +23,8 @@ for (const fingerprint of [true, false] as const) {
         let fixture: Fixture;
 
         beforeAll(async () => {
-          fixture = await buildFixture({ ...params, buildMode: 'debug', fingerprint });
-          await fixture.buildLibrary();
+          fixture = await buildFixture({ ...params, buildMode: 'debug' });
+          await fixture.buildLibrary({ fingerprint });
         }, 120_000);
 
         afterAll(async () => {
@@ -32,7 +32,6 @@ for (const fingerprint of [true, false] as const) {
         });
 
         it('Library _framework naming matches WasmFingerprintAssets', () => {
-          expect(fixture.fingerprint).toBe(fingerprint);
           expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
         });
       },

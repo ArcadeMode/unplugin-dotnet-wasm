@@ -21,8 +21,6 @@ export interface BuildFixtureOptions {
   serveMode: ServeMode;
   /** Default `debug`. */
   buildMode?: BuildMode;
-  /** Default `true` (SDK default). Maps to `-p:WasmFingerprintAssets`. */
-  fingerprint?: boolean;
   /** Explicit port; default an ephemeral free port. */
   port?: number;
   /** Keep the materialized dir after `dispose()`. Default `false`. */
