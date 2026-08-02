@@ -12,7 +12,7 @@ export type DistInventory = Map<string, DistFileMeta>;
 export interface WaitForDistOptions {
   /** Overall timeout. Default 60_000. */
   timeoutMs?: number;
-  /** How long the inventory must stay unchanged after a change. Default 400. */
+  /** How long the inventory must stay unchanged after a change. Default 2000. */
   quietMs?: number;
   /** Poll interval. Default 100. */
   pollMs?: number;
@@ -104,7 +104,7 @@ export async function waitForDistChange(
   opts: WaitForDistOptions = {},
 ): Promise<DistInventory> {
   const timeoutMs = opts.timeoutMs ?? 60_000;
-  const quietMs = opts.quietMs ?? 400;
+  const quietMs = opts.quietMs ?? 2_000;
   const pollMs = opts.pollMs ?? 100;
   const deadline = Date.now() + timeoutMs;
 
@@ -147,7 +147,7 @@ export async function waitForDistReady(
   opts: WaitForDistOptions = {},
 ): Promise<DistInventory> {
   const timeoutMs = opts.timeoutMs ?? 60_000;
-  const quietMs = opts.quietMs ?? 400;
+  const quietMs = opts.quietMs ?? 2_000;
   const pollMs = opts.pollMs ?? 100;
   const deadline = Date.now() + timeoutMs;
 
