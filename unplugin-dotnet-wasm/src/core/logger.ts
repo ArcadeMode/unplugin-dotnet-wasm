@@ -31,7 +31,7 @@ export function createConsoleLogger(
       if (rank >= LEVEL_RANK.info) console.info(`${prefix} ${msg}`);
     },
     debug: (msg) => {
-      if (rank >= LEVEL_RANK.debug) console.debug(`${prefix} ${msg}`);
+      if (rank >= LEVEL_RANK.debug) console.log(`${prefix} ${msg}`);
     },
   };
 }

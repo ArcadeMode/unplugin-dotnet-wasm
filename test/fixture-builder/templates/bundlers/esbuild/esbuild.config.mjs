@@ -45,7 +45,7 @@ const plugins = [
     configuration,
     isPublish,
     targetFramework: 'net10.0',
-    logLevel: 'info',
+    logLevel: 'debug',
   }),
 ];
 if (platform === 'browser') plugins.push(emitHtml);

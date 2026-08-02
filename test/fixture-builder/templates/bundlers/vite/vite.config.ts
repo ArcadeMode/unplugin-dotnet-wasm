@@ -26,7 +26,7 @@ export default defineConfig({
       configuration,
       isPublish,
       targetFramework: 'net10.0',
-      logLevel: 'info',
+      logLevel: 'debug',
     }),
   ],
   server: {

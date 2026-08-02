@@ -138,8 +138,18 @@ export class Fixture {
    * complete). Capture the baseline with {@link snapshotDist} before triggering
    * the library rebuild.
    */
-  waitForDistChange(baseline: DistInventory, opts?: WaitForDistOptions): Promise<DistInventory> {
-    return waitForDistChange(this.distPath, baseline, opts);
+  async waitForDistChange(
+    baseline: DistInventory,
+    opts?: WaitForDistOptions,
+  ): Promise<DistInventory> {
+    try {
+      return await waitForDistChange(this.distPath, baseline, opts);
+    } catch (err) {
+      throw new Error(
+        `${err instanceof Error ? err.message : String(err)}\n--- watcher output ---\n${this.logs || '(none)'}\n--- end output ---`,
+        { cause: err },
+      );
+    }
   }
 
   /**

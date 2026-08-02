@@ -20,7 +20,7 @@ export default (_env, argv) => {
     configuration,
     isPublish,
     targetFramework: 'net10.0',
-    logLevel: 'info',
+    logLevel: 'debug',
   });
 
   const common = {

@@ -36,7 +36,7 @@ const result = await Bun.build({
       configuration,
       isPublish,
       targetFramework: 'net10.0',
-      logLevel: 'info',
+      logLevel: 'debug',
     }),
   ],
 });
