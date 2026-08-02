@@ -59,7 +59,7 @@ export const CAPABILITIES: Record<Bundler, BundlerCapabilities> = {
     devServerBrowser: false,
     devServerNode: false,
   },
-  farm: { build: true, publish: true, watch: true, devServerBrowser: true, devServerNode: false },
+  farm: { build: true, publish: true, watch: false, devServerBrowser: true, devServerNode: false },
   bun: { build: true, publish: true, watch: false, devServerBrowser: false, devServerNode: false },
 };
 
