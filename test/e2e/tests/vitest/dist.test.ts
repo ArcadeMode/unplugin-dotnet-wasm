@@ -3,16 +3,6 @@ import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixtu
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 import { envFilter } from '../../helpers/envFilter';
 
-/**
- * Node dist change test: builds the bundle against a baseline library, executes
- * `dist/entry.js` and asserts the baseline interop, rebuilds the library from
- * the altered branch, rebuilds the bundle, and asserts the altered interop.
- * Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6); altered increments by
- * 5 (→ INCREMENT:5, INCREMENT:10).
- *
- * Runs for every implemented bundler that produces a runnable node artifact;
- * unsupported bundlers appear as visible skips. Default fingerprint: true.
- */
 permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
   let fixture: Fixture;
 
@@ -44,10 +34,6 @@ permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
   });
 });
 
-/**
- * Node fingerprint:false smoke (vite only). Browser dual-fingerprint lives in
- * playwright/dist.test.ts across all bundlers.
- */
 const filter = envFilter();
 const fpFalseParams = {
   bundler: 'vite' as const,

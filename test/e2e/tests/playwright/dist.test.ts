@@ -3,19 +3,6 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-/**
- * Browser dist change test: builds the bundle against a baseline library, serves
- * `dist/` statically, asserts the baseline interop, rebuilds the library from
- * the altered branch, rebuilds the bundle, reloads the page, and asserts the
- * altered interop. Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6);
- * altered increments by 5 (→ INCREMENT:5, INCREMENT:10).
- *
- * Runs for every implemented bundler whose `dist` output boots in a browser;
- * unsupported bundlers appear as visible skips.
- *
- * Dual-fingerprint smoke: this is the only change test that also runs with
- * `fingerprint: false` (SDK default is true everywhere else).
- */
 for (const fingerprint of [true, false] as const) {
   test.describe(`[fingerprint=${fingerprint}]`, () => {
     permuteFixture({ platform: 'browser', serveMode: 'dist' }, (params) => {

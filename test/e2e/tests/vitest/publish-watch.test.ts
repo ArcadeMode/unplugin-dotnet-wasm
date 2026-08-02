@@ -2,17 +2,7 @@ import { test, expect, beforeAll, afterAll, describe } from 'vitest';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
-/**
- * Publish-mode + node watch: bundler `--watch` emits Release/`isPublish`
- * assets to `dist/`, then `node dist/entry.js` runs the artifact once.
- * Mid-test: library rebuild → wait for dist stabilize → run node again →
- * assert altered interop. (No `node --watch`: it restarts mid-emit against
- * missing .wasm.)
- *
- * Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6); altered by 5
- * (→ INCREMENT:5, INCREMENT:10). Unsupported bundlers (no watch) appear as
- * visible skips via `permuteFixture`.
- */
+/** Assert that the publish dist actually runs. */
 describe('[publish]', () => {
   permuteFixture({ platform: 'node', serveMode: 'watch' }, (params) => {
     let fixture: Fixture;

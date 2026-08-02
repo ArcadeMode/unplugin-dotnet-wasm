@@ -10,18 +10,6 @@ import {
   libraryFrameworkDir,
 } from '../../helpers/dist-artifacts';
 
-/**
- * Reproduces the legacy `build.test.ts` artifact assertions on the new
- * fixture-builder harness: a debug `dist` build must emit the .NET WASM
- * runtime, ICU data, debug symbols, and the user assembly, matching the
- * Library's own built `_framework` output byte-for-byte, with the entry chunk
- * referencing the WASM assets.
- *
- * Dual-fingerprint: runs with `fingerprint: true` (SDK default) and
- * `fingerprint: false` so unfingerprinted `_framework` naming is covered for
- * every bundler × platform. A browser-target build-only assertion needs no
- * page (it inspects files on disk), so it runs under vitest for both platforms.
- */
 for (const fingerprint of [true, false] as const) {
   describe(`[fingerprint=${fingerprint}]`, () => {
     permuteFixture({ serveMode: 'dist' }, (params) => {

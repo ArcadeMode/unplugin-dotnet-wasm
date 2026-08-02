@@ -3,16 +3,7 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-/**
- * Publish-mode + browser watch: bundler `--watch` emits Release/`isPublish`
- * assets to `dist/`, served via in-process sirv (same static path as debug
- * watch). Mid-test library rebuild → wait for dist stabilize → `page.reload()`
- * → assert altered interop.
- *
- * Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6); altered by 5
- * (→ INCREMENT:5, INCREMENT:10). Unsupported bundlers (no watch) appear as
- * visible skips via `permuteFixture`.
- */
+/** Assert that the publish dist actually runs. */
 test.describe('[publish]', () => {
   permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
     let fixture: Fixture;

@@ -2,10 +2,6 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { envFilter } from '../../helpers/envFilter';
 
-/**
- * Publish-mode runtime smoke (vite node dist): boots Release/`isPublish`
- * `dist/entry.js` and asserts TypeShim init + Counter interop.
- */
 const filter = envFilter();
 const params = {
   bundler: 'vite' as const,

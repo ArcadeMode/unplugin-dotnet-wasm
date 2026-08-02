@@ -3,15 +3,6 @@ import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixtu
 import { envFilter } from '../../helpers/envFilter';
 import { expectFingerprintLayout, libraryFrameworkDir } from '../../helpers/dist-artifacts';
 
-/**
- * Fingerprint naming contract on the Library `_framework` output (source of
- * truth for `-p:WasmFingerprintAssets`). Runs vite × both platforms × both
- * fingerprint values — cheap relative to dual-smoke-ing every bundler.
- *
- * `fingerprint: true` is also asserted in `build.test.ts` across the full
- * bundler grid (default). This file is the dedicated `false` coverage plus an
- * explicit true/false pair on one bundler.
- */
 const filter = envFilter();
 
 for (const fingerprint of [true, false] as const) {

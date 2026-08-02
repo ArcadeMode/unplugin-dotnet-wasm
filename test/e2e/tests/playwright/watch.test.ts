@@ -3,14 +3,6 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-/**
- * Browser watch change test: bundler `--watch` emits to `dist/`, served via
- * in-process sirv. Mid-test library rebuild → wait for dist stabilize →
- * `page.reload()` → assert altered interop.
- *
- * Baseline increments by 3 (→ INCREMENT:3, INCREMENT:6); altered by 5
- * (→ INCREMENT:5, INCREMENT:10). Uses fingerprint: true (SDK default).
- */
 permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
   let fixture: Fixture;
 

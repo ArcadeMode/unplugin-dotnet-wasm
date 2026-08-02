@@ -3,15 +3,6 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-/**
- * Dev server change test: mid-test rebuilds the .NET library and asserts the
- * dev server's auto-pushed reload surfaces the altered interop. The baseline
- * library increments by 3 (→ INCREMENT:3, INCREMENT:6); the altered rebuild
- * increments by 5 (→ INCREMENT:5, INCREMENT:10).
- *
- * Runs for every implemented bundler with a browser dev server; unsupported
- * bundlers appear as visible skips.
- */
 permuteFixture({ platform: 'browser', serveMode: 'server' }, (params) => {
   let fixture: Fixture;
 

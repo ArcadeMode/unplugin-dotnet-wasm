@@ -6,9 +6,6 @@ import { createRequire } from 'node:module';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
-// Verify the plugin has generated its "magic" package shims on-disk in the
-// fixture's isolated `node_modules` + runs the fixture's own `tsc` to prove the
-// bare virtual imports actually resolve.
 function runTypecheck(cwd: string): string {
   const require = createRequire(import.meta.url);
   const tsc = require.resolve('typescript/bin/tsc', { paths: [cwd] });

@@ -3,11 +3,6 @@ import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixtu
 import { envFilter } from '../../helpers/envFilter';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-/**
- * Publish-mode runtime smoke (vite browser dist): boots Release/`isPublish`
- * output and asserts TypeShim init + Counter interop. Artifact checks live in
- * vitest/publish.test.ts; this closes the "publish is artifacts-only" gap.
- */
 const filter = envFilter();
 const params = {
   bundler: 'vite' as const,

@@ -2,17 +2,6 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { envFilter } from '../../helpers/envFilter';
 
-/**
- * Phase 6 — isolated vite node `server` coverage.
- *
- * Vite's node "dev server" is Vitest driving the SSR / transform pipeline (not
- * an HTTP server). This path is fragile and lives in its own file so it can be
- * skipped without affecting the rest of the node suite:
- *
- *   SKIP_VITE_NODE_SERVER=1
- *
- * Also respects FIXTURE_BUNDLER / FIXTURE_PLATFORM shard filters.
- */
 const filter = envFilter();
 const params = {
   bundler: 'vite' as const,

@@ -11,15 +11,6 @@ import {
   libraryPublishDir,
 } from '../../helpers/dist-artifacts';
 
-/**
- * Reproduces the legacy `publish.test.ts` artifact assertions (`dotnet publish
- * -c Release` output) plus the `DiscoveryError` case when the publish output is
- * absent — replacing the retired `none` build-mode matrix cell.
- *
- * Dual-fingerprint on the publish build: `fingerprint: true` (SDK default) and
- * `fingerprint: false` so unfingerprinted Release/`isPublish` emit is covered
- * for every bundler × platform. DiscoveryError stays fingerprint-agnostic.
- */
 permuteFixture({ serveMode: 'dist' }, (params) => {
   for (const fingerprint of [true, false] as const) {
     describe(`publish build (isPublish: true) [fingerprint=${fingerprint}]`, () => {

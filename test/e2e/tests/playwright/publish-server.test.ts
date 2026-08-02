@@ -3,10 +3,6 @@ import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixtu
 import { envFilter } from '../../helpers/envFilter';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-/**
- * Publish-mode + browser dev-server smoke (vite only): confirms the middleware
- * / reload path works against Release/`isPublish` assets.
- */
 const filter = envFilter();
 const params = {
   bundler: 'vite' as const,
