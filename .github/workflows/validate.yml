@@ -119,11 +119,8 @@ jobs:
             pnpm --filter @dotnet-wasm-bundler/e2e exec playwright install chromium
           fi
 
-      - name: Run e2e (browser)
-        run: pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=${{ matrix.bundler }} --platform=browser
-
-      - name: Run e2e (node)
-        run: pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=${{ matrix.bundler }} --platform=node
+      - name: Run e2e
+        run: pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=${{ matrix.bundler }}
 
       - uses: actions/upload-artifact@v7
         if: always()
