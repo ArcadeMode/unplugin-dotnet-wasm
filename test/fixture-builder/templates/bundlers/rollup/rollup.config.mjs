@@ -42,7 +42,7 @@ const plugins = [
     configuration,
     isPublish,
     targetFramework: 'net10.0',
-    logLevel: 'debug',
+    logLevel: 'info',
   }),
   esbuild({ target: 'es2022', platform }),
 ];
