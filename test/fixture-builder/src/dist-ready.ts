@@ -80,7 +80,7 @@ function hasEntryBundle(inv: DistInventory): boolean {
   return false;
 }
 
-const MIN_WASM_ASSETS = 20;
+const MIN_WASM_ASSETS = 5;
 
 function wasmAssetCount(inv: DistInventory): number {
   let n = 0;
