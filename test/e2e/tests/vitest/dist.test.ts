@@ -12,7 +12,7 @@ for (const fingerprint of [true, false] as const) {
           fixture = await buildFixture({ ...params, buildMode, fingerprint });
           await fixture.buildLibrary();
           await fixture.build();
-        }, 180_000);
+        });
 
         afterAll(async () => {
           await fixture?.dispose();
@@ -31,7 +31,7 @@ for (const fingerprint of [true, false] as const) {
           expect(altered.stdout).toContain('NUGET_STATICWEBASSET:ok');
           expect(altered.stdout).toContain('INCREMENT:5');
           expect(altered.stdout).toContain('INCREMENT:10');
-        }, 180_000);
+        });
       });
     });
   }

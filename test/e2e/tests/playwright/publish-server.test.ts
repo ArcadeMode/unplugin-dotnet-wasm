@@ -19,14 +19,11 @@ const skip =
   () => {
     let fixture: Fixture;
 
-    test.beforeAll(
-      async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'publish' });
-        await fixture.buildLibrary();
-        await fixture.start();
-      },
-      { timeout: 180_000 },
-    );
+    test.beforeAll(async () => {
+      fixture = await buildFixture({ ...params, buildMode: 'publish' });
+      await fixture.buildLibrary();
+      await fixture.start();
+    });
 
     test.afterAll(async () => {
       await fixture?.dispose();

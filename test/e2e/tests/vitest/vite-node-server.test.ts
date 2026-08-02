@@ -22,7 +22,7 @@ describe.skipIf(skipExplicit || skipFilter || skipUnsupported)(
     beforeAll(async () => {
       fixture = await buildFixture({ ...params, buildMode: 'debug' });
       await fixture.buildLibrary();
-    }, 180_000);
+    });
 
     afterAll(async () => {
       await fixture?.dispose();
@@ -34,7 +34,7 @@ describe.skipIf(skipExplicit || skipFilter || skipUnsupported)(
       expect(result.stdout).toContain('NUGET_STATICWEBASSET:ok');
       expect(result.stdout).toContain('INCREMENT:3');
       expect(result.stdout).toContain('INCREMENT:6');
-    }, 120_000);
+    });
 
     test('altered library rebuild is visible on the next SSR run', async () => {
       await fixture.buildLibrary({ altered: true });
@@ -43,6 +43,6 @@ describe.skipIf(skipExplicit || skipFilter || skipUnsupported)(
       expect(result.stdout).toContain('NUGET_STATICWEBASSET:ok');
       expect(result.stdout).toContain('INCREMENT:5');
       expect(result.stdout).toContain('INCREMENT:10');
-    }, 180_000);
+    });
   },
 );

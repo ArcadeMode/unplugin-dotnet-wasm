@@ -9,7 +9,7 @@ permuteFixture({ platform: 'node', serveMode: 'watch' }, (params) => {
     fixture = await buildFixture({ ...params, buildMode: 'debug' });
     await fixture.buildLibrary();
     await fixture.start();
-  }, 180_000);
+  });
 
   afterAll(async () => {
     await fixture?.dispose();
@@ -29,5 +29,5 @@ permuteFixture({ platform: 'node', serveMode: 'watch' }, (params) => {
     expect(second.output).toContain('NUGET_STATICWEBASSET:ok');
     expect(second.output).toContain('INCREMENT:5');
     expect(second.output).toContain('INCREMENT:10');
-  }, 180_000);
+  });
 });
