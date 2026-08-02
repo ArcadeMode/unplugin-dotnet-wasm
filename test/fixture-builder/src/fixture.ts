@@ -10,7 +10,7 @@ import {
   type DistInventory,
   type WaitForDistOptions,
 } from './dist-ready';
-import { ManagedProcess, NPM, killPort, runToCompletion, spawnManaged } from './proc';
+import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
 import type {
@@ -108,7 +108,7 @@ export class Fixture {
 
   /** Run an npm script from the generated `package.json` to completion. */
   runScript(name: string): Promise<RunResult> {
-    return runToCompletion(NPM, ['run', name], {
+    return runToCompletion('npm', ['run', name], {
       cwd: this.dir,
       env: this.scriptEnv,
     });
@@ -190,7 +190,7 @@ export class Fixture {
           `(got "${this.platform}"). For vite node server (Vitest SSR), use runScript("dev").`,
       );
     }
-    this.server = spawnManaged(NPM, ['run', 'dev'], {
+    this.server = spawnManaged('npm', ['run', 'dev'], {
       cwd: this.dir,
       env: this.scriptEnv,
     });
@@ -209,7 +209,7 @@ export class Fixture {
   }
 
   private async startWatch(): Promise<void> {
-    this.server = spawnManaged(NPM, ['run', 'watch'], {
+    this.server = spawnManaged('npm', ['run', 'watch'], {
       cwd: this.dir,
       env: this.scriptEnv,
     });
@@ -293,18 +293,12 @@ export class Fixture {
       await new Promise<void>((resolvePromise) => this.staticServer!.close(() => resolvePromise()));
       this.staticServer = undefined;
     }
-    // The npm.cmd → node → bundler chain can orphan the real process past
-    // the wrapper's tree-kill; ensure nothing keeps holding the port (and, via
-    // its cwd, the materialized dir) before removal.
-    killPort(this.port);
   }
 
   /** Stop and remove the whole materialized instance (unless `keepOnDispose`). */
   async dispose(): Promise<void> {
     await this.stop();
     if (!this.keepOnDispose) {
-      // Remove the instance root (both app/ and Library/). Windows may briefly
-      // hold handles after tree-kill; retry the removal.
       rmSync(this.rootDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   }

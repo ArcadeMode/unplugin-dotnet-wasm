@@ -37,6 +37,7 @@
     "webpack-dev-server": "^5.0.0"
   },
   "dependencies": {
+    "execa": "^10.0.1",
     "unplugin-dotnet-wasm": "workspace:*"
   }
 }
