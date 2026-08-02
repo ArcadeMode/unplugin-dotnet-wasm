@@ -21,7 +21,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
         await fixture.buildLibrary({ fingerprint });
         const result = await fixture.build();
         expect(result.exitCode).toBe(0);
-      }, 120_000);
+      });
 
       afterAll(async () => {
         await fixture?.dispose();

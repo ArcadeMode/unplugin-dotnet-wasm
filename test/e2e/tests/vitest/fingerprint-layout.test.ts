@@ -25,7 +25,7 @@ for (const fingerprint of [true, false] as const) {
         beforeAll(async () => {
           fixture = await buildFixture({ ...params, buildMode: 'debug' });
           await fixture.buildLibrary({ fingerprint });
-        }, 120_000);
+        });
 
         afterAll(async () => {
           await fixture?.dispose();

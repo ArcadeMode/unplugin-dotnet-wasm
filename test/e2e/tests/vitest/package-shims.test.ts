@@ -24,7 +24,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
     fixture = await buildFixture({ ...params, buildMode: 'debug' });
     await fixture.buildLibrary();
     await fixture.build();
-  }, 120_000);
+  });
 
   afterAll(async () => {
     await fixture?.dispose();
