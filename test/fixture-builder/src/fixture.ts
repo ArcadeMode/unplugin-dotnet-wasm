@@ -47,7 +47,6 @@ export class Fixture {
   private readonly keepOnDispose: boolean;
   private readonly rootDir: string;
   private server?: ManagedProcess;
-  private nodeRunner?: ManagedProcess;
   private staticServer?: Server;
 
   constructor(init: FixtureInit) {
@@ -86,11 +85,6 @@ export class Fixture {
   /** Buffered bundler watcher / dev-server output (empty until `start()`). */
   get logs(): string {
     return this.server?.output ?? '';
-  }
-
-  /** Buffered `node dist/entry.js` output (node watch mode only). */
-  get nodeLogs(): string {
-    return this.nodeRunner?.output ?? '';
   }
 
   /**
@@ -195,10 +189,7 @@ export class Fixture {
       env: this.scriptEnv,
     });
     try {
-      // Wait for the pre-allocated port to accept connections (not port
-      // allocation). Default 5s is tight when vite + plugin init runs under
-      // parallel Playwright workers; 15s covers that without masking hangs.
-      await this.waitForPort(15_000);
+      await waitForPort(this.port, 15_000);
     } catch (err) {
       const reason = this.server.hasExited ? 'server process exited early' : 'port never opened';
       throw new Error(
@@ -227,39 +218,22 @@ export class Fixture {
       await this.startStaticServer();
       return;
     }
-
-    if (this.platform === 'node') {
-      // One-shot run (not `node --watch`): auto-restart races vite/webpack
-      // mid-emit and can boot against missing hashed .wasm files.
-      await this.runNode({ waitFor: /INCREMENT:6/ });
-      return;
-    }
-
+    if (this.platform === 'node') return;
     throw new Error(`Unsupported platform for watch: ${this.platform}`);
   }
 
-  /** Stop the node artifact runner, if any. */
-  async stopNode(): Promise<void> {
-    await this.nodeRunner?.stop();
-    this.nodeRunner = undefined;
-  }
-
-  /**
-   * Run `node dist/entry.js` once and wait for `waitFor` in its output.
-   * Call {@link stopNode} before a library/watch rebuild so the runner cannot
-   * observe a partial `dist/`.
-   */
-  async runNode(opts: { waitFor: RegExp; timeout?: number }): Promise<void> {
-    await this.stopNode();
-    this.nodeRunner = spawnManaged(process.execPath, ['dist/entry.js'], {
-      cwd: this.dir,
-      env: this.scriptEnv,
-    });
+  /** Run `node dist/entry.js` once and wait until it exits. */
+  async runNode(opts: { timeout?: number } = {}): Promise<RunResult> {
     try {
-      await this.nodeRunner.waitForLog(opts.waitFor, opts.timeout ?? 30_000);
+      return await runToCompletion(process.execPath, ['dist/entry.js'], {
+        cwd: this.dir,
+        env: this.scriptEnv,
+        timeout: opts.timeout ?? 30_000,
+      });
     } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       throw new Error(
-        `node dist/entry.js failed to print ${opts.waitFor}.\n--- node output ---\n${this.nodeRunner.output}\n--- end output ---\n--- watcher output ---\n${this.server?.output ?? ''}\n--- end output ---`,
+        `node dist/entry.js failed.\n${detail}\n--- watcher output ---\n${this.server?.output ?? ''}\n--- end output ---`,
         { cause: err },
       );
     }
@@ -279,14 +253,8 @@ export class Fixture {
     return this.server.waitForLog(pattern, opts.timeout);
   }
 
-  waitForPort(timeoutMs = 5_000): Promise<void> {
-    return waitForPort(this.port, timeoutMs);
-  }
-
   /** Stop the running server/watcher, if any. */
   async stop(): Promise<void> {
-    await this.nodeRunner?.stop();
-    this.nodeRunner = undefined;
     await this.server?.stop();
     this.server = undefined;
     if (this.staticServer) {

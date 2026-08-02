@@ -10,6 +10,7 @@ export interface LogSink {
 export interface RunProcessOptions {
   cwd: string;
   env?: NodeJS.ProcessEnv;
+  timeout?: number;
 }
 
 export async function runToCompletion(
@@ -22,6 +23,7 @@ export async function runToCompletion(
     env: options.env,
     stdin: 'ignore',
     all: true,
+    timeout: options.timeout,
     reject: false,
   });
   const output = result.all ?? `${result.stdout}${result.stderr}`;
@@ -31,6 +33,11 @@ export async function runToCompletion(
     stderr: result.stderr,
     output,
   };
+  if (result.timedOut) {
+    throw new Error(
+      `"${command} ${args.join(' ')}" timed out after ${options.timeout}ms\n${output}`,
+    );
+  }
   if (result.exitCode === 0) return mapped;
   throw new Error(`"${command} ${args.join(' ')}" exited with code ${result.exitCode}\n${output}`);
 }

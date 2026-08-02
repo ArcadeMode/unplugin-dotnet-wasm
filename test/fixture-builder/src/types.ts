@@ -1,18 +1,11 @@
-/** Supported bundlers (full catalog; Phase 1 implements `vite` only). */
 export type Bundler =
   'vite' | 'rollup' | 'rolldown' | 'webpack' | 'rspack' | 'rsbuild' | 'esbuild' | 'farm' | 'bun';
 
 export type Platform = 'browser' | 'node';
 
-/**
- * How the fixture is served/run:
- * - `dist`   — one-shot build, static-serve output (boot check).
- * - `server` — dev server (HMR/websocket). Runs the change test.
- * - `watch`  — bundler `--watch` output, statically served / one-shot `node dist/entry.js`.
- */
 export type ServeMode = 'dist' | 'server' | 'watch';
 
-/** `debug` → `dotnet build -c Debug`; `publish` → `dotnet publish -c Release`. */
+/** `dotnet build -c Debug/Release`*/
 export type BuildMode = 'debug' | 'publish';
 
 /** The three orthogonal dimensions that identify a fixture instance. */
