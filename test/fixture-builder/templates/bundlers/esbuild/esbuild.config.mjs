@@ -3,6 +3,7 @@ import DotnetWasm from 'unplugin-dotnet-wasm/esbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeFileSync } from 'node:fs';
+import { esbuildSentinelPlugin } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const platform = process.argv[2] === 'node' ? 'node' : 'browser';
@@ -49,6 +50,7 @@ const plugins = [
   }),
 ];
 if (platform === 'browser') plugins.push(emitHtml);
+plugins.push(esbuildSentinelPlugin);
 
 /** @type {import('esbuild').BuildOptions} */
 const options = {

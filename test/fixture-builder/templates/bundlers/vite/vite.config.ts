@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import DotnetWasm from 'unplugin-dotnet-wasm/vite';
 import { resolve } from 'node:path';
+// @ts-expect-error - sibling .mjs helper materialized next to this config
+import { rollupSentinelPlugin } from './sentinel.mjs';
 
 const projectRoot = process.env.DOTNET_PROJECT_ROOT;
 if (!projectRoot) {
@@ -28,6 +30,7 @@ export default defineConfig({
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
+    rollupSentinelPlugin(),
   ],
   server: {
     watch: {

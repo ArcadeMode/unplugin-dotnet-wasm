@@ -2,6 +2,7 @@ import DotnetWasm from 'unplugin-dotnet-wasm/webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { webpackSentinelPlugin } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -57,7 +58,7 @@ export default (_env, argv) => {
         library: { type: 'module' },
         clean: true,
       },
-      plugins: [dotnet],
+      plugins: [dotnet, webpackSentinelPlugin],
     };
   }
 
@@ -83,6 +84,7 @@ export default (_env, argv) => {
       // HtmlWebpackPlugin own the document here.
       new HtmlWebpackPlugin(),
       dotnet,
+      webpackSentinelPlugin,
     ],
   };
 };

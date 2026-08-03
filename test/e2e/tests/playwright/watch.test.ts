@@ -23,9 +23,9 @@ permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
     const bootTs = await waitForInit(page);
     await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:3', 'INCREMENT:6']);
 
-    const baseline = fixture.snapshotDist();
+    const baseline = fixture.rebuildToken();
     await fixture.buildLibrary({ altered: true });
-    await fixture.waitForDistChange(baseline);
+    await fixture.waitForRebuild(baseline);
     await page.reload();
 
     await waitForInit(page, bootTs);

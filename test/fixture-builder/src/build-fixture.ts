@@ -4,10 +4,7 @@ import { allocatePort } from './ports';
 import type { BuildFixtureOptions } from './types';
 
 /**
- * Materialize a runnable project + isolated .NET Library and return a
- * {@link Fixture}. The Library is NOT built yet: call `fixture.buildLibrary()`
- * before `build()`/`start()` when the test needs the .NET output to exist
- * (some tests, e.g. `DiscoveryError` coverage, deliberately skip it).
+ * Materialize a runnable project + isolated .NET Library on disk.
  */
 export async function buildFixture(options: BuildFixtureOptions): Promise<Fixture> {
   const buildMode = options.buildMode ?? 'debug';

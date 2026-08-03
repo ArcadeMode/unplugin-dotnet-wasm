@@ -3,13 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
 import sirv from 'sirv';
 import { buildLibrary, dotnetConfigFor } from './dotnet';
-import {
-  snapshotDist,
-  waitForDistChange,
-  waitForDistReady,
-  type DistInventory,
-  type WaitForDistOptions,
-} from './dist-ready';
+import { readSentinel, waitForSentinel, type WaitForSentinelOptions } from './sentinel';
 import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
@@ -120,22 +114,19 @@ export class Fixture {
     return this.runScript('start');
   }
 
-  /** Snapshot of every file under `dist/` (path → mtime + size). */
-  snapshotDist(): DistInventory {
-    return snapshotDist(this.distPath);
+  /** Current build-done token from the bundler sentinel (`null` before first emit). */
+  rebuildToken(): string | null {
+    return readSentinel(this.dir);
   }
 
   /**
-   * Wait until `dist/` differs from `baseline` and then stays quiet (rebuild
-   * complete). Capture the baseline with {@link snapshotDist} before triggering
+   * Wait until the bundler emits a new build-done token (rebuild complete) and
+   * it settles. Capture the baseline with {@link rebuildToken} before triggering
    * the library rebuild.
    */
-  async waitForDistChange(
-    baseline: DistInventory,
-    opts?: WaitForDistOptions,
-  ): Promise<DistInventory> {
+  async waitForRebuild(baseline: string | null, opts?: WaitForSentinelOptions): Promise<string> {
     try {
-      return await waitForDistChange(this.distPath, baseline, opts);
+      return await waitForSentinel(this.dir, baseline, opts);
     } catch (err) {
       throw new Error(
         `${err instanceof Error ? err.message : String(err)}\n--- watcher output ---\n${this.logs || '(none)'}\n--- end output ---`,
@@ -203,7 +194,7 @@ export class Fixture {
       env: this.scriptEnv,
     });
     try {
-      await waitForDistReady(this.distPath);
+      await waitForSentinel(this.dir, null);
     } catch (err) {
       const reason = this.server.hasExited ? 'watcher process exited early' : 'dist never settled';
       throw new Error(

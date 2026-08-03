@@ -21,9 +21,9 @@ permuteFixture({ platform: 'node', serveMode: 'watch' }, (params) => {
     expect(first.output).toContain('INCREMENT:3');
     expect(first.output).toContain('INCREMENT:6');
 
-    const baseline = fixture.snapshotDist();
+    const baseline = fixture.rebuildToken();
     await fixture.buildLibrary({ altered: true });
-    await fixture.waitForDistChange(baseline);
+    await fixture.waitForRebuild(baseline);
 
     const second = await fixture.runNode({ timeout: 60_000 });
     expect(second.output).toContain('NUGET_STATICWEBASSET:ok');

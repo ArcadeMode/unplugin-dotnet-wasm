@@ -2,6 +2,7 @@ import { rspack } from '@rspack/core';
 import DotnetWasm from 'unplugin-dotnet-wasm/rspack';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { webpackSentinelPlugin } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -61,7 +62,7 @@ export default (_env, argv) => {
         publicPath: 'auto',
         clean: true,
       },
-      plugins: [dotnet],
+      plugins: [dotnet, webpackSentinelPlugin],
     };
   }
 
@@ -80,6 +81,6 @@ export default (_env, argv) => {
       historyApiFallback: true,
       hot: false,
     },
-    plugins: [new rspack.HtmlRspackPlugin(), dotnet],
+    plugins: [new rspack.HtmlRspackPlugin(), dotnet, webpackSentinelPlugin],
   };
 };

@@ -8,7 +8,7 @@ export {
   getFixtureParameterPermutations,
   type BundlerCapabilities,
 } from './capabilities';
-export type { DistInventory, DistFileMeta, WaitForDistOptions } from './dist-ready';
+export type { WaitForSentinelOptions } from './sentinel';
 export type {
   BuildFixtureOptions,
   BuildMode,

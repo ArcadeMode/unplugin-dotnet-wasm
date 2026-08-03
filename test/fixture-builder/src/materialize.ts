@@ -57,11 +57,12 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   // Anchor plugin shim-package generation to this isolated app project.
   mkdirSync(join(dir, 'node_modules'), { recursive: true });
 
-  // Shared assets: entry + html + base tsconfig.
+  // Shared assets: entry + html + base tsconfig + build-done sentinel helper.
   mkdirSync(join(dir, 'src'), { recursive: true });
   cpSync(join(TEMPLATES_DIR, 'shared', 'entry.ts'), join(dir, 'src', 'entry.ts'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'index.html'), join(dir, 'index.html'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'tsconfig.base.json'), join(dir, 'tsconfig.json'));
+  cpSync(join(TEMPLATES_DIR, 'shared', 'sentinel.mjs'), join(dir, 'sentinel.mjs'));
 
   // Isolated .NET Library copy, out-of-tree sibling of the app (../Library).
   cpSync(join(TEMPLATES_DIR, 'library'), libraryDir, {

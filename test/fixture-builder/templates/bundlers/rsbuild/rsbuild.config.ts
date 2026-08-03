@@ -2,6 +2,8 @@ import { defineConfig } from '@rsbuild/core';
 import DotnetWasm from 'unplugin-dotnet-wasm/rsbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// @ts-expect-error - sibling .mjs helper materialized next to this config
+import { touchSentinel } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -23,10 +25,17 @@ export default defineConfig(() => {
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
+    {
+      name: 'test-sentinel',
+      setup(api) {
+        api.onAfterBuild(() => touchSentinel());
+        api.onAfterDevCompile(() => touchSentinel());
+      },
+    },
   ];
 
-  // E2E artifact assertions / dist-ready checks expect JS + binaries under
-  // `dist/assets/` (not rsbuild's default `static/js` / `static/wasm`).
+  // E2E artifact assertions expect JS + binaries under `dist/assets/` (not
+  // rsbuild's default `static/js` / `static/wasm`).
   const distPath = {
     root: resolve(__dirname, 'dist'),
     js: 'assets',

@@ -2,6 +2,8 @@ import DotnetWasm from 'unplugin-dotnet-wasm/bun';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync, writeFileSync } from 'node:fs';
+// @ts-expect-error - sibling .mjs helper materialized next to this config
+import { touchSentinel } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -62,3 +64,5 @@ if (platform === 'browser') {
     ].join('\n'),
   );
 }
+
+touchSentinel();

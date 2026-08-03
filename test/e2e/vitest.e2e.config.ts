@@ -6,15 +6,12 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const bundler = process.env.FIXTURE_BUNDLER ?? 'all';
 const configName = `e2e-vitest-${bundler}-node-${process.platform}`;
 
-// Node-platform E2E: executes built `dist/entry.js` artifacts and asserts their
-// stdout. Browser E2E runs under Playwright (`playwright.config.ts`); the two
-// never overlap because each runner owns a directory — Playwright drives
-// `tests/playwright/`, vitest drives `tests/vitest/`.
 export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
     include: ['tests/vitest/**/*.test.ts'],
+    // .NET restore + build on first materialization can be slow.
     testTimeout: 180_000,
     hookTimeout: 180_000,
     fileParallelism: false,

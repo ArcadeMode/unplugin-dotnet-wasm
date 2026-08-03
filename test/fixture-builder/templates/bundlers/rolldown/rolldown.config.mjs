@@ -2,6 +2,7 @@ import DotnetWasm from 'unplugin-dotnet-wasm/rolldown';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { builtinModules } from 'node:module';
+import { rollupSentinelPlugin } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -42,6 +43,7 @@ const plugins = [
     targetFramework: 'net10.0',
     logLevel: 'info',
   }),
+  rollupSentinelPlugin(),
 ];
 if (platform === 'browser') plugins.push(emitHtml);
 

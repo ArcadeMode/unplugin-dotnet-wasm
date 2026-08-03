@@ -32,7 +32,6 @@ export function libraryPublishDir(fixture: Fixture): string {
   return libraryOutputDir(fixture.libraryDir, 'publish');
 }
 
-
 // TODO: bring to assertions.ts
 export function expectFingerprintLayout(dir: string, fingerprint: boolean): void {
   const libraryWasms = readdirSync(dir).filter((f) => /^Library.*\.wasm$/.test(f));
