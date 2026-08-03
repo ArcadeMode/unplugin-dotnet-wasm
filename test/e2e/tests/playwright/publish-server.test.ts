@@ -1,22 +1,10 @@
 import { test } from '@playwright/test';
-import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
-import { envFilter } from '../../helpers/envFilter';
+import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { permuteFixture } from '../../helpers/permute-fixture';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-const filter = envFilter();
-const params = {
-  bundler: 'vite' as const,
-  platform: 'browser' as const,
-  serveMode: 'server' as const,
-};
-const skip =
-  (filter.bundler !== undefined && filter.bundler !== params.bundler) ||
-  (filter.platform !== undefined && filter.platform !== params.platform) ||
-  !supports(params.bundler, params.platform, params.serveMode);
-
-(skip ? test.describe.skip : test.describe)(
-  `[${params.bundler}][${params.platform}][${params.serveMode}][publish]`,
-  () => {
+permuteFixture({ platform: 'browser', serveMode: 'server' }, (params) => {
+  test.describe('publish', () => {
     let fixture: Fixture;
 
     test.beforeAll(async () => {
@@ -39,5 +27,5 @@ const skip =
       await waitForInit(page, bootTs);
       await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
     });
-  },
-);
+  });
+});

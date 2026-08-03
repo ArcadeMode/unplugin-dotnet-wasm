@@ -1,22 +1,11 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { buildFixture, supports, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
-import { envFilter } from '../../helpers/envFilter';
+import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { permuteFixture } from '../../helpers/permute-fixture-node';
 
-const filter = envFilter();
-const params = {
-  bundler: 'vite' as const,
-  platform: 'node' as const,
-  serveMode: 'server' as const,
-};
-const skipExplicit = process.env.SKIP_VITE_NODE_SERVER === '1';
-const skipFilter =
-  (filter.bundler !== undefined && filter.bundler !== params.bundler) ||
-  (filter.platform !== undefined && filter.platform !== params.platform);
-const skipUnsupported = !supports(params.bundler, params.platform, params.serveMode);
-
-describe.skipIf(skipExplicit || skipFilter || skipUnsupported)(
-  `[${params.bundler}][${params.platform}][${params.serveMode}] vite node server (Vitest SSR)`,
-  () => {
+//  Special case: tests that running with vitest works 
+//  (there is no node server, vitest however does something similar)
+permuteFixture({ bundler: 'vite', platform: 'node', serveMode: 'server' }, (params) => {
+  describe('vite node server (Vitest SSR)', () => {
     let fixture: Fixture;
 
     beforeAll(async () => {
@@ -44,5 +33,5 @@ describe.skipIf(skipExplicit || skipFilter || skipUnsupported)(
       expect(result.stdout).toContain('INCREMENT:5');
       expect(result.stdout).toContain('INCREMENT:10');
     });
-  },
-);
+  });
+});
