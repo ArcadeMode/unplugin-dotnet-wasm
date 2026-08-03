@@ -21,8 +21,10 @@ export function rollupSentinelPlugin() {
     writeBundle() {
       touchSentinel();
     },
-    finish() {
-      touchSentinel();
+    finish: {
+      executor() {
+        touchSentinel();
+      },
     },
   };
 }
