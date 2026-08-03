@@ -2,17 +2,12 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { libraryOutputDir, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 
-/** Directory containing the hashed asset outputs (`.wasm`, `.dat`, …) under `dist/`. */
+const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
+
 export function distAssetsDir(fixture: Fixture): string {
   return join(fixture.dir, 'dist', 'assets');
 }
 
-/**
- * Absolute path to the built entry chunk. Bundler/platform-specific:
- * - node: `dist/entry.js` (universal; see materialize.ts's generated `start` script).
- * - browser: `dist/assets/entry.js` (webpack/rspack/…), `dist/entry.js` (esbuild),
- *   or `dist/assets/index.js` / `index[-._]<hash>.js` (vite/farm/rsbuild).
- */
 export function entryChunkPath(fixture: Fixture): string {
   const dist = join(fixture.dir, 'dist');
   if (fixture.platform === 'node') return join(dist, 'entry.js');
@@ -29,27 +24,16 @@ export function entryChunkPath(fixture: Fixture): string {
   return join(assetsDir, hashed);
 }
 
-/**
- * The Library's own `_framework` output dir for `fixture`'s `buildMode` — the
- * source of truth diffed against the bundled `dist/assets` output.
- */
 export function libraryFrameworkDir(fixture: Fixture): string {
   return join(libraryOutputDir(fixture.libraryDir, fixture.buildMode), 'wwwroot', '_framework');
 }
 
-/** The Library's `dotnet publish` output dir (`bin/Release/<tfm>/publish`). */
 export function libraryPublishDir(fixture: Fixture): string {
   return libraryOutputDir(fixture.libraryDir, 'publish');
 }
 
-/** SDK fingerprinted user assembly: `Library.<hash>.wasm` (not bare `Library.wasm`). */
-const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
 
-/**
- * Assert `Library*.wasm` naming matches the requested fingerprint flag in a
- * directory that contains framework / bundled assets (Library `_framework` or
- * `dist/assets`).
- */
+// TODO: bring to assertions.ts
 export function expectFingerprintLayout(dir: string, fingerprint: boolean): void {
   const libraryWasms = readdirSync(dir).filter((f) => /^Library.*\.wasm$/.test(f));
   const hasCanonical = libraryWasms.includes('Library.wasm');
