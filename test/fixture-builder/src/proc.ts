@@ -117,8 +117,18 @@ export class ManagedProcess implements LogSink {
 
   async stop(): Promise<void> {
     if (this.exited) return;
-    this.subprocess.kill();
+    await forceKillTree(this.subprocess);
     await this.subprocess.catch(() => {});
+  }
+}
+
+/** Force-kill the subprocess and every descendant (watcher grandchildren orphan on win32). */
+async function forceKillTree(subprocess: ResultPromise): Promise<void> {
+  const { pid } = subprocess;
+  if (process.platform === 'win32' && pid !== undefined) {
+    await execa('taskkill', ['/PID', String(pid), '/T', '/F'], { reject: false });
+  } else {
+    subprocess.kill('SIGKILL');
   }
 }
 
