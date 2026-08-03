@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
-//  Special case: tests that running with vitest works 
+//  Special case: tests that running with vitest works
 //  (there is no node server, vitest however does something similar)
 permuteFixture({ bundler: 'vite', platform: 'node', serveMode: 'server' }, (params) => {
   describe('vite node server (Vitest SSR)', () => {
