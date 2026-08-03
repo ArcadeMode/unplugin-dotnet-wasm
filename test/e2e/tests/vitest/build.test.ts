@@ -3,12 +3,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFixture, type Fixture, type RunResult } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
-import {
-  distAssetsDir,
-  entryChunkPath,
-  expectFingerprintLayout,
-  libraryFrameworkDir,
-} from '../../helpers/dist-artifacts';
+import { distAssetsDir, entryChunkPath, libraryFrameworkDir } from '../../helpers/dist-artifacts';
+import { expectFingerprintLayout } from '../../helpers/assertions';
 
 for (const fingerprint of [true, false] as const) {
   describe(`[fingerprint=${fingerprint}]`, () => {

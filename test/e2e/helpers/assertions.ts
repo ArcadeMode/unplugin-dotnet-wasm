@@ -1,4 +1,28 @@
 import { ConsoleMessage, expect, type Page } from '@playwright/test';
+import { readdirSync } from 'node:fs';
+
+const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
+
+export function expectFingerprintLayout(dir: string, fingerprint: boolean): void {
+  const libraryWasms = readdirSync(dir).filter((f) => /^Library.*\.wasm$/.test(f));
+  const fingerprinted = libraryWasms.filter((f) => FINGERPRINTED_LIBRARY_RE.test(f));
+
+  if (fingerprint) {
+    expect(
+      fingerprinted,
+      `Expected fingerprinted Library.<hash>.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
+    ).not.toHaveLength(0);
+  } else {
+    expect(
+      libraryWasms,
+      `Expected canonical Library.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
+    ).toContain('Library.wasm');
+    expect(
+      fingerprinted,
+      `Expected no fingerprinted Library.<hash>.wasm under ${dir}, found: ${fingerprinted.join(', ')}`,
+    ).toHaveLength(0);
+  }
+}
 
 export function trackConsoleMessages(page: Page): ConsoleMessage[] {
   const seen: ConsoleMessage[] = [];
