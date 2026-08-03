@@ -8,32 +8,21 @@ export interface ScriptContext {
 }
 
 export interface BundlerManifest {
-  /**
-   * Config files copied verbatim from `templates/bundlers/<id>/` into the
-   * materialized project root.
-   */
   configFiles: string[];
-  /** Build the generated `package.json` `scripts` block for one instance. */
   scripts(ctx: ScriptContext): Record<string, string>;
 }
 
-/** Vite / webpack-family mode flag derived from the build mode. */
 function bundlerMode(buildMode: BuildMode): 'development' | 'production' {
   return buildMode === 'publish' ? 'production' : 'development';
 }
 
 const vite: BundlerManifest = {
-  // Harness files are only used for node `server` (Vitest SSR); harmless on browser.
   configFiles: ['vite.config.ts', 'vitest.harness.config.ts', 'runtime.harness.test.ts'],
   scripts({ port, buildMode, platform }) {
     const mode = bundlerMode(buildMode);
     return {
-      // One-shot build → `dist/` (dist + watch serve modes).
       build: `vite build --mode ${mode}`,
-      // Rebuild-on-change (watch serve mode).
       watch: `vite build --watch --mode ${mode}`,
-      // Browser: HTTP dev server. Node: Vitest SSR pipeline (the only node
-      // "dev server" path — see Phase 6 / vite-node-server.test.ts).
       dev:
         platform === 'node'
           ? `vitest run --mode ${mode} --config vitest.harness.config.ts`
@@ -60,8 +49,6 @@ const esbuild: BundlerManifest = {
   scripts({ platform }) {
     return {
       build: `node esbuild.config.mjs ${platform}`,
-      // Rebuild-on-change (watch serve mode). Plugin watch support is not yet
-      // wired for esbuild; capability gate keeps this out of the e2e suite.
       watch: `node esbuild.config.mjs ${platform} --watch`,
     };
   },
@@ -163,7 +150,6 @@ export function getManifest(bundler: Bundler): BundlerManifest {
   return manifest;
 }
 
-/** Whether the fixture builder has a template/manifest for `bundler`. */
 export function isBundlerImplemented(bundler: Bundler): boolean {
   return MANIFESTS[bundler] !== undefined;
 }

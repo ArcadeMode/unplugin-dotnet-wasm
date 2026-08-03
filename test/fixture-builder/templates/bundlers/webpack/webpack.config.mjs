@@ -79,9 +79,7 @@ export default (_env, argv) => {
       hot: false,
     },
     plugins: [
-      // Generate a fresh HTML document and inject the compiled bundle; the shared
-      // index.html is vite-flavored (references /src/entry.ts directly), so we let
-      // HtmlWebpackPlugin own the document here.
+      // The shared index.html is vite-flavored, lazy fix: generate default with HtmlWebpackPlugin.
       new HtmlWebpackPlugin(),
       dotnet,
       webpackSentinelPlugin,

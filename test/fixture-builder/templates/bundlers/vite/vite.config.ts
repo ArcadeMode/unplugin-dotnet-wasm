@@ -12,14 +12,6 @@ const configuration = (process.env.DOTNET_CONFIGURATION ?? 'Debug') as 'Debug' |
 const isPublish = process.env.DOTNET_IS_PUBLISH === 'true';
 const platform = process.env.DOTNET_FIXTURE_PLATFORM === 'node' ? 'node' : 'browser';
 
-// The isolated Library is an out-of-tree sibling of this app (../Library), so
-// vite's recursive dev-server watcher does not scan it. This guard is kept as
-// defense-in-depth: if the plugin ever pulls a physical Library/bin|obj asset
-// into the module graph, vite could try to watch the churning build output and
-// (on Windows) a mid-run `dotnet build` file lock throws an uncaught EBUSY that
-// kills the dev server. The plugin's own ManifestWatcher drives reloads.
-const normalizedLibrary = projectRoot.replace(/\\/g, '/');
-
 export default defineConfig({
   plugins: [
     DotnetWasm({
@@ -34,14 +26,14 @@ export default defineConfig({
   ],
   server: {
     watch: {
-      ignored: (watchedPath: string) =>
-        watchedPath.replace(/\\/g, '/').startsWith(normalizedLibrary),
+      ignored: (watchedPath: string) => {
+        // safety-net: ignore files outside project root, let plugin handle it.
+        return !watchedPath.replace(/\\/g, '/').startsWith(projectRoot.replace(/\\/g, '/'));
+      },
     },
   },
   build: {
     outDir: 'dist',
-    // Node: bundle the entry to a runnable `dist/entry.js`. Browser: emit from
-    // the HTML document.
     rollupOptions:
       platform === 'node'
         ? {

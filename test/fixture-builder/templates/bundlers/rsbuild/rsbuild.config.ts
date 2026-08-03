@@ -34,8 +34,6 @@ export default defineConfig(() => {
     },
   ];
 
-  // E2E artifact assertions expect JS + binaries under `dist/assets/` (not
-  // rsbuild's default `static/js` / `static/wasm`).
   const distPath = {
     root: resolve(__dirname, 'dist'),
     js: 'assets',
@@ -56,9 +54,6 @@ export default defineConfig(() => {
         minify: false,
       },
       tools: {
-        // rsbuild's node target defaults to a non-ESM chunk format; force ESM
-        // module output plus publicPath 'auto' so asset URLs get an
-        // import.meta.url base.
         rspack: (config) => {
           config.experiments = { ...config.experiments, outputModule: true };
           config.output = {

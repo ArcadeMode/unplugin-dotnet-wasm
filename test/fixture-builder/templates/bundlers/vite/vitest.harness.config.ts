@@ -8,11 +8,6 @@ if (!projectRoot) {
 const configuration = (process.env.DOTNET_CONFIGURATION ?? 'Debug') as 'Debug' | 'Release';
 const isPublish = process.env.DOTNET_IS_PUBLISH === 'true';
 
-/**
- * Vitest drives Vite's SSR / transform pipeline — the only node "dev server"
- * path for this plugin. Plain `dotnet.create()` with no resource-loader shim
- * proves the serve-node branch supplies file:// URLs.
- */
 export default defineConfig({
   plugins: [
     DotnetWasm({

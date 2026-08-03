@@ -41,15 +41,10 @@ export default defineConfig(() => {
           format: 'esm' as const,
         },
         assets: {
-          // Binary .NET assets must be declared so Farm emits them as static
-          // files instead of parsing them as JS modules.
           include: ['wasm', 'dat', 'pdb'],
-          // Node target defaults asset mode to 'node' (fileURLToPath OS paths);
-          // the runtime fetch()es asset URLs, so force browser URL mode.
           mode: 'browser' as const,
         },
         partialBundling: {
-          // Keep the runtime in one chunk so Node loads everything from entry.js.
           enforceResources: [{ name: 'entry', test: ['.+'] }],
         },
         minify: false,

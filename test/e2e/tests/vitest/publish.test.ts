@@ -6,10 +6,10 @@ import { permuteFixture } from '../../helpers/permute-fixture-node';
 import {
   distAssetsDir,
   entryChunkPath,
-  expectFingerprintLayout,
   libraryFrameworkDir,
   libraryPublishDir,
 } from '../../helpers/dist-artifacts';
+import { expectFingerprintLayout } from '../../helpers/assertions';
 
 permuteFixture({ serveMode: 'dist' }, (params) => {
   for (const fingerprint of [true, false] as const) {

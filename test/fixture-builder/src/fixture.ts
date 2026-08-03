@@ -26,7 +26,6 @@ export interface FixtureInit {
   keepOnDispose: boolean;
 }
 
-/** A materialized, runnable project bound to an isolated .NET Library copy. */
 export class Fixture {
   readonly dir: string;
   readonly libraryDir: string;
@@ -61,7 +60,6 @@ export class Fixture {
     return join(this.dir, 'dist');
   }
 
-  /** Env passed to every bundler script: locates the Library, selects config. */
   private get scriptEnv(): NodeJS.ProcessEnv {
     const { configuration, isPublish } = dotnetConfigFor(this.buildMode);
     return {
@@ -73,16 +71,10 @@ export class Fixture {
     };
   }
 
-  /** Buffered bundler watcher / dev-server output (empty until `start()`). */
   get logs(): string {
     return this.server?.output ?? '';
   }
 
-  /**
-   * (Re)build the isolated Library. `fingerprint` maps to
-   * `-p:WasmFingerprintAssets` (default `true`, SDK default). Passing
-   * `altered: true` is the change trigger for the change test.
-   */
   async buildLibrary(opts: { fingerprint?: boolean; altered?: boolean } = {}): Promise<void> {
     await buildLibrary({
       libraryDir: this.libraryDir,
@@ -92,7 +84,6 @@ export class Fixture {
     });
   }
 
-  /** Run an npm script from the generated `package.json` to completion. */
   runScript(name: string): Promise<RunResult> {
     return runToCompletion('npm', ['run', name], {
       cwd: this.dir,
@@ -100,30 +91,18 @@ export class Fixture {
     });
   }
 
-  /** One-shot `build` script → `dist/`. */
   build(): Promise<RunResult> {
     return this.runScript('build');
   }
 
-  /**
-   * Execute the built node artifact (`node dist/entry.js`) to completion and
-   * return its output. Node `dist` serve mode only; the entry prints
-   * `INCREMENT:<n>` on stdout for assertions.
-   */
   run(): Promise<RunResult> {
     return this.runScript('start');
   }
 
-  /** Current build-done token from the bundler sentinel (`null` before first emit). */
   rebuildToken(): string | null {
     return readSentinel(this.dir);
   }
 
-  /**
-   * Wait until the bundler emits a new build-done token (rebuild complete) and
-   * it settles. Capture the baseline with {@link rebuildToken} before triggering
-   * the library rebuild.
-   */
   async waitForRebuild(baseline: string | null, opts?: WaitForSentinelOptions): Promise<string> {
     try {
       return await waitForSentinel(this.dir, baseline, opts);
@@ -135,12 +114,6 @@ export class Fixture {
     }
   }
 
-  /**
-   * Serve the built `dist/` statically on the allocated port (browser `dist`
-   * serve mode). Runs in-process so teardown is a clean `server.close()` — no
-   * child process to orphan. Call {@link build} first; after an altered rebuild,
-   * rebuild and `page.reload()` to pick up the new bundle.
-   */
   async serve(): Promise<void> {
     if (this.serveMode !== 'dist') {
       throw new Error(`Fixture.serve() supports serveMode "dist" only (got "${this.serveMode}").`);
@@ -151,7 +124,6 @@ export class Fixture {
     await this.startStaticServer();
   }
 
-  /** Start the long-running runtime for the serve mode and wait until ready. */
   async start(): Promise<void> {
     if (this.serveMode === 'server') {
       await this.startDevServer();
@@ -211,7 +183,6 @@ export class Fixture {
     throw new Error(`Unsupported platform for watch: ${this.platform}`);
   }
 
-  /** Run `node dist/entry.js` once and wait until it exits. */
   async runNode(opts: { timeout?: number } = {}): Promise<RunResult> {
     try {
       return await runToCompletion(process.execPath, ['dist/entry.js'], {
@@ -242,7 +213,6 @@ export class Fixture {
     return this.server.waitForLog(pattern, opts.timeout);
   }
 
-  /** Stop the running server/watcher, if any. */
   async stop(): Promise<void> {
     await this.server?.stop();
     this.server = undefined;
@@ -252,7 +222,6 @@ export class Fixture {
     }
   }
 
-  /** Stop and remove the whole materialized instance (unless `keepOnDispose`). */
   async dispose(): Promise<void> {
     await this.stop();
     if (!this.keepOnDispose) {
