@@ -5,7 +5,6 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   PROXY_SUFFIX,
   URL_PROXY_NAMESPACE,
-  VIRTUAL_ROUTE_ID_REGEX,
   VIRTUAL_ROUTE_PREFIX,
   BINARY_EXTENSIONS_REGEX,
 } from '../../core/constants';
@@ -18,6 +17,8 @@ import {
   getVirtualizedModuleContent,
   resolveVirtualId,
 } from './virtual-resolution';
+
+const VIRTUAL_ROUTE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1);
 
 interface FarmConfig {
   root?: string;
@@ -95,12 +96,11 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   }
 
   function collectVirtualModuleIds(): string[] {
-    const marker = VIRTUAL_ROUTE_PREFIX.slice(1);
     const seen = new Set<string>();
     const dirty: string[] = [];
 
     const consider = (id: string): void => {
-      if (!id.includes(marker) || seen.has(id) || !compiler?.hasModule(id)) return;
+      if (!id.includes(VIRTUAL_ROUTE_MARKER) || seen.has(id) || !compiler?.hasModule(id)) return;
       seen.add(id);
       dirty.push(id);
     };
@@ -130,14 +130,12 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       const dirty = collectVirtualModuleIds();
       // Diagnostic: show the physical (fingerprinted) file each dirty route now
       // resolves to, so CI can prove whether reinit picked up the altered build.
-      // Farm round-trips the id with the NUL prefix escaped, so strip via marker.
-      const routeMarker = VIRTUAL_ROUTE_PREFIX.slice(1);
       ctx.logger.debug(
         `[farm-reload] reinit: ${dirty.length} virtual module(s) to invalidate\n` +
           dirty
             .map((id) => {
-              const idx = id.indexOf(routeMarker);
-              const route = idx === -1 ? id : id.slice(idx + routeMarker.length);
+              const idx = id.indexOf(VIRTUAL_ROUTE_MARKER);
+              const route = idx === -1 ? id : id.slice(idx + VIRTUAL_ROUTE_MARKER.length);
               return `  ${route} -> ${ctx.assetResolver.resolve(route) ?? '(unresolved)'}`;
             })
             .join('\n'),
@@ -173,7 +171,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         return null;
       }
 
-      if (source.endsWith(PROXY_SUFFIX) || source.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+      if (source.endsWith(PROXY_SUFFIX) || source.includes(VIRTUAL_ROUTE_MARKER)) {
         return source;
       }
 
@@ -200,10 +198,10 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       return resolved;
     },
     load: {
-      filter: { id: new RegExp(`${VIRTUAL_ROUTE_ID_REGEX.source}|${URL_PROXY_NAMESPACE}`) },
+      filter: { id: new RegExp(`${VIRTUAL_ROUTE_MARKER}|${URL_PROXY_NAMESPACE}`) },
       async handler(id: string): Promise<string | null> {
-        if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-          const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
+        if (id.includes(VIRTUAL_ROUTE_MARKER)) {
+          const route = id.slice(id.indexOf(VIRTUAL_ROUTE_MARKER) + VIRTUAL_ROUTE_MARKER.length);
           ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
           const result = await getVirtualizedModuleContent(ctx, route, {
             binaryAs: 'virtualUrlProxy',
@@ -251,11 +249,15 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       },
       updateModules: {
         executor({ paths }): string[] {
-          const marker = VIRTUAL_ROUTE_PREFIX.slice(1);
           const next = paths
             .map(([p]) => p)
             .filter((p) => {
-              if (p.includes(marker) || p.startsWith('\0') || p.endsWith(PROXY_SUFFIX)) return true;
+              if (
+                p.includes(VIRTUAL_ROUTE_MARKER) ||
+                p.startsWith('\0') ||
+                p.endsWith(PROXY_SUFFIX)
+              )
+                return true;
               if (/staticwebassets\.(endpoints|runtime)\.json$/i.test(p)) return false;
               return existsSync(p);
             });
