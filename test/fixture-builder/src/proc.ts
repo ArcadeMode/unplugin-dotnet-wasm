@@ -46,6 +46,7 @@ export class ManagedProcess implements LogSink {
   private _stdout = '';
   private _stderr = '';
   private _output = '';
+  private readonly echo = process.env.FIXTURE_ECHO_LOGS === '1';
   private readonly waiters: Array<{ re: RegExp; fromIndex: number; resolve: () => void }> = [];
   private exited = false;
 
@@ -83,6 +84,7 @@ export class ManagedProcess implements LogSink {
     if (stream === 'out') this._stdout += text;
     else this._stderr += text;
     this._output += text;
+    if (this.echo) process.stdout.write(text);
     for (let i = this.waiters.length - 1; i >= 0; i--) {
       const waiter = this.waiters[i];
       if (waiter.re.test(this._output.slice(waiter.fromIndex))) {

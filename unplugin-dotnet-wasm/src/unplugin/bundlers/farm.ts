@@ -1,10 +1,10 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, parse, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   PROXY_SUFFIX,
   URL_PROXY_NAMESPACE,
-  VIRTUAL_ROUTE_ID_REGEX,
   VIRTUAL_ROUTE_PREFIX,
   BINARY_EXTENSIONS_REGEX,
 } from '../../core/constants';
@@ -16,8 +16,9 @@ import {
   getManifestWatchPaths,
   getVirtualizedModuleContent,
   resolveVirtualId,
-  type LoadHandlerContext,
 } from './virtual-resolution';
+
+const VIRTUAL_ROUTE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1);
 
 interface FarmConfig {
   root?: string;
@@ -28,33 +29,28 @@ interface FarmConfig {
   };
 }
 
-// farm's dev-server context is Koa-like (carries a `respond` flag), but not exactly Koa.
 interface KoaLikeContext {
   req: IncomingMessage;
   res: ServerResponse;
   respond: boolean;
 }
 
-interface FarmTracedModule {
-  id: string;
-}
 interface FarmCompiler {
   hasModule(resolvedPath: string): boolean;
-  traceModuleGraph(): Promise<{ modules: FarmTracedModule[] }>;
+  modules?(): Array<{ id: string }>;
+  resolvedModulePaths(root: string): string[];
   invalidateModule(moduleId: string): void;
   update(paths: string[], sync?: boolean): Promise<unknown>;
+  compile(): Promise<void>;
   writeResourcesToDisk(): void;
 }
 
-// Farm's HMR engine: recompiles the affected modules and pushes the result to clients.
 type FarmHmrEngine = { hmrUpdate(path: string | string[], force?: boolean): Promise<void> };
 
 interface FarmDevServer {
   app(): { use(mw: (ctx: KoaLikeContext, next: () => Promise<void>) => unknown): void };
   hmrEngine?: FarmHmrEngine;
-  // Farm's WsServer: broadcast channel to connected HMR clients.
   ws?: { clients: Set<{ rawSend(payload: string): void }> };
-  // Underlying node http.Server (present once the dev server is listening).
   server?: { once(event: string, listener: () => void): void };
 }
 
@@ -69,6 +65,9 @@ export interface FarmHooks {
     config(userConfig: FarmConfig): Record<string, never>;
     configureCompiler(compiler: FarmCompiler): void;
     configureDevServer(server: FarmDevServer): void;
+    updateModules: {
+      executor(param: { paths: [string, string][] }): string[] | void;
+    };
   };
 }
 
@@ -81,11 +80,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   let compiler: FarmCompiler | undefined;
   let devServer: FarmDevServer | undefined;
   let watcher: ManifestWatcher | undefined;
-
-  function isSameDriveRoot(p: string): boolean {
-    // Farm does not like cross-drive roots (e.g. C:\ vs D:\)
-    return parse(p).root.toLowerCase() === parse(ctx.consumerRoot).root.toLowerCase();
-  }
 
   function startManifestWatcher(): ManifestWatcher {
     if (watcher) return watcher;
@@ -101,25 +95,46 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     return watcher;
   }
 
+  function collectVirtualModuleIds(): string[] {
+    const seen = new Set<string>();
+    const dirty: string[] = [];
+
+    const consider = (id: string): void => {
+      if (!id.includes(VIRTUAL_ROUTE_MARKER) || seen.has(id) || !compiler?.hasModule(id)) return;
+      seen.add(id);
+      dirty.push(id);
+    };
+
+    if (typeof compiler?.modules === 'function') {
+      for (const m of compiler.modules()) consider(m.id);
+    } else {
+      for (const route of ctx.assetResolver.routes()) {
+        const id = resolveVirtualId(ctx, route, undefined, { binaryAs: 'virtualUrlProxy' });
+        if (!id?.startsWith(VIRTUAL_ROUTE_PREFIX)) continue;
+        consider(id);
+        consider(id.slice(1));
+      }
+      for (const path of compiler?.resolvedModulePaths(ctx.consumerRoot) ?? []) {
+        consider(path);
+      }
+    }
+    return dirty;
+  }
+
   async function invalidateModules(): Promise<void> {
     if (!compiler) {
       ctx.logger.debug('[farm-reload] skip invalidate: no compiler');
       return;
     }
     try {
-      const graph = await compiler.traceModuleGraph();
-      const dirty = graph.modules
-        .map((m) => m.id)
-        .filter((id) => id.includes(VIRTUAL_ROUTE_PREFIX.slice(1))); // split the leading null byte, module graph ids are encoded
-      ctx.logger.debug(`[farm-reload] reinit: ${dirty.length} framework module(s) to invalidate`);
-      if (dirty.length === 0) {
-        ctx.logger.debug(
-          '[farm-reload] no virtual framework modules in graph; skip update/writeResourcesToDisk',
-        );
-        return;
+      const dirty = collectVirtualModuleIds();
+      if (dirty.length > 0) {
+        for (const moduleId of dirty) compiler.invalidateModule(moduleId);
+        await compiler.update(dirty, true);
+      } else {
+        ctx.logger.debug('[farm-reload] no virtual modules in graph; falling back to compile()');
+        await compiler.compile();
       }
-      for (const moduleId of dirty) compiler.invalidateModule(moduleId);
-      await compiler.update(dirty, true);
       if (isServe) {
         const clients = devServer?.ws?.clients;
         if (clients) for (const client of clients) client.rawSend("{ type: 'full-reload' }");
@@ -141,20 +156,16 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     },
     resolveId(source: string, importer?: string): string | null {
       if (importer && importer.endsWith(PROXY_SUFFIX)) {
-        // resolving the proxy modules import: let farm resolve the real asset natively (is absolute path).
         return null;
       }
 
-      // Farm wonks out sometimes and re-resolves virtual ids / inserted proxy modules
-      if (source.endsWith(PROXY_SUFFIX) || source.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-        // Lets `load` handle
+      if (source.endsWith(PROXY_SUFFIX) || source.includes(VIRTUAL_ROUTE_MARKER)) {
         return source;
       }
 
       let resolved: string | null;
       if (isServe || isWatch) {
-        // virtualize to hide fingerprints from farm's module graph
-        resolved = resolveVirtualId(ctx, source, importer, { binaryAsVirtual: false });
+        resolved = resolveVirtualId(ctx, source, importer, { binaryAs: 'virtualUrlProxy' });
       } else {
         resolved = ctx.assetResolver.resolve(source);
         if (isNodeTarget) {
@@ -164,38 +175,31 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       }
 
       if (resolved === null) return null;
-      // Virtual ids are handled by `load`.
       if (resolved.startsWith(VIRTUAL_ROUTE_PREFIX)) return resolved;
       if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(resolved)) {
-        // Node: wrap binary assets in a proxy module (see load handler)
         return toPosixPath(resolved) + PROXY_SUFFIX;
       }
       if (parse(resolved).root.toLowerCase() !== parse(ctx.consumerRoot).root.toLowerCase()) {
-        // cross-root asset (e.g. C:\ vs D:\): farm can't resolve it, alias + serve via `load`.
         farmContentAliases.set(basename(resolved), resolved);
         return join(ctx.consumerRoot, URL_PROXY_NAMESPACE, basename(resolved));
       }
       return resolved;
     },
     load: {
-      filter: { id: new RegExp(`${VIRTUAL_ROUTE_ID_REGEX.source}|${URL_PROXY_NAMESPACE}`) },
-      async handler(this: LoadHandlerContext, id: string): Promise<string | null> {
-        if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) {
-          // re-resolve to the current physical file,
-          // register it (+ the manifests) as watch deps, and rewrite its contents.
-          const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
+      filter: { id: new RegExp(`${VIRTUAL_ROUTE_MARKER}|${URL_PROXY_NAMESPACE}`) },
+      async handler(id: string): Promise<string | null> {
+        if (id.includes(VIRTUAL_ROUTE_MARKER)) {
+          const route = id.slice(id.indexOf(VIRTUAL_ROUTE_MARKER) + VIRTUAL_ROUTE_MARKER.length);
           ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
-          const result = await getVirtualizedModuleContent(ctx, route);
+          const result = await getVirtualizedModuleContent(ctx, route, {
+            binaryAs: 'virtualUrlProxy',
+          });
           if (result === null) return null;
-          for (const watchPath of [result.path, ...manifestWatchPaths]) {
-            // Farm cannot watch files across drive roots, skip those (mostly nuget files so static anyway)
-            if (isSameDriveRoot(watchPath)) this.addWatchFile(watchPath);
-          }
           return result.code;
         }
         if (id.endsWith(PROXY_SUFFIX)) {
           const real = id.slice(0, -PROXY_SUFFIX.length).replace(/\\/g, '/');
-          return buildNewUrlAssetProxyModule(real); // return the actual proxy module
+          return buildNewUrlAssetProxyModule(real);
         }
         const real = farmContentAliases.get(basename(id));
         return real === undefined ? null : readFile(real, 'utf-8');
@@ -231,7 +235,28 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         );
         if (isWatch) startManifestWatcher();
       },
-      // Fires after the dev server + HMR engine are ready (serve only).
+      updateModules: {
+        executor({ paths }): string[] {
+          const next = paths
+            .map(([p]) => p)
+            .filter((p) => {
+              if (
+                p.includes(VIRTUAL_ROUTE_MARKER) ||
+                p.startsWith('\0') ||
+                p.endsWith(PROXY_SUFFIX)
+              )
+                return true;
+              if (/staticwebassets\.(endpoints|runtime)\.json$/i.test(p)) return false;
+              return existsSync(p);
+            });
+          if (next.length !== paths.length) {
+            ctx.logger.debug(
+              `[farm-reload] updateModules: dropped ${paths.length - next.length} path(s)`,
+            );
+          }
+          return next;
+        },
+      },
       configureDevServer(server: FarmDevServer): void {
         isServe = true;
         devServer = server;
@@ -240,7 +265,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
             new Promise<void>((resolve, reject) => {
               let handled = true;
               ctx.assetMiddleware(koaCtx.req, koaCtx.res, () => {
-                handled = false; // unhandled by middleware
+                handled = false;
                 next().then(resolve, reject);
               });
               if (handled) {
