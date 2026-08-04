@@ -27,12 +27,19 @@ export class ManifestWatcher {
 
   start(): void {
     if (this.#disposed) return;
+    this.#logger.debug(
+      `ManifestWatcher start: ${this.#paths.length} path(s), debounceMs=${this.#debounceMs}` +
+        (this.#paths.length ? `\n  ${this.#paths.join('\n  ')}` : ' (none)'),
+    );
     this.#watcher = chokidar.watch(this.#paths, {
       ignoreInitial: true,
       atomic: true,
       awaitWriteFinish: { stabilityThreshold: this.#debounceMs, pollInterval: 20 },
     });
-    this.#watcher.on('all', () => void this.#run());
+    this.#watcher.on('all', (event, path) => {
+      this.#logger.debug(`ManifestWatcher event: ${event} ${path}`);
+      void this.#run();
+    });
     this.#watcher.on('error', (err) =>
       this.#logger.error(
         `manifest watcher error: ${err instanceof Error ? err.message : String(err)}`,
@@ -43,6 +50,7 @@ export class ManifestWatcher {
   async #run(): Promise<void> {
     if (this.#disposed || this.#running) {
       this.#pending = true;
+      this.#logger.debug('ManifestWatcher onChange coalesced (already running)');
       return;
     }
 
@@ -50,7 +58,9 @@ export class ManifestWatcher {
     this.#pending = false;
 
     try {
+      this.#logger.debug('ManifestWatcher onChange begin');
       await this.#onChange();
+      this.#logger.debug('ManifestWatcher onChange end');
     } catch (err) {
       this.#logger.error(
         `manifest onChange handler failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -61,6 +71,7 @@ export class ManifestWatcher {
 
     if (this.#pending && !this.#disposed) {
       this.#pending = false;
+      this.#logger.debug('ManifestWatcher onChange re-run (pending)');
       void this.#run();
     }
   }

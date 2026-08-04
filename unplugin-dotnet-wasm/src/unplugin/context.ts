@@ -70,10 +70,12 @@ export class PluginContext {
 
   async reinitialize(): Promise<void> {
     try {
+      this.logger.debug('reinitialize: begin');
       await this.initAssetResolution();
       this.logger.info('dotnet staticwebassets manifests changed');
 
       for (const fn of this.reloadTriggers) await fn();
+      this.logger.debug(`reinitialize: done (${this.reloadTriggers.length} reload trigger(s))`);
     } catch (err) {
       this.logger.error(`manifest reinitialize failed: ${(err as Error).message}`);
     }

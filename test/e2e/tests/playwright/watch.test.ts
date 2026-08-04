@@ -1,0 +1,38 @@
+import { test } from '@playwright/test';
+import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { permuteFixture } from '../../helpers/permute-fixture';
+import {
+  trackConsoleMessages,
+  expectMessages,
+  waitForInit,
+  reloadUntilBooted,
+} from '../../helpers/assertions';
+
+permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
+  let fixture: Fixture;
+
+  test.beforeAll(async () => {
+    fixture = await buildFixture({ ...params, buildMode: 'debug' });
+    await fixture.buildLibrary();
+    await fixture.start();
+  });
+
+  test.afterAll(async () => {
+    await fixture?.dispose();
+  });
+
+  test('interop reflects the altered rebuild after watch re-emit + reload', async ({ page }) => {
+    const consoleMsgs = trackConsoleMessages(page);
+    await page.goto(fixture.baseUrl);
+
+    const bootTs = await waitForInit(page);
+    await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:3', 'INCREMENT:6']);
+
+    const baseline = fixture.rebuildToken();
+    await fixture.buildLibrary({ altered: true });
+    await fixture.waitForRebuild(baseline);
+    await reloadUntilBooted(page, bootTs);
+
+    await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
+  });
+});

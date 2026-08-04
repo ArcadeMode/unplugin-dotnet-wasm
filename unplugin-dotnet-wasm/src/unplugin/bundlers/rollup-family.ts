@@ -109,7 +109,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
 
         const watcher = new ManifestWatcher({
           paths: manifestWatchPaths,
-          onChange: () => ctx.reinitialize(),
+          onChange: () => {
+            ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
+            return ctx.reinitialize();
+          },
           logger: ctx.logger,
         });
         watcher.start();

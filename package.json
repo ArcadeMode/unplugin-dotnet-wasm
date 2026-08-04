@@ -27,6 +27,7 @@
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
     "clean:fixture": "pnpm --filter \"@dotnet-wasm-bundler/library-app-*-*-fixture\" run clean",
     "test:unit": "pnpm --filter unplugin-dotnet-wasm test",
+    "test:e2e": "pnpm --filter @dotnet-wasm-bundler/e2e test:e2e",
     "test:matrix": "node test/integration/run-test-matrix.mjs",
     "test:vitest": "pnpm test:vitest:debug",
     "test:vitest:debug": "pnpm --filter @dotnet-wasm-bundler/library-app-node-vite-fixture serve:debug",

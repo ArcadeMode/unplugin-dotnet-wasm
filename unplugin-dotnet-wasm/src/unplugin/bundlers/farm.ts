@@ -91,7 +91,10 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     if (watcher) return watcher;
     watcher = new ManifestWatcher({
       paths: manifestWatchPaths,
-      onChange: () => ctx.reinitialize(),
+      onChange: () => {
+        ctx.logger.debug('[farm] ManifestWatcher.onChange fired, reinitializing');
+        return ctx.reinitialize();
+      },
       logger: ctx.logger,
     });
     watcher.start();
@@ -99,14 +102,22 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   }
 
   async function invalidateModules(): Promise<void> {
-    if (!compiler) return;
+    if (!compiler) {
+      ctx.logger.debug('[farm-reload] skip invalidate: no compiler');
+      return;
+    }
     try {
       const graph = await compiler.traceModuleGraph();
       const dirty = graph.modules
         .map((m) => m.id)
         .filter((id) => id.includes(VIRTUAL_ROUTE_PREFIX.slice(1))); // split the leading null byte, module graph ids are encoded
       ctx.logger.debug(`[farm-reload] reinit: ${dirty.length} framework module(s) to invalidate`);
-      if (dirty.length === 0) return;
+      if (dirty.length === 0) {
+        ctx.logger.debug(
+          '[farm-reload] no virtual framework modules in graph; skip update/writeResourcesToDisk',
+        );
+        return;
+      }
       for (const moduleId of dirty) compiler.invalidateModule(moduleId);
       await compiler.update(dirty, true);
       if (isServe) {
@@ -117,6 +128,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         );
       } else {
         compiler.writeResourcesToDisk();
+        ctx.logger.debug('[farm-reload] watch: writeResourcesToDisk completed');
       }
     } catch (error) {
       ctx.logger.error(`[farm-reload] failed to refresh framework modules: ${error}`);
@@ -195,6 +207,10 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         isNodeTarget = typeof targetEnv === 'string' && targetEnv.startsWith('node');
         isWatch = Boolean(userConfig.compilation?.watch);
+        ctx.logger.debug(
+          `[farm] config: isWatch=${isWatch} (compilation.watch=${JSON.stringify(userConfig.compilation?.watch)}), ` +
+            `isNodeTarget=${isNodeTarget}, manifestWatchPaths=${manifestWatchPaths.length}`,
+        );
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree =
           targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;
@@ -210,6 +226,9 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       configureCompiler(c: FarmCompiler): void {
         compiler = c;
         ctx.onReinitialized(invalidateModules);
+        ctx.logger.debug(
+          `[farm] configureCompiler: isWatch=${isWatch}, startingManifestWatcher=${isWatch}`,
+        );
         if (isWatch) startManifestWatcher();
       },
       // Fires after the dev server + HMR engine are ready (serve only).

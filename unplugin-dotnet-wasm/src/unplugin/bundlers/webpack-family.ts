@@ -118,7 +118,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     // Set up manifest watcher for webpack/rspack
     const watcher = new ManifestWatcher({
       paths: manifestWatchPaths,
-      onChange: () => ctx.reinitialize(),
+      onChange: () => {
+        ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
+        return ctx.reinitialize();
+      },
       logger: ctx.logger,
     });
 
