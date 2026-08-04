@@ -135,6 +135,14 @@ jobs:
           name: test-results-e2e-${{ matrix.os }}-${{ matrix.bundler }}
           path: test/e2e/test-results/
 
+      - name: Upload Playwright traces
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-traces-${{ matrix.os }}-${{ matrix.bundler }}
+          path: test/e2e/test-results/**/trace.zip
+          if-no-files-found: ignore
+
   publish-results:
     name: Publish test results
     needs: [unit, format, e2e-fixture]
