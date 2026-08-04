@@ -127,8 +127,8 @@ jobs:
           fi
 
       - name: Run e2e
-        env:
-          FIXTURE_ECHO_LOGS: ${{ matrix.bundler == 'farm' && '1' || '' }}
+        #env:
+        #  FIXTURE_ECHO_LOGS: ${{ matrix.bundler == 'farm' && '1' || '' }}
         run: pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=${{ matrix.bundler }}
 
       - uses: actions/upload-artifact@v7
