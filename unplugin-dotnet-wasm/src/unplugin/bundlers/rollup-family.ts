@@ -122,7 +122,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         const route = routeFromVirtualId(id);
         if (route !== null) {
           ctx.logger.debug(`[load] virtual module load: ${id}`);
-          const result = await ctx.virtualModules.loadContent(route);
+          const result = await ctx.loadContent(route);
           if (result === null) return null;
           for (const watchPath of [result.path, ...ctx.manifestPaths]) this.addWatchFile(watchPath);
           return result.code;

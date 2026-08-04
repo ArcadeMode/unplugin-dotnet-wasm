@@ -183,7 +183,8 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         const route = routeFromVirtualId(id);
         if (route !== null) {
           ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
-          const result = await ctx.virtualModules.loadContent(route);
+
+          const result = await ctx.loadContent(route);
           if (result === null) return null;
           return result.code;
         }

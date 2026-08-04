@@ -100,6 +100,17 @@ export class PluginContext {
     this.reloadTriggers.push(fn);
   }
 
+  async loadContent(route: string): Promise<{ code: string; path: string } | null> {
+    try {
+      return await this.virtualModules.load(this.assetResolver, route);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+
+      await this.reinitialize();
+      return this.virtualModules.load(this.assetResolver, route);
+    }
+  }
+
   private async doInitialize(): Promise<void> {
     await this.initAssetResolution();
 
@@ -131,6 +142,7 @@ export class PluginContext {
       : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
     const resolver = new AssetResolver(vfs, endpointLookup);
     const middleware = createAssetMiddleware(resolver, this.logger);
+
     this.#assetResolver = resolver;
     this.#assetMiddleware = middleware;
     this.#virtualModules = new VirtualModuleResolver({

@@ -1,9 +1,7 @@
 import { VIRTUAL_ROUTE_PREFIX } from '../constants';
 import { toPosixPath } from '../path-utils';
 
-// The prefix minus its leading NUL. Farm's native core round-trips virtual ids
-// with the NUL escaped to a literal `\0` on Linux, so match on this marker
-// (which survives either form) instead of the raw prefix.
+// Farm messes up the leading `\0` in virtual ids, so we we ignore it in checks.
 export const VIRTUAL_ROUTE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1);
 
 export function toVirtualId(route: string): string {
@@ -14,7 +12,6 @@ export function isVirtualId(id: string): boolean {
   return id.includes(VIRTUAL_ROUTE_MARKER);
 }
 
-/** Canonical route from a virtual id, tolerating URL-encoding and the escaped-`\0` form. */
 export function routeFromVirtualId(id: string | undefined): string | null {
   if (!id) return null;
   if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) return id.slice(VIRTUAL_ROUTE_PREFIX.length);

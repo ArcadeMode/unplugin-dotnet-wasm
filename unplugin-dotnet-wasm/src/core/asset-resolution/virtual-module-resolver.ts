@@ -8,8 +8,7 @@ import { buildNewUrlAssetProxyModule, buildReexportAssetModule } from './asset-u
 import type { AssetResolver } from './asset-resolver';
 import { isVirtualId, routeFromVirtualId, toVirtualId } from './virtual-id';
 
-/** How binary assets are represented at resolve/load time for a given bundler. */
-export type BinaryAs = 'physical' | 'virtualReexport' | 'virtualUrlProxy';
+type BinaryAs = 'physical' | 'virtualReexport' | 'virtualUrlProxy';
 
 function binaryAsFor(framework: BundlerFramework): BinaryAs {
   if (framework === 'farm') return 'virtualUrlProxy';
@@ -71,18 +70,7 @@ export class VirtualModuleResolver {
     return physical;
   }
 
-  async loadContent(route: string): Promise<{ code: string; path: string } | null> {
-    try {
-      return await this.#load(this.#assetResolver, route);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-      this.#logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
-      const resolver = await this.#reinitialize();
-      return this.#load(resolver, route);
-    }
-  }
-
-  async #load(
+  async load(
     resolver: AssetResolver,
     route: string,
   ): Promise<{ code: string; path: string } | null> {
