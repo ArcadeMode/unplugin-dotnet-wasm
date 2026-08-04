@@ -128,18 +128,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     }
     try {
       const dirty = collectVirtualModuleIds();
-      // Diagnostic: show the physical (fingerprinted) file each dirty route now
-      // resolves to, so CI can prove whether reinit picked up the altered build.
-      ctx.logger.debug(
-        `[farm-reload] reinit: ${dirty.length} virtual module(s) to invalidate\n` +
-          dirty
-            .map((id) => {
-              const idx = id.indexOf(VIRTUAL_ROUTE_MARKER);
-              const route = idx === -1 ? id : id.slice(idx + VIRTUAL_ROUTE_MARKER.length);
-              return `  ${route} -> ${ctx.assetResolver.resolve(route) ?? '(unresolved)'}`;
-            })
-            .join('\n'),
-      );
       if (dirty.length > 0) {
         for (const moduleId of dirty) compiler.invalidateModule(moduleId);
         await compiler.update(dirty, true);
