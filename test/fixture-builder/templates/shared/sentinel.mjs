@@ -27,7 +27,7 @@ export function touchSentinel() {
   endBuild('ok');
 }
 
-/** Rollup / Vite / Rolldown / Farm */
+/** Rollup / Vite / Rolldown */
 export function rollupSentinelPlugin() {
   return {
     name: 'test-sentinel',
@@ -45,7 +45,16 @@ export function rollupSentinelPlugin() {
     writeBundle() {
       endBuild('ok');
     },
-    // Farm-only completion hook; Farm doesn't run the rollup build hooks above.
+  };
+}
+
+/** Farm */
+export function farmSentinelPlugin() {
+  return {
+    name: 'test-sentinel',
+    writeBundle() {
+      touchSentinel();
+    },
     finish: {
       executor() {
         touchSentinel();

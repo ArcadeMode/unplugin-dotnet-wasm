@@ -3,7 +3,7 @@ import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error - sibling .mjs helper materialized next to this config
-import { rollupSentinelPlugin } from './sentinel.mjs';
+import { farmSentinelPlugin } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -25,7 +25,7 @@ export default defineConfig(() => {
       targetFramework: 'net10.0',
       logLevel: 'info',
     }),
-    rollupSentinelPlugin(),
+    farmSentinelPlugin(),
   ];
 
   if (platform === 'node') {
