@@ -43,7 +43,7 @@ export const CAPABILITIES: Record<Bundler, BundlerCapabilities> = {
   esbuild: {
     build: true,
     publish: true,
-    watch: false,
+    watch: true,
     devServerBrowser: false,
     devServerNode: false,
   },
