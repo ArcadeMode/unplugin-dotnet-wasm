@@ -37,9 +37,6 @@ export async function buildLibrary(params: BuildLibraryParams): Promise<void> {
     '-c',
     configuration,
     `-p:WasmFingerprintAssets=${fingerprint}`,
-    // Don't leave persistent build servers alive. They block removal of the files afterwards.
-    '-nodeReuse:false',
-    '-p:UseSharedCompilation=false',
   ];
   if (altered) args.push('-p:LibraryAltered=true');
   await runToCompletion('dotnet', args, { cwd: libraryDir });

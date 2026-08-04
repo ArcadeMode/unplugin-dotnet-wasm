@@ -228,8 +228,13 @@ export class Fixture {
 
   async dispose(): Promise<void> {
     await this.stop();
-    if (!this.keepOnDispose) {
+    if (this.keepOnDispose) return;
+    try {
       rmSync(this.rootDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    } catch (err) {
+      console.warn(
+        `[fixture] could not remove ${this.rootDir}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }
