@@ -3,7 +3,7 @@ import DotnetWasm from 'unplugin-dotnet-wasm/rsbuild';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error - sibling .mjs helper materialized next to this config
-import { touchSentinel } from './sentinel.mjs';
+import { webpackSentinelPlugin } from './sentinel.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -28,8 +28,9 @@ export default defineConfig(() => {
     {
       name: 'test-sentinel',
       setup(api) {
-        api.onAfterBuild(() => touchSentinel());
-        api.onAfterDevCompile(() => touchSentinel());
+        api.onAfterCreateCompiler(({ compiler }) => {
+          webpackSentinelPlugin.apply(compiler);
+        });
       },
     },
   ];

@@ -67,3 +67,35 @@ export async function waitForInit(
 
   return (await marker.getAttribute('data-ts')) ?? '';
 }
+
+/**
+ * Reload until the WASM boot marker advances past `previousTs`.
+ *
+ * A static-served `dist/` can be mid-rewrite when we reload (e.g. a late watch
+ * rebuild overlapping the reload), leaving the dotnet top-level await pending so
+ * the `load` event never fires. We therefore reload with `waitUntil: 'commit'`
+ * and treat a fresh init marker — not `load` — as success, retrying on timeout.
+ */
+export async function reloadUntilBooted(
+  page: Page,
+  previousTs: string,
+  opts: { attempts?: number; attemptTimeout?: number } = {},
+): Promise<string> {
+  const attempts = opts.attempts ?? 3;
+  const attemptTimeout = opts.attemptTimeout ?? 15_000;
+
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await page.reload({ waitUntil: 'commit', timeout: attemptTimeout });
+      return await waitForInit(page, previousTs, attemptTimeout);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  throw new Error(
+    `Page did not boot after ${attempts} reload attempts (previousTs=${previousTs}).`,
+    { cause: lastErr },
+  );
+}

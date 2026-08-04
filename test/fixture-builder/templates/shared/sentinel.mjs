@@ -1,23 +1,51 @@
-// Test-only build-completion signal. Each bundler writes `.rebuild-done` into
-// the materialized app root at the end of every compile. Tests wait on this token instead of polling `dist/`.
+// Test-only build signals. Each bundler writes a monotonic sequence number into
+// `.rebuild-start` when a (re)build begins and `.rebuild-done` = `${seq}:${status}`
+// when it ends. Tests wait for a *quiescent* pair (start.seq === done.seq) so they
+// never reload into a half-written dist/.
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SENTINEL = resolve(fileURLToPath(new URL('.', import.meta.url)), '.rebuild-done');
-let seq = 0;
+const HERE = fileURLToPath(new URL('.', import.meta.url));
+const START = resolve(HERE, '.rebuild-start');
+const DONE = resolve(HERE, '.rebuild-done');
 
+let seq = 0;
+let currentSeq = 0;
+
+export function startBuild() {
+  currentSeq = ++seq;
+  writeFileSync(START, String(currentSeq));
+}
+
+export function endBuild(status = 'ok') {
+  writeFileSync(DONE, `${currentSeq}:${status}`);
+}
+
+/** Completion-only signal for bundlers without a start hook (bun/dist-only). */
 export function touchSentinel() {
-  writeFileSync(SENTINEL, `${Date.now()}:${++seq}`);
+  endBuild('ok');
 }
 
 /** Rollup / Vite / Rolldown / Farm */
 export function rollupSentinelPlugin() {
   return {
     name: 'test-sentinel',
-    writeBundle() {
-      touchSentinel();
+    buildStart() {
+      startBuild();
     },
+    buildEnd(err) {
+      // Success is signalled by writeBundle (after dist is flushed); only the
+      // error path needs an end here, since writeBundle won't run.
+      if (err) endBuild('error');
+    },
+    renderError() {
+      endBuild('error');
+    },
+    writeBundle() {
+      endBuild('ok');
+    },
+    // Farm-only completion hook; Farm doesn't run the rollup build hooks above.
     finish: {
       executor() {
         touchSentinel();
@@ -26,10 +54,16 @@ export function rollupSentinelPlugin() {
   };
 }
 
-/** Webpack / Rspack */
+/** Webpack / Rspack / Rsbuild (via api.onAfterCreateCompiler) */
 export const webpackSentinelPlugin = {
   apply(compiler) {
-    compiler.hooks.done.tap('TestSentinel', () => touchSentinel());
+    const compilers = compiler.compilers ?? [compiler];
+    for (const c of compilers) {
+      c.hooks.run.tap('TestSentinel', () => startBuild());
+      c.hooks.watchRun.tap('TestSentinel', () => startBuild());
+      c.hooks.done.tap('TestSentinel', (stats) => endBuild(stats.hasErrors() ? 'error' : 'ok'));
+      c.hooks.failed.tap('TestSentinel', () => endBuild('error'));
+    }
   },
 };
 
@@ -37,8 +71,7 @@ export const webpackSentinelPlugin = {
 export const esbuildSentinelPlugin = {
   name: 'test-sentinel',
   setup(build) {
-    build.onEnd((result) => {
-      if (!result.errors || result.errors.length === 0) touchSentinel();
-    });
+    build.onStart(() => startBuild());
+    build.onEnd((result) => endBuild(result.errors?.length ? 'error' : 'ok'));
   },
 };

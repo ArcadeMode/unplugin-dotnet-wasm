@@ -1,7 +1,12 @@
 import { test } from '@playwright/test';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture';
-import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
+import {
+  trackConsoleMessages,
+  expectMessages,
+  waitForInit,
+  reloadUntilBooted,
+} from '../../helpers/assertions';
 
 permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
   let fixture: Fixture;
@@ -26,9 +31,8 @@ permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
     const baseline = fixture.rebuildToken();
     await fixture.buildLibrary({ altered: true });
     await fixture.waitForRebuild(baseline);
-    await page.reload();
+    await reloadUntilBooted(page, bootTs);
 
-    await waitForInit(page, bootTs);
     await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
   });
 });

@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
 import sirv from 'sirv';
 import { buildLibrary, dotnetConfigFor } from './dotnet';
-import { readSentinel, waitForSentinel, type WaitForSentinelOptions } from './sentinel';
+import { readDoneSentinel, waitForBuildSentinelFiles, type WaitForSentinelOptions } from './sentinel';
 import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
@@ -100,12 +100,12 @@ export class Fixture {
   }
 
   rebuildToken(): string | null {
-    return readSentinel(this.dir);
+    return readDoneSentinel(this.dir);
   }
 
   async waitForRebuild(baseline: string | null, opts?: WaitForSentinelOptions): Promise<string> {
     try {
-      return await waitForSentinel(this.dir, baseline, opts);
+      return await waitForBuildSentinelFiles(this.dir, baseline, opts);
     } catch (err) {
       throw new Error(
         `${err instanceof Error ? err.message : String(err)}\n--- watcher output ---\n${this.logs || '(none)'}\n--- end output ---`,
@@ -166,7 +166,7 @@ export class Fixture {
       env: this.scriptEnv,
     });
     try {
-      await waitForSentinel(this.dir, null);
+      await waitForBuildSentinelFiles(this.dir, null);
     } catch (err) {
       const reason = this.server.hasExited ? 'watcher process exited early' : 'dist never settled';
       throw new Error(
