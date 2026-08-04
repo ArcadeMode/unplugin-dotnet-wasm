@@ -8,6 +8,8 @@ const configName = `e2e-playwright-${bundler}-browser-${process.platform}`;
 
 export default defineConfig({
   testDir: 'tests/playwright',
+  globalSetup: './setup/playwright-global-setup.ts',
+  globalTeardown: './setup/playwright-global-teardown.ts',
   // .NET restore + build on first materialization can be slow.
   timeout: 180_000,
   fullyParallel: false,
