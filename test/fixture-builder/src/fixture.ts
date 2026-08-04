@@ -3,7 +3,11 @@ import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
 import sirv from 'sirv';
 import { buildLibrary, dotnetConfigFor } from './dotnet';
-import { readDoneSentinel, waitForBuildSentinelFiles, type WaitForSentinelOptions } from './sentinel';
+import {
+  readDoneSentinel,
+  waitForBuildSentinelFiles,
+  type WaitForSentinelOptions,
+} from './sentinel';
 import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
 import { waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
