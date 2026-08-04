@@ -2,9 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { BINARY_EXTENSIONS_REGEX, JS_MODULE_REGEX } from '../constants';
 import { collapseDotSegments, toPosixPath } from '../path-utils';
-import { discoverManifests } from '../manifest-parsing/discover';
 import type { Logger } from '../logger';
-import type { DotnetWasmOptions } from '../../types';
+import type { BundlerCompatRewriter, BundlerFramework } from '../bundler-compat-rewriter';
 import { buildNewUrlAssetProxyModule, buildReexportAssetModule } from './asset-url-module';
 import type { AssetResolver } from './asset-resolver';
 import { isVirtualId, routeFromVirtualId, toVirtualId } from './virtual-id';
@@ -12,19 +11,21 @@ import { isVirtualId, routeFromVirtualId, toVirtualId } from './virtual-id';
 /** How binary assets are represented at resolve/load time for a given bundler. */
 export type BinaryAs = 'physical' | 'virtualReexport' | 'virtualUrlProxy';
 
+function binaryAsFor(framework: BundlerFramework): BinaryAs {
+  if (framework === 'farm') return 'virtualUrlProxy';
+  if (framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild') {
+    return 'virtualReexport';
+  }
+  return 'physical';
+}
+
 export interface VirtualModuleResolverDeps {
-  /**
-   * Reads the *current* asset resolver. The resolver is swapped out on every
-   * reinitialize, so this must be read fresh on each call rather than captured.
-   */
-  getAssetResolver(): AssetResolver;
-  /** Rewrites framework JS for bundler compat; returns null when unchanged. */
-  rewrite(code: string): string | null;
-  /** Rebuilds asset resolution after a manifest change (ENOENT self-heal). */
-  reinitialize(): Promise<void>;
+  assetResolver: AssetResolver;
+  rewriter: BundlerCompatRewriter;
   logger: Logger;
-  options: DotnetWasmOptions;
-  binaryAs: BinaryAs;
+  framework: BundlerFramework;
+  /** Rebuilds asset resolution after a manifest change; resolves to the fresh resolver for retry. */
+  reinitialize: () => Promise<AssetResolver>;
 }
 
 /**
@@ -33,16 +34,17 @@ export interface VirtualModuleResolverDeps {
  */
 export class VirtualModuleResolver {
   readonly binaryAs: BinaryAs;
-  readonly manifestWatchPaths: string[];
-  readonly #deps: VirtualModuleResolverDeps;
+  readonly #assetResolver: AssetResolver;
+  readonly #rewriter: BundlerCompatRewriter;
+  readonly #logger: Logger;
+  readonly #reinitialize: () => Promise<AssetResolver>;
 
   constructor(deps: VirtualModuleResolverDeps) {
-    this.#deps = deps;
-    this.binaryAs = deps.binaryAs;
-    const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(deps.options);
-    this.manifestWatchPaths = [endpointsManifestPath, runtimeManifestPath].filter(
-      (p): p is string => p !== null,
-    );
+    this.#assetResolver = deps.assetResolver;
+    this.#rewriter = deps.rewriter;
+    this.#logger = deps.logger;
+    this.#reinitialize = deps.reinitialize;
+    this.binaryAs = binaryAsFor(deps.framework);
   }
 
   resolveId(source: string, importer?: string): string | null {
@@ -57,10 +59,9 @@ export class VirtualModuleResolver {
       }
     }
 
-    const resolver = this.#deps.getAssetResolver();
-    const canonical = resolver.canonicalRoute(route);
+    const canonical = this.#assetResolver.canonicalRoute(route);
     if (canonical === null) return null;
-    const physical = resolver.resolve(canonical);
+    const physical = this.#assetResolver.resolve(canonical);
     if (physical === null) return null;
 
     if (JS_MODULE_REGEX.test(physical)) return toVirtualId(canonical);
@@ -72,21 +73,22 @@ export class VirtualModuleResolver {
 
   async loadContent(route: string): Promise<{ code: string; path: string } | null> {
     try {
-      return await this.#load(route);
+      return await this.#load(this.#assetResolver, route);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-      this.#deps.logger.debug(
-        `[serve] load: ENOENT for route "${route}", reinitializing and retrying`,
-      );
-      await this.#deps.reinitialize();
-      return await this.#load(route);
+      this.#logger.debug(`[serve] load: ENOENT for route "${route}", reinitializing and retrying`);
+      const resolver = await this.#reinitialize();
+      return this.#load(resolver, route);
     }
   }
 
-  async #load(route: string): Promise<{ code: string; path: string } | null> {
-    const physical = this.#deps.getAssetResolver().resolve(route);
+  async #load(
+    resolver: AssetResolver,
+    route: string,
+  ): Promise<{ code: string; path: string } | null> {
+    const physical = resolver.resolve(route);
     if (physical === null) {
-      this.#deps.logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
+      this.#logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
       return null;
     }
 
@@ -99,6 +101,6 @@ export class VirtualModuleResolver {
     }
 
     const code = await readFile(physical, 'utf8');
-    return { code: this.#deps.rewrite(code) ?? code, path: physical };
+    return { code: this.#rewriter.rewrite(code) ?? code, path: physical };
   }
 }

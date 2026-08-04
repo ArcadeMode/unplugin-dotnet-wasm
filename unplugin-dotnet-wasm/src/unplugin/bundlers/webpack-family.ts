@@ -2,18 +2,13 @@ import {
   FRAMEWORK_BINARY_REGEX,
   FRAMEWORK_JS_REGEX,
   DOTNET_NODE_BUILTINS,
-  VIRTUAL_ROUTE_PREFIX,
   VIRTUAL_ROUTE_ID_REGEX,
 } from '../../core/constants';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
 import { createRsbuildSetup, type RsbuildHooks } from './rsbuild-dev-server';
-import {
-  getManifestWatchPaths,
-  getVirtualizedModuleContent,
-  resolveVirtualId,
-  type LoadHandlerContext,
-} from './virtual-resolution';
+import type { LoadHandlerContext } from './load-context';
+import { routeFromVirtualId } from '../../core/asset-resolution/virtual-id';
 
 export type CompilerHooks = {
   beforeRun: { tapPromise(name: string, fn: () => Promise<void>): void };
@@ -75,11 +70,9 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // Disable webpack/rspack's `new URL()` asset parsing for virtual identifiers
   const virtualJsParserRule = { test: /%00dotnet-wasm%3A/i, parser: { url: false } };
 
-  const manifestWatchPaths = getManifestWatchPaths(ctx);
-
   function resolveId(source: string, importer?: string): string | null {
     if (isWatch || isServe) {
-      return resolveVirtualId(ctx, source, importer, { binaryAs: 'virtualReexport' });
+      return ctx.virtualModules.resolveId(source, importer);
     }
     return ctx.assetResolver.resolve(source);
   }
@@ -87,12 +80,12 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   const load = {
     filter: { id: VIRTUAL_ROUTE_ID_REGEX }, // virtual ids only!
     handler: async function (this: LoadHandlerContext, id: string): Promise<string | null> {
-      if (!id.startsWith(VIRTUAL_ROUTE_PREFIX)) return null;
+      const route = routeFromVirtualId(id);
+      if (route === null) return null;
 
-      const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-      const result = await getVirtualizedModuleContent(ctx, route);
+      const result = await ctx.virtualModules.loadContent(route);
       if (result === null) return null;
-      for (const watchPath of [result.path, ...manifestWatchPaths]) this.addWatchFile(watchPath);
+      for (const watchPath of [result.path, ...ctx.manifestPaths]) this.addWatchFile(watchPath);
       return result.code;
     },
   };
@@ -117,7 +110,7 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {
     // Set up manifest watcher for webpack/rspack
     const watcher = new ManifestWatcher({
-      paths: manifestWatchPaths,
+      paths: ctx.manifestPaths,
       onChange: () => {
         ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
         return ctx.reinitialize();
@@ -202,7 +195,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     rsbuild: createRsbuildSetup(ctx, {
       applyBuildConfig,
       awaitContextInit,
-      manifestWatchPaths,
       markServe: () => {
         isServe = true;
       },

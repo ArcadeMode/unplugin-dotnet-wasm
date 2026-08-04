@@ -35,7 +35,6 @@ export interface RsbuildHooks {
 export interface RsbuildSharedDeps {
   applyBuildConfig(config: unknown, opts?: { prepend?: boolean }): void;
   awaitContextInit(compiler: { hooks?: CompilerHooks }): void;
-  manifestWatchPaths: string[];
   markServe(): void;
 }
 
@@ -48,7 +47,7 @@ export function createRsbuildSetup(ctx: PluginContext, deps: RsbuildSharedDeps):
       return;
     }
     if (typeof w.invalidateWithChangesAndRemovals === 'function') {
-      w.invalidateWithChangesAndRemovals(new Set(deps.manifestWatchPaths), new Set());
+      w.invalidateWithChangesAndRemovals(new Set(ctx.manifestPaths), new Set());
     } else if (typeof w.invalidate === 'function') {
       ctx.logger.debug(`[serve] invalidate: ${label} plain invalidate()`);
       w.invalidate();
@@ -97,10 +96,10 @@ export function createRsbuildSetup(ctx: PluginContext, deps: RsbuildSharedDeps):
         });
 
         ctx.logger.debug(
-          `[serve] manifest watch paths (${deps.manifestWatchPaths.length}): ${deps.manifestWatchPaths.join(', ') || '<none>'}`,
+          `[serve] manifest watch paths (${ctx.manifestPaths.length}): ${ctx.manifestPaths.join(', ') || '<none>'}`,
         );
         const watcher = new ManifestWatcher({
-          paths: deps.manifestWatchPaths,
+          paths: ctx.manifestPaths,
           onChange: () => {
             ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
             return ctx.reinitialize();
