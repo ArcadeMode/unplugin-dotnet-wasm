@@ -2,23 +2,16 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, parse, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import {
-  PROXY_SUFFIX,
-  URL_PROXY_NAMESPACE,
-  VIRTUAL_ROUTE_PREFIX,
-  BINARY_EXTENSIONS_REGEX,
-} from '../../core/constants';
+import { PROXY_SUFFIX, URL_PROXY_NAMESPACE, BINARY_EXTENSIONS_REGEX } from '../../core/constants';
 import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
+import {
+  isVirtualId,
+  routeFromVirtualId,
+  VIRTUAL_ROUTE_MARKER,
+} from '../../core/asset-resolution/virtual-id';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
 import { toPosixPath } from '../../core/path-utils';
-import {
-  getManifestWatchPaths,
-  getVirtualizedModuleContent,
-  resolveVirtualId,
-} from './virtual-resolution';
-
-const VIRTUAL_ROUTE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1);
 
 interface FarmConfig {
   root?: string;
@@ -73,7 +66,6 @@ export interface FarmHooks {
 
 export function createFarm(ctx: PluginContext): FarmHooks {
   const farmContentAliases = new Map<string, string>();
-  const manifestWatchPaths = getManifestWatchPaths(ctx);
   let isNodeTarget = false;
   let isServe = false;
   let isWatch = false;
@@ -84,7 +76,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   function startManifestWatcher(): ManifestWatcher {
     if (watcher) return watcher;
     watcher = new ManifestWatcher({
-      paths: manifestWatchPaths,
+      paths: ctx.manifestPaths,
       onChange: () => {
         ctx.logger.debug('[farm] ManifestWatcher.onChange fired, reinitializing');
         return ctx.reinitialize();
@@ -100,7 +92,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     const dirty: string[] = [];
 
     const consider = (id: string): void => {
-      if (!id.includes(VIRTUAL_ROUTE_MARKER) || seen.has(id) || !compiler?.hasModule(id)) return;
+      if (!isVirtualId(id) || seen.has(id) || !compiler?.hasModule(id)) return;
       seen.add(id);
       dirty.push(id);
     };
@@ -109,8 +101,8 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       for (const m of compiler.modules()) consider(m.id);
     } else {
       for (const route of ctx.assetResolver.routes()) {
-        const id = resolveVirtualId(ctx, route, undefined, { binaryAs: 'virtualUrlProxy' });
-        if (!id?.startsWith(VIRTUAL_ROUTE_PREFIX)) continue;
+        const id = ctx.virtualModules.resolveId(route);
+        if (!id || !isVirtualId(id)) continue;
         consider(id);
         consider(id.slice(1));
       }
@@ -159,13 +151,13 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         return null;
       }
 
-      if (source.endsWith(PROXY_SUFFIX) || source.includes(VIRTUAL_ROUTE_MARKER)) {
+      if (source.endsWith(PROXY_SUFFIX) || isVirtualId(source)) {
         return source;
       }
 
       let resolved: string | null;
       if (isServe || isWatch) {
-        resolved = resolveVirtualId(ctx, source, importer, { binaryAs: 'virtualUrlProxy' });
+        resolved = ctx.virtualModules.resolveId(source, importer);
       } else {
         resolved = ctx.assetResolver.resolve(source);
         if (isNodeTarget) {
@@ -175,7 +167,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       }
 
       if (resolved === null) return null;
-      if (resolved.startsWith(VIRTUAL_ROUTE_PREFIX)) return resolved;
+      if (isVirtualId(resolved)) return resolved;
       if (isNodeTarget && BINARY_EXTENSIONS_REGEX.test(resolved)) {
         return toPosixPath(resolved) + PROXY_SUFFIX;
       }
@@ -188,12 +180,11 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     load: {
       filter: { id: new RegExp(`${VIRTUAL_ROUTE_MARKER}|${URL_PROXY_NAMESPACE}`) },
       async handler(id: string): Promise<string | null> {
-        if (id.includes(VIRTUAL_ROUTE_MARKER)) {
-          const route = id.slice(id.indexOf(VIRTUAL_ROUTE_MARKER) + VIRTUAL_ROUTE_MARKER.length);
+        const route = routeFromVirtualId(id);
+        if (route !== null) {
           ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
-          const result = await getVirtualizedModuleContent(ctx, route, {
-            binaryAs: 'virtualUrlProxy',
-          });
+
+          const result = await ctx.loadContent(route);
           if (result === null) return null;
           return result.code;
         }
@@ -213,7 +204,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         isWatch = Boolean(userConfig.compilation?.watch);
         ctx.logger.debug(
           `[farm] config: isWatch=${isWatch} (compilation.watch=${JSON.stringify(userConfig.compilation?.watch)}), ` +
-            `isNodeTarget=${isNodeTarget}, manifestWatchPaths=${manifestWatchPaths.length}`,
+            `isNodeTarget=${isNodeTarget}, manifestWatchPaths=${ctx.manifestPaths.length}`,
         );
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree =
@@ -240,12 +231,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
           const next = paths
             .map(([p]) => p)
             .filter((p) => {
-              if (
-                p.includes(VIRTUAL_ROUTE_MARKER) ||
-                p.startsWith('\0') ||
-                p.endsWith(PROXY_SUFFIX)
-              )
-                return true;
+              if (isVirtualId(p) || p.startsWith('\0') || p.endsWith(PROXY_SUFFIX)) return true;
               if (/staticwebassets\.(endpoints|runtime)\.json$/i.test(p)) return false;
               return existsSync(p);
             });

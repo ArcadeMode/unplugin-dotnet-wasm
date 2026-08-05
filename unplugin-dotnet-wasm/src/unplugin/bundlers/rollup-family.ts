@@ -2,20 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
-import {
-  BINARY_EXTENSIONS_REGEX,
-  VIRTUAL_ROUTE_ID_REGEX,
-  VIRTUAL_ROUTE_PREFIX,
-} from '../../core/constants';
+import { BINARY_EXTENSIONS_REGEX, VIRTUAL_ROUTE_ID_REGEX } from '../../core/constants';
 import { buildLiteralPathExportModule } from '../../core/asset-resolution/asset-url-module';
+import { isVirtualId, routeFromVirtualId } from '../../core/asset-resolution/virtual-id';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
-import {
-  getManifestWatchPaths,
-  getVirtualizedModuleContent,
-  resolveVirtualId,
-  type LoadHandlerContext,
-} from './virtual-resolution';
+import type { LoadHandlerContext } from './load-context';
 
 type RollupLoadThis = LoadHandlerContext & {
   emitFile(options: { type: 'asset'; name: string; source: Buffer }): string;
@@ -61,20 +53,19 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   // `isWatch`: watch modes (also true with dev server)
   let isServe = false;
   let isWatch = false;
-  const manifestWatchPaths = getManifestWatchPaths(ctx);
 
   function invalidateAllVirtualModules(server: ViteDevServer): void {
     const graph = (server as { moduleGraph?: ViteModuleGraphLike }).moduleGraph;
     if (!graph) return;
     for (const [id, mod] of graph.idToModuleMap) {
-      if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) graph.invalidateModule(mod);
+      if (isVirtualId(id)) graph.invalidateModule(mod);
     }
   }
 
   function resolveId(source: string, importer?: string): string | null {
     const virtualize = isWatch || isServe;
     return virtualize
-      ? resolveVirtualId(ctx, source, importer, { binaryAs: 'physical' })
+      ? ctx.virtualModules.resolveId(source, importer)
       : ctx.assetResolver.resolve(source);
   }
 
@@ -108,7 +99,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         });
 
         const watcher = new ManifestWatcher({
-          paths: manifestWatchPaths,
+          paths: ctx.manifestPaths,
           onChange: () => {
             ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
             return ctx.reinitialize();
@@ -128,13 +119,12 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
         id: string,
         options?: { ssr?: boolean },
       ): Promise<string | null> {
-        if (id.startsWith(VIRTUAL_ROUTE_PREFIX)) {
+        const route = routeFromVirtualId(id);
+        if (route !== null) {
           ctx.logger.debug(`[load] virtual module load: ${id}`);
-          const route = id.slice(VIRTUAL_ROUTE_PREFIX.length);
-          const result = await getVirtualizedModuleContent(ctx, route);
+          const result = await ctx.loadContent(route);
           if (result === null) return null;
-          for (const watchPath of [result.path, ...manifestWatchPaths])
-            this.addWatchFile(watchPath);
+          for (const watchPath of [result.path, ...ctx.manifestPaths]) this.addWatchFile(watchPath);
           return result.code;
         }
         // else: Framework binaries (see filter)
