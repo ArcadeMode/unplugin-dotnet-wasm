@@ -24,6 +24,7 @@ export async function runToCompletion(
     stdin: 'ignore',
     all: true,
     timeout: options.timeout,
+    forceKillAfterDelay: 1_000,
     reject: false,
   });
   const output = result.all ?? `${result.stdout}${result.stderr}`;
