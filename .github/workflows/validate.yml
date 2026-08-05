@@ -118,6 +118,9 @@ jobs:
       - name: Build plugin
         run: pnpm build:plugin
 
+      - name: Prebuild .NET fixture library
+        run: dotnet build test/fixture-builder/templates/library/Library.csproj -c Debug -p:WasmFingerprintAssets=true
+
       - name: Install Playwright browsers
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
