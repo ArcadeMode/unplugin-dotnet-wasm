@@ -1,6 +1,6 @@
 import { createUnplugin, type UnpluginContextMeta } from 'unplugin';
 import type { DotnetWasmOptions } from '../types';
-import type { BundlerFramework } from '../core/bundler-compat-rewriter';
+import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { FRAMEWORK_JS_REGEX } from '../core/constants';
 import { PluginContext } from './context';
 import { createRollupFamily } from './bundlers/rollup-family';
@@ -12,7 +12,7 @@ export const dotnetWasmUnplugin = createUnplugin(
   (options: DotnetWasmOptions, meta: UnpluginContextMeta) => {
     const framework = meta.framework as BundlerFramework;
     const ctx = new PluginContext(options, framework);
-
+    const rewriter = new BundlerCompatRewriter(framework);
     const base = {
       name: 'unplugin-dotnet-wasm',
       enforce: 'pre' as const,
@@ -27,7 +27,7 @@ export const dotnetWasmUnplugin = createUnplugin(
         handler(code: string): { code: string; map: null } | null {
           // dotnet SDK js files contain some warning-producing statements,
           // we rewrite them to silence the warnings end users cannot resolve anyway.
-          const fixed = ctx.rewriter.rewrite(code);
+          const fixed = rewriter.rewrite(code);
           if (fixed == null) return null;
           return { code: fixed, map: null };
         },
