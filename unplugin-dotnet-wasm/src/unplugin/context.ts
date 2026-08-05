@@ -19,7 +19,6 @@ type InitializeCallback = () => void | Promise<void>;
 
 export class PluginContext {
   public readonly logger: Logger;
-  public readonly rewriter: BundlerCompatRewriter;
   public readonly manifestPaths: string[];
 
   private readonly initCbs: InitializeCallback[] = [];
@@ -39,7 +38,6 @@ export class PluginContext {
     framework: BundlerFramework,
   ) {
     this.logger = createConsoleLogger(options.logLevel ?? 'warn');
-    this.rewriter = new BundlerCompatRewriter(framework);
     this.#framework = framework;
     const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(options);
     this.manifestPaths = [endpointsManifestPath, runtimeManifestPath].filter(
@@ -145,15 +143,11 @@ export class PluginContext {
 
     this.#assetResolver = resolver;
     this.#assetMiddleware = middleware;
-    this.#virtualModules = new VirtualModuleResolver({
-      assetResolver: resolver,
-      rewriter: this.rewriter,
-      logger: this.logger,
-      framework: this.#framework,
-      reinitialize: async () => {
-        await this.reinitialize();
-        return this.assetResolver;
-      },
-    });
+    this.#virtualModules = new VirtualModuleResolver(
+      resolver,
+      new BundlerCompatRewriter(this.#framework),
+      this.logger,
+      this.#framework,
+    );
   }
 }

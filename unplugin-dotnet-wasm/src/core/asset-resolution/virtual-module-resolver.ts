@@ -8,43 +8,15 @@ import { buildNewUrlAssetProxyModule, buildReexportAssetModule } from './asset-u
 import type { AssetResolver } from './asset-resolver';
 import { isVirtualId, routeFromVirtualId, toVirtualId } from './virtual-id';
 
-type BinaryAs = 'physical' | 'virtualReexport' | 'virtualUrlProxy';
+type BinaryHandling = 'physical' | 'virtualReexport' | 'virtualUrlProxy';
 
-function binaryAsFor(framework: BundlerFramework): BinaryAs {
-  if (framework === 'farm') return 'virtualUrlProxy';
-  if (framework === 'webpack' || framework === 'rspack' || framework === 'rsbuild') {
-    return 'virtualReexport';
-  }
-  return 'physical';
-}
-
-export interface VirtualModuleResolverDeps {
-  assetResolver: AssetResolver;
-  rewriter: BundlerCompatRewriter;
-  logger: Logger;
-  framework: BundlerFramework;
-  /** Rebuilds asset resolution after a manifest change; resolves to the fresh resolver for retry. */
-  reinitialize: () => Promise<AssetResolver>;
-}
-
-/**
- * Resolves and loads .NET WASM assets as virtual modules. Bundlers delegate
- * their `resolveId`/`load` virtual-route handling here.
- */
 export class VirtualModuleResolver {
-  readonly binaryAs: BinaryAs;
-  readonly #assetResolver: AssetResolver;
-  readonly #rewriter: BundlerCompatRewriter;
-  readonly #logger: Logger;
-  readonly #reinitialize: () => Promise<AssetResolver>;
-
-  constructor(deps: VirtualModuleResolverDeps) {
-    this.#assetResolver = deps.assetResolver;
-    this.#rewriter = deps.rewriter;
-    this.#logger = deps.logger;
-    this.#reinitialize = deps.reinitialize;
-    this.binaryAs = binaryAsFor(deps.framework);
-  }
+  constructor(
+    private readonly assetResolver: AssetResolver,
+    private readonly rewriter: BundlerCompatRewriter,
+    private readonly logger: Logger,
+    private readonly framework: BundlerFramework,
+  ) {}
 
   resolveId(source: string, importer?: string): string | null {
     if (isAbsolute(source) || isVirtualId(source)) return null;
@@ -58,14 +30,14 @@ export class VirtualModuleResolver {
       }
     }
 
-    const canonical = this.#assetResolver.canonicalRoute(route);
+    const canonical = this.assetResolver.canonicalRoute(route);
     if (canonical === null) return null;
-    const physical = this.#assetResolver.resolve(canonical);
+    const physical = this.assetResolver.resolve(canonical);
     if (physical === null) return null;
 
     if (JS_MODULE_REGEX.test(physical)) return toVirtualId(canonical);
     if (BINARY_EXTENSIONS_REGEX.test(physical)) {
-      return this.binaryAs === 'physical' ? physical : toVirtualId(canonical);
+      return this.getBinaryHandling() === 'physical' ? physical : toVirtualId(canonical);
     }
     return physical;
   }
@@ -76,19 +48,31 @@ export class VirtualModuleResolver {
   ): Promise<{ code: string; path: string } | null> {
     const physical = resolver.resolve(route);
     if (physical === null) {
-      this.#logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
+      this.logger.debug(`[serve] load: route "${route}" resolved to null (no physical file)`);
       return null;
     }
 
     if (BINARY_EXTENSIONS_REGEX.test(physical)) {
       const code =
-        this.binaryAs === 'virtualUrlProxy'
+        this.getBinaryHandling() === 'virtualUrlProxy'
           ? buildNewUrlAssetProxyModule(physical)
           : buildReexportAssetModule(physical);
       return { code, path: physical };
     }
 
     const code = await readFile(physical, 'utf8');
-    return { code: this.#rewriter.rewrite(code) ?? code, path: physical };
+    return { code: this.rewriter.rewrite(code) ?? code, path: physical };
+  }
+
+  private getBinaryHandling(): BinaryHandling {
+    if (this.framework === 'farm') return 'virtualUrlProxy';
+    if (
+      this.framework === 'webpack' ||
+      this.framework === 'rspack' ||
+      this.framework === 'rsbuild'
+    ) {
+      return 'virtualReexport';
+    }
+    return 'physical';
   }
 }
