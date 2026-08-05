@@ -1,5 +1,5 @@
 export { buildFixture } from './build-fixture';
-export { MATERIALIZED_ROOT } from './materialize';
+export { MATERIALIZED_ROOT, TEMPLATE_LIBRARY_DIR, prebuildLibrary } from './materialize';
 export { Fixture } from './fixture';
 export type { FixtureInit } from './fixture';
 export { libraryOutputDir } from './dotnet';
