@@ -43,9 +43,6 @@ export interface EsbuildFamilyHooks {
 }
 
 export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
-  // unplugin maps `buildStart` onto esbuild/bun `onStart`, which re-fires per rebuild.
-  // First pass initializes; subsequent passes (watch rebuilds) reinitialize so fingerprint
-  // moves refresh the resolver. Out-of-tree .NET changes are observed via `watchFiles` in setup.
   let started = false;
   const buildStart = async (): Promise<void> => {
     await ctx.initialize();
