@@ -20,6 +20,7 @@ type InitializeCallback = () => void | Promise<void>;
 export class PluginContext {
   public readonly logger: Logger;
   public readonly manifestPaths: string[];
+  public readonly rewriter: BundlerCompatRewriter;
 
   private readonly initCbs: InitializeCallback[] = [];
   // persists source-file mtimes across builds; internal input to the type-shim generator
@@ -39,6 +40,7 @@ export class PluginContext {
   ) {
     this.logger = createConsoleLogger(options.logLevel ?? 'warn');
     this.#framework = framework;
+    this.rewriter = new BundlerCompatRewriter(framework);
     const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(options);
     this.manifestPaths = [endpointsManifestPath, runtimeManifestPath].filter(
       (p): p is string => p !== null,
@@ -145,7 +147,7 @@ export class PluginContext {
     this.#assetMiddleware = middleware;
     this.#virtualModules = new VirtualModuleResolver(
       resolver,
-      new BundlerCompatRewriter(this.#framework),
+      this.rewriter,
       this.logger,
       this.#framework,
     );
