@@ -37,11 +37,22 @@ interface EsbuildBuild {
 }
 
 export interface EsbuildFamilyHooks {
+  buildStart(): Promise<void>;
   esbuild: { setup: (build: EsbuildBuild) => void };
   bun: { setup: (build: EsbuildBuild) => void };
 }
 
 export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
+  // unplugin maps `buildStart` onto esbuild/bun `onStart`, which re-fires per rebuild.
+  // First pass initializes; subsequent passes (watch rebuilds) reinitialize so fingerprint
+  // moves refresh the resolver. Out-of-tree .NET changes are observed via `watchFiles` in setup.
+  let started = false;
+  const buildStart = async (): Promise<void> => {
+    await ctx.initialize();
+    if (started) await ctx.reinitialize();
+    started = true;
+  };
+
   const setup = (build: EsbuildBuild) => {
     if (build.initialOptions.absWorkingDir) {
       ctx.setConsumerRoot(build.initialOptions.absWorkingDir);
@@ -61,19 +72,6 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
         build.initialOptions.loader[binExt] = 'file';
       }
     }
-
-    // esbuild watch: onStart runs every rebuild. First pass initializes; later
-    // passes reinitialize so fingerprint moves refresh the resolver. Out-of-tree
-    // .NET changes are observed via watchFiles on framework/proxy loads.
-    let initialized = false;
-    build.onStart(async () => {
-      if (!initialized) {
-        await ctx.initialize();
-        initialized = true;
-      } else {
-        await ctx.reinitialize();
-      }
-    });
 
     const manifestWatchPaths = () => getManifestWatchPaths(ctx);
 
@@ -116,16 +114,8 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       // dotnet SDK js files contain some warning-producing statements,
       // we rewrite them to silence the warnings end users cannot resolve anyway.
       const source = await readFile(args.path, 'utf-8');
-      const fixed = ctx.rewriter.rewrite(source);
-      if (!fixed) {
-        return {
-          contents: source,
-          loader: 'js' as const,
-          watchFiles: [args.path, ...manifestWatchPaths()],
-        };
-      }
       return {
-        contents: fixed,
+        contents: ctx.rewriter.rewrite(source) ?? source,
         loader: 'js' as const,
         watchFiles: [args.path, ...manifestWatchPaths()],
       };
@@ -133,6 +123,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
   };
 
   return {
+    buildStart,
     esbuild: { setup },
     bun: { setup },
   };

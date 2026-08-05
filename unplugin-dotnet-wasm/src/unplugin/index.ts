@@ -43,7 +43,6 @@ export const dotnetWasmUnplugin = createUnplugin(
     }
 
     if (framework === 'esbuild' || framework === 'bun') {
-      // Init/reinit lives in esbuild setup's onStart (first build vs watch rebuilds).
       return {
         name: base.name,
         enforce: base.enforce,
