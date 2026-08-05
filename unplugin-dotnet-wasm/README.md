@@ -331,7 +331,7 @@ DotnetWasm({
 | Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported | ✅ Supported |
 | esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] | - |
 | Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported | ✅ Supported |
-| Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] | - |
+| Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
 ## Status & roadmap
 
@@ -383,5 +383,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 [^esbuild-no-dev-server]: esbuild's serve mode exposes no middleware API, so out-of-tree assets can't be served through the plugin.
 
 [^bun-no-dev-server]: Bun's dev server (1.3+) is app-owned (`Bun.serve`) and exposes no plugin middleware hook, so the plugin can't serve out-of-tree assets through it. Middleware support is tracked upstream in [oven-sh/bun#17608](https://github.com/oven-sh/bun/issues/17608).
+
+[^bun-no-watch]: Bun's build API has no watch mode, so the plugin can't re-run on source changes. Watch support is tracked upstream in [oven-sh/bun#4689](https://github.com/oven-sh/bun/issues/4689).
 
 [^dotnet-dts-net11]: As of .NET 11, the MSBuild property `WasmEmitTypeScriptDefinitions=true` includes `dotnet.d.ts` in the build output.
