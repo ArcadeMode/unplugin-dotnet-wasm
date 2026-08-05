@@ -9,7 +9,6 @@ import {
 } from '../../core/constants';
 import { buildNewUrlAssetProxyModule } from '../../core/asset-resolution/asset-url-module';
 import type { PluginContext } from '../context';
-import { getManifestWatchPaths } from './virtual-resolution';
 
 type EsbuildHandlerOpts = { filter: RegExp; namespace?: string };
 type EsbuildOnResolveCallbackArgs = { path: string; namespace?: string; importer?: string };
@@ -70,8 +69,6 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       }
     }
 
-    const manifestWatchPaths = () => getManifestWatchPaths(ctx);
-
     // Resolve binary assets through proxy modules that re-import the real asset by its absolute path.
     build.onResolve({ filter: /.*/ }, (args) => {
       if (args.importer?.endsWith(PROXY_SUFFIX)) {
@@ -102,7 +99,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
         contents: buildNewUrlAssetProxyModule(realPath),
         loader: 'js' as const,
         resolveDir: dirname(realPath),
-        watchFiles: [realPath, ...manifestWatchPaths()],
+        watchFiles: [realPath, ...ctx.manifestPaths],
       };
     });
 
@@ -114,7 +111,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       return {
         contents: ctx.rewriter.rewrite(source) ?? source,
         loader: 'js' as const,
-        watchFiles: [args.path, ...manifestWatchPaths()],
+        watchFiles: [args.path, ...ctx.manifestPaths],
       };
     });
   };
