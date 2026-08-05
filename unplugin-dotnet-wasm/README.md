@@ -329,7 +329,7 @@ DotnetWasm({
 | Webpack | ✅ Supported | ✅ Supported[^webpack-node-esm] | ✅ Supported | ✅ Supported |
 | Rspack | ✅ Supported | ✅ Supported[^rspack-node-esm] | ✅ Supported | ✅ Supported |
 | Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported | ✅ Supported |
-| esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] | - |
+| esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] | ✅ Supported |
 | Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported | ✅ Supported |
 | Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
