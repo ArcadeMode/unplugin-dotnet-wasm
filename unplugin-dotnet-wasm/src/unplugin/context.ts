@@ -2,9 +2,11 @@ import type { DotnetWasmOptions } from '../types';
 import { createConsoleLogger, type Logger } from '../core/logger';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
+import { discoverManifests } from '../core/manifest-parsing/discover';
 import { EndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
+import { VirtualModuleResolver } from '../core/asset-resolution/virtual-module-resolver';
 import { ShimPackageGenerator } from '../core/type-shims/shim-package-generator';
 import { SourceFileChangeTracker } from '../core/type-shims/source-file-change-tracker';
 import { TsDefinitionEmitter } from '../core/type-shims/ts-definition-emitter';
@@ -17,6 +19,7 @@ type InitializeCallback = () => void | Promise<void>;
 
 export class PluginContext {
   public readonly logger: Logger;
+  public readonly manifestPaths: string[];
   public readonly rewriter: BundlerCompatRewriter;
 
   private readonly initCbs: InitializeCallback[] = [];
@@ -24,9 +27,11 @@ export class PluginContext {
   private readonly changeTracker = new SourceFileChangeTracker();
   private readonly reloadTriggers: Array<() => void | Promise<void>> = [];
 
+  readonly #framework: BundlerFramework;
   #consumerRoot = process.cwd();
   #assetResolver: AssetResolver | null = null;
   #assetMiddleware: ConnectMiddleware | null = null;
+  #virtualModules: VirtualModuleResolver | null = null;
   #initPromise: Promise<void> | null = null;
 
   constructor(
@@ -34,7 +39,12 @@ export class PluginContext {
     framework: BundlerFramework,
   ) {
     this.logger = createConsoleLogger(options.logLevel ?? 'warn');
+    this.#framework = framework;
     this.rewriter = new BundlerCompatRewriter(framework);
+    const { endpointsManifestPath, runtimeManifestPath } = discoverManifests(options);
+    this.manifestPaths = [endpointsManifestPath, runtimeManifestPath].filter(
+      (p): p is string => p !== null,
+    );
   }
 
   get consumerRoot(): string {
@@ -52,6 +62,11 @@ export class PluginContext {
   get assetMiddleware(): ConnectMiddleware {
     if (!this.#assetMiddleware) throw new Error('assetMiddleware accessed before initialize()');
     return this.#assetMiddleware;
+  }
+
+  get virtualModules(): VirtualModuleResolver {
+    if (!this.#virtualModules) throw new Error('virtualModules accessed before initialize()');
+    return this.#virtualModules;
   }
 
   async initialize(): Promise<void> {
@@ -85,6 +100,17 @@ export class PluginContext {
     this.reloadTriggers.push(fn);
   }
 
+  async loadContent(route: string): Promise<{ code: string; path: string } | null> {
+    try {
+      return await this.virtualModules.load(this.assetResolver, route);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+
+      await this.reinitialize();
+      return this.virtualModules.load(this.assetResolver, route);
+    }
+  }
+
   private async doInitialize(): Promise<void> {
     await this.initAssetResolution();
 
@@ -116,7 +142,14 @@ export class PluginContext {
       : buildEmptyVfs(endpointsManifestPath, { logger: this.logger });
     const resolver = new AssetResolver(vfs, endpointLookup);
     const middleware = createAssetMiddleware(resolver, this.logger);
+
     this.#assetResolver = resolver;
     this.#assetMiddleware = middleware;
+    this.#virtualModules = new VirtualModuleResolver(
+      resolver,
+      this.rewriter,
+      this.logger,
+      this.#framework,
+    );
   }
 }

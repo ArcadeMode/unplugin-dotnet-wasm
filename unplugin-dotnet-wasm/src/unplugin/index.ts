@@ -12,7 +12,6 @@ export const dotnetWasmUnplugin = createUnplugin(
   (options: DotnetWasmOptions, meta: UnpluginContextMeta) => {
     const framework = meta.framework as BundlerFramework;
     const ctx = new PluginContext(options, framework);
-
     const base = {
       name: 'unplugin-dotnet-wasm',
       enforce: 'pre' as const,
