@@ -15,9 +15,6 @@ export const dotnetWasmUnplugin = createUnplugin(
     const base = {
       name: 'unplugin-dotnet-wasm',
       enforce: 'pre' as const,
-      async buildStart(): Promise<void> {
-        await ctx.initialize();
-      },
       resolveId(source: string): string | null {
         return ctx.assetResolver.resolve(source);
       },
@@ -45,7 +42,6 @@ export const dotnetWasmUnplugin = createUnplugin(
       return {
         name: base.name,
         enforce: base.enforce,
-        buildStart: base.buildStart,
         ...createEsbuildFamily(ctx),
       };
     }

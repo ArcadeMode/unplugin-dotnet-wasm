@@ -13,10 +13,16 @@ import type { PluginContext } from '../context';
 type EsbuildHandlerOpts = { filter: RegExp; namespace?: string };
 type EsbuildOnResolveCallbackArgs = { path: string; namespace?: string; importer?: string };
 type EsbuildOnResolveCallbackResult = { path: string; namespace?: string } | null;
-type EsbuildOnLoadCallbackResult = { contents: string; loader: 'js'; resolveDir?: string } | null;
+type EsbuildOnLoadCallbackResult = {
+  contents: string;
+  loader: 'js';
+  resolveDir?: string;
+  watchFiles?: string[];
+} | null;
 
 interface EsbuildBuild {
   initialOptions: { absWorkingDir?: string; external?: string[]; loader?: Record<string, string> };
+  onStart: (cb: () => void | Promise<void>) => void;
   onResolve: (
     opts: EsbuildHandlerOpts,
     cb: (args: EsbuildOnResolveCallbackArgs) => EsbuildOnResolveCallbackResult,
@@ -30,11 +36,19 @@ interface EsbuildBuild {
 }
 
 export interface EsbuildFamilyHooks {
+  buildStart(): Promise<void>;
   esbuild: { setup: (build: EsbuildBuild) => void };
   bun: { setup: (build: EsbuildBuild) => void };
 }
 
 export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
+  let started = false;
+  const buildStart = async (): Promise<void> => {
+    await ctx.initialize();
+    if (started) await ctx.reinitialize();
+    started = true;
+  };
+
   const setup = (build: EsbuildBuild) => {
     if (build.initialOptions.absWorkingDir) {
       ctx.setConsumerRoot(build.initialOptions.absWorkingDir);
@@ -85,6 +99,7 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
         contents: buildNewUrlAssetProxyModule(realPath),
         loader: 'js' as const,
         resolveDir: dirname(realPath),
+        watchFiles: [realPath, ...ctx.manifestPaths],
       };
     });
 
@@ -93,13 +108,16 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       // dotnet SDK js files contain some warning-producing statements,
       // we rewrite them to silence the warnings end users cannot resolve anyway.
       const source = await readFile(args.path, 'utf-8');
-      const fixed = ctx.rewriter.rewrite(source);
-      if (!fixed) return null;
-      return { contents: fixed, loader: 'js' as const };
+      return {
+        contents: ctx.rewriter.rewrite(source) ?? source,
+        loader: 'js' as const,
+        watchFiles: [args.path, ...ctx.manifestPaths],
+      };
     });
   };
 
   return {
+    buildStart,
     esbuild: { setup },
     bun: { setup },
   };
