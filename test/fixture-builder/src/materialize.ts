@@ -1,5 +1,5 @@
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { getManifest } from './manifest';
@@ -21,6 +21,7 @@ export interface MaterializedProject {
 interface MaterializeInput {
   options: Required<Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode'>>;
   port: number;
+  clean?: boolean;
 }
 
 function makeId(input: MaterializeInput): string {
@@ -31,7 +32,7 @@ function makeId(input: MaterializeInput): string {
 }
 
 export function materialize(input: MaterializeInput): MaterializedProject {
-  const { options, port } = input;
+  const { options, port, clean = false } = input;
   const id = makeId(input);
   const rootDir = join(MATERIALIZED_ROOT, id);
   const dir = join(rootDir, 'app');
@@ -49,6 +50,7 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(TEMPLATE_LIBRARY_DIR, libraryDir, {
     recursive: true,
     preserveTimestamps: true,
+    filter: clean ? (src) => !['bin', 'obj'].includes(basename(src)) : undefined,
   });
 
   const manifest = getManifest(options.bundler);
