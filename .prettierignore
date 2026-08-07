@@ -9,5 +9,4 @@
 pnpm-lock.yaml
 package-lock.json
 **/*.lock
-.github/dependabot.yml
 **/*.md
