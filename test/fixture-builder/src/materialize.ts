@@ -50,7 +50,7 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(TEMPLATE_LIBRARY_DIR, libraryDir, {
     recursive: true,
     preserveTimestamps: true,
-    filter: clean ? (src) => !['bin', 'obj'].includes(basename(src)) : undefined,
+    filter: clean ? (src) => basename(src) !== 'bin' : undefined, // preserve obj to speed up next build.
   });
 
   const manifest = getManifest(options.bundler);
