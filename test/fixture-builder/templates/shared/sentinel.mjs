@@ -50,19 +50,22 @@ export function rollupSentinelPlugin() {
 
 /** Farm */
 export function farmSentinelPlugin() {
-  let isServe = false;
-  const done = () => {
-    if (isServe) return;
-    startBuild(); // no start hook, so next best thing with start+end to essentially get an 'end' signal
-    endBuild('ok');
-  };
   return {
     name: 'test-sentinel',
-    configureDevServer() {
-      isServe = true;
+    buildStart: {
+      executor() {
+        startBuild();
+      },
+    },
+    updateModules: {
+      executor() {
+        startBuild();
+      },
     },
     writeResources: {
-      executor: done,
+      executor() {
+        endBuild('ok');
+      },
     },
   };
 }
