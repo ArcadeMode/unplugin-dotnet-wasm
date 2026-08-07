@@ -14,7 +14,7 @@
   "devDependencies": {
     "esbuild": "^0.28.1",
     "rimraf": "^6.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "unplugin-dotnet-wasm": "workspace:*"

@@ -22,9 +22,9 @@
     "@rspack/cli": "^2.1.8",
     "@rspack/core": "^2.1.8",
     "@rspack/dev-server": "^2.2.0",
-    "concurrently": "^9.1.0",
+    "concurrently": "^10.0.4",
     "rimraf": "^6.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "unplugin-dotnet-wasm": "workspace:*"
