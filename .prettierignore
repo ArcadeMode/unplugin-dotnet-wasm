@@ -7,4 +7,6 @@
 **/coverage
 **/.turbo
 pnpm-lock.yaml
+package-lock.json
+**/*.lock
 **/*.md

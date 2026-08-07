@@ -5,8 +5,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "03:00"
-      timezone: "UTC"
+      time: '03:00'
+      timezone: 'UTC'
     cooldown:
       default-days: 2
     open-pull-requests-limit: 6
@@ -15,13 +15,13 @@ updates:
     groups:
       dotnet-minor-patch:
         patterns:
-          - "*"
+          - '*'
         update-types:
           - minor
           - patch
       dotnet-major:
         patterns:
-          - "*"
+          - '*'
         update-types:
           - major
 
@@ -30,8 +30,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "03:15"
-      timezone: "UTC"
+      time: '03:15'
+      timezone: 'UTC'
     cooldown:
       default-days: 2
     open-pull-requests-limit: 6
@@ -40,13 +40,13 @@ updates:
     groups:
       npm-minor-patch:
         patterns:
-          - "*"
+          - '*'
         update-types:
           - minor
           - patch
       npm-major:
         patterns:
-          - "*"
+          - '*'
         update-types:
           - major
 
@@ -55,8 +55,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "03:30"
-      timezone: "UTC"
+      time: '03:30'
+      timezone: 'UTC'
     cooldown:
       default-days: 2
     open-pull-requests-limit: 6
@@ -65,4 +65,4 @@ updates:
     groups:
       actions-all:
         patterns:
-          - "*"
+          - '*'
