@@ -56,8 +56,8 @@
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
-    "prettier": "^3.3.0",
+    "prettier": "^3.9.6",
     "typescript": "^5.5.0",
-    "typescript-eslint": "^8.63.0"
+    "typescript-eslint": "^8.66.0"
   }
 }

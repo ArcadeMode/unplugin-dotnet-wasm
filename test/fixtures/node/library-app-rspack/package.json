@@ -12,8 +12,8 @@
     "clean": "rimraf dist"
   },
   "devDependencies": {
-    "@rspack/cli": "^2.1.0",
-    "@rspack/core": "^2.1.0",
+    "@rspack/cli": "^2.1.8",
+    "@rspack/core": "^2.1.8",
     "rimraf": "^6.0.0",
     "typescript": "^5.5.0"
   },
