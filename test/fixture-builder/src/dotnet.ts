@@ -15,6 +15,8 @@ export function dotnetConfigFor(buildMode: BuildMode): DotnetConfig {
 
 export const TARGET_FRAMEWORK = 'net10.0';
 
+export const DOTNET_BUILD_TIMEOUT_MS = 180_000;
+
 export function libraryOutputDir(libraryDir: string, buildMode: BuildMode): string {
   const { configuration, isPublish } = dotnetConfigFor(buildMode);
   return join(libraryDir, 'bin', configuration, TARGET_FRAMEWORK, isPublish ? 'publish' : '');
@@ -25,10 +27,12 @@ export interface BuildLibraryParams {
   buildMode: BuildMode;
   fingerprint: boolean;
   altered: boolean;
+  timeout?: number;
 }
 
 export async function buildLibrary(params: BuildLibraryParams): Promise<void> {
   const { libraryDir, buildMode, fingerprint, altered } = params;
+  const timeout = params.timeout ?? DOTNET_BUILD_TIMEOUT_MS;
   const { configuration, isPublish } = dotnetConfigFor(buildMode);
   const csproj = join(libraryDir, 'Library.csproj');
   const args = [
@@ -39,5 +43,5 @@ export async function buildLibrary(params: BuildLibraryParams): Promise<void> {
     `-p:WasmFingerprintAssets=${fingerprint}`,
   ];
   if (altered) args.push('-p:LibraryAltered=true');
-  await runToCompletion('dotnet', args, { cwd: libraryDir });
+  await runToCompletion('dotnet', args, { cwd: libraryDir, timeout });
 }

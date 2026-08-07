@@ -1,5 +1,5 @@
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { getManifest } from './manifest';
@@ -8,6 +8,7 @@ import type { BuildFixtureOptions, BuildMode, ServeMode } from './types';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const PACKAGE_ROOT = resolve(__dirname, '..');
 export const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
+export const TEMPLATE_LIBRARY_DIR = join(TEMPLATES_DIR, 'library');
 export const MATERIALIZED_ROOT = join(PACKAGE_ROOT, '.materialized');
 
 export interface MaterializedProject {
@@ -20,6 +21,7 @@ export interface MaterializedProject {
 interface MaterializeInput {
   options: Required<Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode'>>;
   port: number;
+  clean?: boolean;
 }
 
 function makeId(input: MaterializeInput): string {
@@ -30,7 +32,7 @@ function makeId(input: MaterializeInput): string {
 }
 
 export function materialize(input: MaterializeInput): MaterializedProject {
-  const { options, port } = input;
+  const { options, port, clean = false } = input;
   const id = makeId(input);
   const rootDir = join(MATERIALIZED_ROOT, id);
   const dir = join(rootDir, 'app');
@@ -45,9 +47,10 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(join(TEMPLATES_DIR, 'shared', 'tsconfig.base.json'), join(dir, 'tsconfig.json'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'sentinel.mjs'), join(dir, 'sentinel.mjs'));
 
-  cpSync(join(TEMPLATES_DIR, 'library'), libraryDir, {
+  cpSync(TEMPLATE_LIBRARY_DIR, libraryDir, {
     recursive: true,
-    filter: (src) => !/[\\/](bin|obj)([\\/]|$)/.test(src),
+    preserveTimestamps: true,
+    filter: clean ? (src) => !['bin', 'obj'].includes(basename(src)) : undefined,
   });
 
   const manifest = getManifest(options.bundler);

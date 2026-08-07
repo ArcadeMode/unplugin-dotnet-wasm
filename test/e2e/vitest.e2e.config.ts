@@ -13,8 +13,8 @@ export default defineConfig({
     include: ['tests/vitest/**/*.test.ts'],
     globalSetup: ['./setup/vitest-global.ts'], // also teardown
     // .NET restore + build on first materialization can be slow.
-    testTimeout: 180_000,
-    hookTimeout: 180_000,
+    testTimeout: 200_000,
+    hookTimeout: 200_000,
     fileParallelism: false,
     maxWorkers: 1,
     reporters: ['default', 'junit'],
