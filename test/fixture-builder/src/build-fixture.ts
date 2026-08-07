@@ -9,6 +9,7 @@ import type { BuildFixtureOptions } from './types';
 export async function buildFixture(options: BuildFixtureOptions): Promise<Fixture> {
   const buildMode = options.buildMode ?? 'debug';
   const keepOnDispose = options.keepOnDispose ?? false;
+  const clean = options.clean ?? false;
   const port = options.port ?? (await allocatePort());
 
   const project = materialize({
@@ -19,6 +20,7 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
       buildMode,
     },
     port,
+    clean,
   });
 
   return new Fixture({
