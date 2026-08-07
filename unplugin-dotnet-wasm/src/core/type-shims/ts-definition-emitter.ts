@@ -4,25 +4,16 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path, { basename, dirname, join } from 'node:path';
 import type { Logger } from '../logger';
-import type typescript from 'typescript';
 import { toPosixPath } from '../path-utils';
 
 const DECL_EXT = '.d.ts';
 const TS_EXT = '.ts';
 
-type EmitStrategy =
-  { kind: 'in-process'; ts: typeof typescript } | { kind: 'cli'; tscPath: string };
+type EmitStrategy = { kind: 'cli'; tscPath: string; ignoreConfig: boolean };
 
 export type TsStrategySelection =
-  | { kind: 'cli'; tscPath: string }
-  | { kind: 'in-process' }
-  | { kind: 'unsupported'; reason: string };
+  { kind: 'cli'; tscPath: string; ignoreConfig: boolean } | { kind: 'unsupported'; reason: string };
 
-/**
- * Chooses how to emit `.d.ts`, based solely on the installed `typescript` package.json.
- * - TS >= 7: shell out to the `tsc` CLI
- * - TS 5–6: use the in-process compiler API.
- */
 export function selectTsStrategy(
   pkg: { version?: string; bin?: string | Record<string, string> },
   packageDir: string,
@@ -34,17 +25,14 @@ export function selectTsStrategy(
       reason: `the installed TypeScript "${pkg.version ?? 'unknown'}" is unsupported; TypeScript >= 5 is required.`,
     };
   }
-  if (major >= 7) {
-    const relativeBin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.tsc;
-    if (!relativeBin) {
-      return {
-        kind: 'unsupported',
-        reason: `could not locate the "tsc" CLI in TypeScript "${pkg.version}".`,
-      };
-    }
-    return { kind: 'cli', tscPath: join(packageDir, relativeBin) };
+  const relativeBin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.tsc;
+  if (!relativeBin) {
+    return {
+      kind: 'unsupported',
+      reason: `could not locate the "tsc" CLI in TypeScript "${pkg.version}".`,
+    };
   }
-  return { kind: 'in-process' };
+  return { kind: 'cli', tscPath: join(packageDir, relativeBin), ignoreConfig: major >= 7 };
 }
 
 export class TsDefinitionEmitter {
@@ -84,46 +72,17 @@ export class TsDefinitionEmitter {
     const strategy = this.resolveStrategy();
     if (!strategy) return null;
 
-    return strategy.kind === 'in-process'
-      ? this.compileInProcess(strategy.ts, sourceFile)
-      : this.compileViaCli(strategy.tscPath, sourceFile);
+    return this.compileViaCli(strategy, sourceFile);
   }
 
-  private compileInProcess(ts: typeof typescript, sourceFile: string): string | null {
-    const options: typescript.CompilerOptions = {
-      declaration: true,
-      emitDeclarationOnly: true,
-      skipLibCheck: true,
-      strict: false,
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-    };
-    const host = ts.createCompilerHost(options, /* setParentNodes */ true);
-    let dts: string | undefined;
-    host.writeFile = (fileName, text) => {
-      if (fileName.endsWith(DECL_EXT)) {
-        dts = text;
-      }
-    };
-    const program = ts.createProgram([sourceFile], options, host);
-    program.emit(undefined, undefined, undefined, /* emitOnlyDtsFiles */ true);
-
-    if (dts === undefined) {
-      this.logger.warn(`No definition file could be generated for "${sourceFile}"; skipping`);
-      return null;
-    }
-    return dts;
-  }
-
-  private compileViaCli(tscPath: string, sourceFile: string): string | null {
-    const outDir = mkdtempSync(join(tmpdir(), 'dotnet-wasm-dts-'));
+  private compileViaCli(strategy: EmitStrategy, sourceFile: string): string | null {
+    const outDir = mkdtempSync(join(tmpdir(), 'unplugin-dotnet-wasm-'));
     try {
       const result = spawnSync(
         process.execPath,
         [
-          tscPath,
-          '--ignoreConfig',
+          strategy.tscPath,
+          ...(strategy.ignoreConfig ? ['--ignoreConfig'] : []),
           '--declaration',
           '--emitDeclarationOnly',
           '--skipLibCheck',
@@ -176,16 +135,11 @@ export class TsDefinitionEmitter {
     if (selection.kind === 'unsupported') {
       return this.disable(selection.reason);
     }
-    if (selection.kind === 'cli') {
-      this.strategy = { kind: 'cli', tscPath: selection.tscPath };
-      return this.strategy;
-    }
-
-    const mod = consumerRequire('typescript');
-    const ts = (
-      mod && typeof mod === 'object' && 'default' in mod ? mod.default : mod
-    ) as typeof typescript;
-    this.strategy = { kind: 'in-process', ts };
+    this.strategy = {
+      kind: 'cli',
+      tscPath: selection.tscPath,
+      ignoreConfig: selection.ignoreConfig,
+    };
     return this.strategy;
   }
 
