@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NULL_LOGGER, type Logger } from '../logger';
-import { TsDefinitionEmitter } from './ts-definition-emitter';
+import { TsDefinitionEmitter, selectTsStrategy } from './ts-definition-emitter';
 
 describe('TsDefinitionEmitter.forwardDTS', () => {
   it('returns export statement with posix path for .d.ts', () => {
@@ -58,5 +58,56 @@ describe('TsDefinitionEmitter.compileToDTS', () => {
     expect(result1).toBeNull();
     expect(result2).toBeNull();
     expect(logger.warn).toHaveBeenCalledOnce();
+  });
+});
+
+describe('selectTsStrategy', () => {
+  it('selects the CLI strategy without --ignoreConfig for TypeScript 5', () => {
+    const selection = selectTsStrategy({ version: '5.5.4', bin: { tsc: './bin/tsc' } }, '/pkg');
+    expect(selection).toEqual({
+      kind: 'cli',
+      tscPath: join('/pkg', './bin/tsc'),
+      ignoreConfig: false,
+    });
+  });
+
+  it('selects the CLI strategy without --ignoreConfig for TypeScript 6', () => {
+    const selection = selectTsStrategy({ version: '6.0.0-beta', bin: './bin/tsc' }, '/pkg');
+    expect(selection).toEqual({
+      kind: 'cli',
+      tscPath: join('/pkg', './bin/tsc'),
+      ignoreConfig: false,
+    });
+  });
+
+  it('selects the CLI strategy with --ignoreConfig for TypeScript 7 with a bin.tsc entry', () => {
+    const selection = selectTsStrategy({ version: '7.0.2', bin: { tsc: './bin/tsc' } }, '/pkg');
+    expect(selection).toEqual({
+      kind: 'cli',
+      tscPath: join('/pkg', './bin/tsc'),
+      ignoreConfig: true,
+    });
+  });
+
+  it('supports a string bin field for the CLI strategy', () => {
+    const selection = selectTsStrategy({ version: '7.1.0', bin: './bin/tsc' }, '/pkg');
+    expect(selection).toEqual({
+      kind: 'cli',
+      tscPath: join('/pkg', './bin/tsc'),
+      ignoreConfig: true,
+    });
+  });
+
+  it('is unsupported for any supported version without a locatable tsc bin', () => {
+    expect(selectTsStrategy({ version: '5.5.4' }, '/pkg').kind).toBe('unsupported');
+    expect(selectTsStrategy({ version: '7.0.2' }, '/pkg').kind).toBe('unsupported');
+  });
+
+  it('is unsupported for TypeScript older than 5', () => {
+    expect(selectTsStrategy({ version: '4.9.5' }, '/pkg').kind).toBe('unsupported');
+  });
+
+  it('is unsupported for a missing or unparseable version', () => {
+    expect(selectTsStrategy({}, '/pkg').kind).toBe('unsupported');
   });
 });
