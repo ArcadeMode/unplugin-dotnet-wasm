@@ -19,10 +19,10 @@
   "devDependencies": {
     "@farmfe/cli": "^1.0.5",
     "@farmfe/core": "^1.7.0",
-    "concurrently": "^9.1.0",
-    "cross-env": "^7.0.3",
+    "concurrently": "^10.0.4",
+    "cross-env": "^10.1.0",
     "rimraf": "^6.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "unplugin-dotnet-wasm": "workspace:*"

@@ -51,13 +51,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@eslint/js": "^9.22.0",
-    "cross-env": "^7.0.3",
-    "eslint": "^9.22.0",
-    "eslint-config-prettier": "^9.1.0",
+    "@eslint/js": "^10.0.1",
+    "cross-env": "^10.1.0",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.9.6",
-    "typescript": "^5.5.0",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.66.0"
   }
 }

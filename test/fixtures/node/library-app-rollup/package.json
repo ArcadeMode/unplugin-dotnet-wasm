@@ -17,12 +17,12 @@
     "clean": "rimraf dist"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
+    "concurrently": "^10.0.4",
     "esbuild": "^0.28.1",
     "rimraf": "^6.0.0",
     "rollup": "^4.62.4",
     "rollup-plugin-esbuild": "^6.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "unplugin-dotnet-wasm": "workspace:*"
