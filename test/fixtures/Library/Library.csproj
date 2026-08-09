@@ -7,13 +7,23 @@
 
     <WasmBundlerFriendlyBootConfig>true</WasmBundlerFriendlyBootConfig>
     <CompressionEnabled>false</CompressionEnabled>
+    <WasmEnableHotReload>false</WasmEnableHotReload>
   </PropertyGroup>
 
   <ItemGroup>
     <StaticWebAssetFingerprintPattern Include="JS" Pattern="*.js" Expression="#[.{fingerprint}]!" />
   </ItemGroup>
 
+  <PropertyGroup>
+    
+    <!--<TypeShim_GeneratedDir>../../../TypeShim</TypeShim_GeneratedDir>-->
+    <!--<TypeShim_TypeScriptOutputDirectory>wwwroot</TypeShim_TypeScriptOutputDirectory>-->
+    <!--<TypeShim_MSBuildMessagePriority>High</TypeShim_MSBuildMessagePriority>-->
+  </PropertyGroup>
+
   <ItemGroup>
+    <!-- Tests JS assets loaded from NuGet directories -->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="TypeShim" />
   </ItemGroup>
 </Project>
