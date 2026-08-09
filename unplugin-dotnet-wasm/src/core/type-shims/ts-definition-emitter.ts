@@ -8,6 +8,7 @@ import { toPosixPath } from '../path-utils';
 
 const DECL_EXT = '.d.ts';
 const TS_EXT = '.ts';
+const JS_EXT = '.js';
 
 type EmitStrategy = { kind: 'cli'; tscPath: string; ignoreConfig: boolean };
 
@@ -44,38 +45,31 @@ export class TsDefinitionEmitter {
     private readonly logger: Logger,
   ) {}
 
-  /**
-   * Generates .d.ts content that re-exports definitionFile.
-   * @throws {Error} if the file does not have a .d.ts extension or is not an absolute path.
-   */
   public forwardDTS(definitionFile: string): string {
     if (!definitionFile.endsWith(DECL_EXT)) {
       throw new Error(`Expected a .d.ts file path, got "${definitionFile}"`);
     }
     if (!path.isAbsolute(definitionFile)) {
-      // non-absolute paths wont resolve correctly in the consumer's node_modules
+      // non-absolute paths won't resolve correctly from the consumer's node_modules
       throw new Error(`Expected an absolute path, got "${definitionFile}"`);
     }
     const pathClean = definitionFile.slice(0, -DECL_EXT.length);
     return `export * from '${toPosixPath(pathClean)}';\n`;
   }
 
-  /**
-   * Compiles .ts to .d.ts, returns null if compilation failed.
-   * @throws {Error} if the file does not have a .ts extension.
-   */
   public compileToDTS(sourceFile: string): string | null {
-    if (!sourceFile.endsWith(TS_EXT)) {
-      throw new Error(`Expected a .ts file path, got "${sourceFile}"`);
+    const ext = sourceFile.endsWith(JS_EXT) ? JS_EXT : sourceFile.endsWith(TS_EXT) ? TS_EXT : null;
+    if (ext === null) {
+      throw new Error(`Expected a .ts or .js file path, got "${sourceFile}"`);
     }
 
     const strategy = this.resolveStrategy();
     if (!strategy) return null;
 
-    return this.compileViaCli(strategy, sourceFile);
+    return this.compileViaCli(strategy, sourceFile, ext);
   }
 
-  private compileViaCli(strategy: EmitStrategy, sourceFile: string): string | null {
+  private compileViaCli(strategy: EmitStrategy, sourceFile: string, ext: string): string | null {
     const outDir = mkdtempSync(join(tmpdir(), 'unplugin-dotnet-wasm-'));
     try {
       const result = spawnSync(
@@ -83,6 +77,7 @@ export class TsDefinitionEmitter {
         [
           strategy.tscPath,
           ...(strategy.ignoreConfig ? ['--ignoreConfig'] : []),
+          ...(ext === JS_EXT ? ['--allowJs'] : []),
           '--declaration',
           '--emitDeclarationOnly',
           '--skipLibCheck',
@@ -101,7 +96,7 @@ export class TsDefinitionEmitter {
         { cwd: this.root, encoding: 'utf8' },
       );
 
-      const outFile = join(outDir, basename(sourceFile).slice(0, -TS_EXT.length) + DECL_EXT);
+      const outFile = join(outDir, basename(sourceFile).slice(0, -ext.length) + DECL_EXT);
       if (!existsSync(outFile)) {
         this.logger.warn(`No definition file was generated for "${sourceFile}"; skipping`);
         this.logger.debug(result.error?.message ?? result.stderr ?? result.stdout ?? '');

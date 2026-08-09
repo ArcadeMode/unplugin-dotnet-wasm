@@ -12,7 +12,6 @@ export class ShimPackage {
     this.dir = join(locator.resolve(), pkgName);
   }
 
-  /** Absolute and package-relative output path for a subpath. */
   fileFor(subpath: string): { relFile: string; absFile: string } {
     const relFile = subpath ? `${subpath}/index.d.ts` : `index.d.ts`;
     const absFile = join(this.dir, relFile);
@@ -24,10 +23,12 @@ export class ShimPackage {
   }
 
   emitPackageJson(): { path: string; json: string } | null {
-    if (Object.keys(this.exports).length === 0) return null;
+    const keys = Object.keys(this.exports);
+    if (keys.length === 0) return null;
+    const exports = Object.fromEntries(keys.sort().map((k) => [k, this.exports[k]!]));
     const path = join(this.dir, 'package.json');
     const json = JSON.stringify(
-      { name: this.pkgName, version: '0.0.0', private: true, exports: this.exports },
+      { name: this.pkgName, version: '0.0.0', private: true, exports },
       null,
       2,
     );

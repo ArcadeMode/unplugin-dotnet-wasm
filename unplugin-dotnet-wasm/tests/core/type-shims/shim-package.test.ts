@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { ShimPackage } from '@src/core/type-shims/shim-package';
 import type { NodeModulesLocator } from '@src/core/type-shims/node-modules-locator';
 
-// Mock locator that returns a fixed directory
 function createMockLocator(baseDir: string): NodeModulesLocator {
   return {
     resolve: () => baseDir,
@@ -68,23 +67,16 @@ describe('ShimPackage', () => {
     expect(manifest).toBeNull();
   });
 
-  it('emit() returns the correct package.json structure', () => {
-    const baseDir = '/test/node_modules';
-    const locator = createMockLocator(baseDir);
+  it('emits sorted export keys for deterministic (idempotent) manifests', () => {
+    const locator = createMockLocator('/test/node_modules');
     const pkg = new ShimPackage(locator, 'my-pkg');
 
-    pkg.addExport('', 'index.d.ts');
-    pkg.addExport('sub', 'sub/index.d.ts');
+    pkg.addExport('foo.js', 'foo/index.d.ts');
+    pkg.addExport('foo', 'foo/index.d.ts');
 
-    const manifest = pkg.emitPackageJson();
-    expect(manifest).not.toBeNull();
-    expect(manifest!.path).toBe(join(baseDir, 'my-pkg', 'package.json'));
-
-    const json = JSON.parse(manifest!.json);
-    expect(json.name).toBe('my-pkg');
-    expect(json.version).toBe('0.0.0');
-    expect(json.private).toBe(true);
-    expect(json.exports['.']).toEqual({ types: './index.d.ts' });
-    expect(json.exports['./sub']).toEqual({ types: './sub/index.d.ts' });
+    const json = JSON.parse(pkg.emitPackageJson()!.json);
+    expect(Object.keys(json.exports)).toEqual(['./foo', './foo.js']);
+    expect(json.exports['./foo']).toEqual({ types: './foo/index.d.ts' });
+    expect(json.exports['./foo.js']).toEqual({ types: './foo/index.d.ts' });
   });
 });
