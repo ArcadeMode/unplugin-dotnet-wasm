@@ -5,8 +5,8 @@ import { resolve } from 'node:path';
 export default defineConfig({
   plugins: [
     DotnetWasm({
-      projectRoot: resolve(__dirname, '../BlazorLibrary'),
-      projectName: 'BlazorLibrary',
+      projectRoot: resolve(import.meta.dirname, '../SampleLibrary'),
+      projectName: 'SampleLibrary',
       configuration: 'Debug',
       targetFramework: 'net10.0',
       logLevel: 'info',
@@ -15,7 +15,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     rollupOptions: {
-      input: resolve(__dirname, 'index.html'),
+      input: resolve(import.meta.dirname, 'index.html'),
     },
   },
 });
