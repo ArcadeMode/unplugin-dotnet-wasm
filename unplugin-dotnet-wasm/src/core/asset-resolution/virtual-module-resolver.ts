@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import { BINARY_EXTENSIONS_REGEX, JS_MODULE_REGEX } from '../constants';
+import { BINARY_EXTENSIONS_REGEX, FRAMEWORK_JS_REGEX, JS_MODULE_REGEX } from '../constants';
 import { collapseDotSegments, toPosixPath } from '../path-utils';
 import type { Logger } from '../logger';
 import type { BundlerCompatRewriter, BundlerFramework } from '../bundler-compat-rewriter';
@@ -61,6 +61,9 @@ export class VirtualModuleResolver {
     }
 
     const code = await readFile(physical, 'utf8');
+    if (!isFrameworkJsPath(route) && !isFrameworkJsPath(physical)) {
+      return { code, path: physical };
+    }
     return { code: this.rewriter.rewrite(code) ?? code, path: physical };
   }
 
@@ -75,4 +78,9 @@ export class VirtualModuleResolver {
     }
     return 'physical';
   }
+}
+
+function isFrameworkJsPath(path: string): boolean {
+  const posix = path.replace(/\\/g, '/');
+  return FRAMEWORK_JS_REGEX.test(posix.startsWith('/') ? posix : `/${posix}`);
 }
