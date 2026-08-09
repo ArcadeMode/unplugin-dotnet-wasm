@@ -8,6 +8,7 @@ import { toPosixPath } from '../path-utils';
 
 const DECL_EXT = '.d.ts';
 const TS_EXT = '.ts';
+const JS_EXT = '.js';
 
 type EmitStrategy = { kind: 'cli'; tscPath: string; ignoreConfig: boolean };
 
@@ -61,21 +62,22 @@ export class TsDefinitionEmitter {
   }
 
   /**
-   * Compiles .ts to .d.ts, returns null if compilation failed.
-   * @throws {Error} if the file does not have a .ts extension.
+   * Compiles a `.ts` and `.js` source file to `.d.ts`, returns null if compilation failed.
+   * @throws {Error} if the file does not have a .ts or .js extension.
    */
   public compileToDTS(sourceFile: string): string | null {
-    if (!sourceFile.endsWith(TS_EXT)) {
-      throw new Error(`Expected a .ts file path, got "${sourceFile}"`);
+    const ext = sourceFile.endsWith(JS_EXT) ? JS_EXT : sourceFile.endsWith(TS_EXT) ? TS_EXT : null;
+    if (ext === null) {
+      throw new Error(`Expected a .ts or .js file path, got "${sourceFile}"`);
     }
 
     const strategy = this.resolveStrategy();
     if (!strategy) return null;
 
-    return this.compileViaCli(strategy, sourceFile);
+    return this.compileViaCli(strategy, sourceFile, ext);
   }
 
-  private compileViaCli(strategy: EmitStrategy, sourceFile: string): string | null {
+  private compileViaCli(strategy: EmitStrategy, sourceFile: string, ext: string): string | null {
     const outDir = mkdtempSync(join(tmpdir(), 'unplugin-dotnet-wasm-'));
     try {
       const result = spawnSync(
@@ -83,6 +85,7 @@ export class TsDefinitionEmitter {
         [
           strategy.tscPath,
           ...(strategy.ignoreConfig ? ['--ignoreConfig'] : []),
+          ...(ext === JS_EXT ? ['--allowJs'] : []),
           '--declaration',
           '--emitDeclarationOnly',
           '--skipLibCheck',
@@ -101,7 +104,7 @@ export class TsDefinitionEmitter {
         { cwd: this.root, encoding: 'utf8' },
       );
 
-      const outFile = join(outDir, basename(sourceFile).slice(0, -TS_EXT.length) + DECL_EXT);
+      const outFile = join(outDir, basename(sourceFile).slice(0, -ext.length) + DECL_EXT);
       if (!existsSync(outFile)) {
         this.logger.warn(`No definition file was generated for "${sourceFile}"; skipping`);
         this.logger.debug(result.error?.message ?? result.stderr ?? result.stdout ?? '');

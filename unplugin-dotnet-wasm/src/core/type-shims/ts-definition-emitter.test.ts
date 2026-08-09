@@ -59,6 +59,17 @@ describe('TsDefinitionEmitter.compileToDTS', () => {
     expect(result2).toBeNull();
     expect(logger.warn).toHaveBeenCalledOnce();
   });
+
+  it('accepts a .js source file (returns null when TypeScript is unavailable)', () => {
+    const emptyRoot = mkdtempSync(join(tmpdir(), 'no-ts-'));
+    const emitter = new TsDefinitionEmitter(emptyRoot, NULL_LOGGER);
+    expect(emitter.compileToDTS('/path/to/_framework/blazor.webassembly.js')).toBeNull();
+  });
+
+  it('throws for a source file that is neither .ts nor .js', () => {
+    const emitter = new TsDefinitionEmitter('/', NULL_LOGGER);
+    expect(() => emitter.compileToDTS('/path/to/pkg/styles.css')).toThrow(/\.ts or \.js/);
+  });
 });
 
 describe('selectTsStrategy', () => {

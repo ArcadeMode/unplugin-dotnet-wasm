@@ -128,6 +128,33 @@ describe('ShimPackageGenerator.generate', () => {
     expect(pkg.exports).toEqual({ '.': { types: './index.d.ts' } });
   });
 
+  it('compiles a type-less .js asset to a shim at a subpath that keeps the extension', async () => {
+    const { root, nm } = tempRoot();
+    const resolver = createResolver(['_framework/blazor.webassembly.js'], {
+      '_framework/blazor.webassembly.js': '/dist/_framework/blazor.webassembly.js',
+    });
+    const emitter = createEmitter(undefined, (src) => `// compiled:${src}\n`);
+    const generator = new ShimPackageGenerator(
+      new NodeModulesLocator(root),
+      new FileDiscoverer(resolver),
+      createTracker(true),
+      emitter,
+      createLogger(),
+    );
+
+    await generator.generate();
+
+    expect(emitter.compileToDTS).toHaveBeenCalledWith('/dist/_framework/blazor.webassembly.js');
+    expect(emitter.forwardDTS).not.toHaveBeenCalled();
+    expect(
+      readFileSync(join(nm, '_framework', 'blazor.webassembly.js', 'index.d.ts'), 'utf8'),
+    ).toBe('// compiled:/dist/_framework/blazor.webassembly.js\n');
+    const pkg = JSON.parse(readFileSync(join(nm, '_framework', 'package.json'), 'utf8'));
+    expect(pkg.exports).toEqual({
+      './blazor.webassembly.js': { types: './blazor.webassembly.js/index.d.ts' },
+    });
+  });
+
   it('skips an entry whose compileToDTS returns null and writes no manifest for an empty package', async () => {
     const { root, nm } = tempRoot();
     const generator = new ShimPackageGenerator(

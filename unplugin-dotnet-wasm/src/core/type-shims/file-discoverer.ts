@@ -2,6 +2,7 @@ import type { AssetResolver } from '../asset-resolution/asset-resolver';
 
 const SOURCE_EXT = '.ts';
 const DECL_EXT = '.d.ts';
+const JS_EXT = '.js';
 
 export interface DiscoveryEntry {
   subpath: string;
@@ -39,43 +40,40 @@ export class FileDiscoverer {
   }
 
   private buildDiscoveryEntries(): Map<string, EntryData> {
+    const resolver = this.resolver;
     const entryMap = new Map<string, EntryData>();
-    for (const route of this.resolver.routes()) {
-      let role: 'definition' | 'source' | null = null;
-      let stripLen = 0;
+    const typedSpecifiers = new Set<string>();
+    const jsRoutes: { route: string; physicalPath: string; bareSpecifier: string }[] = [];
 
-      // Test for definition first
-      if (route.endsWith(DECL_EXT)) {
-        role = 'definition';
-        stripLen = DECL_EXT.length;
-      } else if (route.endsWith(SOURCE_EXT)) {
-        role = 'source';
-        stripLen = SOURCE_EXT.length;
-      } else {
-        continue;
-      }
-
-      const physicalPath = this.resolver.resolve(route);
+    for (const route of resolver.routes()) {
+      const physicalPath = resolver.resolve(route);
       if (physicalPath === null) continue;
 
-      const specifier = route.slice(0, -stripLen);
-      const slashIdx = specifier.indexOf('/');
-      const packageName = slashIdx === -1 ? specifier : specifier.slice(0, slashIdx);
-      const subpath = slashIdx === -1 ? '' : specifier.slice(slashIdx + 1);
-
-      const entryData = getOrCreateEntry(packageName, subpath);
-
-      if (role === 'definition') {
-        entryData.entry.definitionFile = physicalPath;
-      } else {
-        entryData.entry.sourceFile = physicalPath;
+      if (route.endsWith(DECL_EXT)) {
+        const specifier = route.slice(0, -DECL_EXT.length);
+        typedSpecifiers.add(specifier);
+        getOrCreateEntry(specifier).entry.definitionFile = physicalPath;
+      } else if (route.endsWith(SOURCE_EXT)) {
+        const specifier = route.slice(0, -SOURCE_EXT.length);
+        typedSpecifiers.add(specifier);
+        getOrCreateEntry(specifier).entry.sourceFile = physicalPath;
+      } else if (route.endsWith(JS_EXT)) {
+        jsRoutes.push({ route, physicalPath, bareSpecifier: route.slice(0, -JS_EXT.length) });
       }
+    }
+
+    for (const { route, physicalPath, bareSpecifier } of jsRoutes) {
+      if (typedSpecifiers.has(bareSpecifier)) continue;
+      getOrCreateEntry(route).entry.sourceFile = physicalPath;
     }
 
     return entryMap;
 
     // helpers
-    function getOrCreateEntry(packageName: string, subpath: string): EntryData {
+    function getOrCreateEntry(specifier: string): EntryData {
+      const slashIdx = specifier.indexOf('/');
+      const packageName = slashIdx === -1 ? specifier : specifier.slice(0, slashIdx);
+      const subpath = slashIdx === -1 ? '' : specifier.slice(slashIdx + 1);
       const entryKey = `${packageName}:${subpath}`;
       let entryData = entryMap.get(entryKey);
       if (!entryData) {

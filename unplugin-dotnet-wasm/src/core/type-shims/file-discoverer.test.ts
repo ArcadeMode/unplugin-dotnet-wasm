@@ -112,11 +112,10 @@ describe('FileDiscoverer', () => {
     expect(groups[1]!.packageName).toBe('pkg2');
   });
 
-  it('non-TS routes (.css, .wasm, .js, .mjs) are skipped', () => {
-    const resolver = createResolver(['app.css', 'mod.wasm', 'index.js', 'util.mjs'], {
+  it('non-compilable routes (.css, .wasm, .mjs) are skipped', () => {
+    const resolver = createResolver(['app.css', 'mod.wasm', 'util.mjs'], {
       'app.css': '/src/app.css',
       'mod.wasm': '/src/mod.wasm',
-      'index.js': '/src/index.js',
       'util.mjs': '/src/util.mjs',
     });
     const discoverer = new FileDiscoverer(resolver);
@@ -124,6 +123,84 @@ describe('FileDiscoverer', () => {
     const groups = discoverer.discover();
 
     expect(groups).toHaveLength(0);
+  });
+
+  it('type-less .js route becomes a sourceFile entry that keeps its extension', () => {
+    const resolver = createResolver(['_framework/blazor.webassembly.js'], {
+      '_framework/blazor.webassembly.js': '/dist/_framework/blazor.webassembly.js',
+    });
+    const discoverer = new FileDiscoverer(resolver);
+
+    const groups = discoverer.discover();
+
+    expect(groups).toHaveLength(1);
+    const group = groups[0]!;
+    expect(group.packageName).toBe('_framework');
+    expect(group.entries).toHaveLength(1);
+    const entry = group.entries[0]!;
+    // Imported WITH the extension, so the subpath keeps `.js`.
+    expect(entry.subpath).toBe('blazor.webassembly.js');
+    expect(entry.sourceFile).toBe('/dist/_framework/blazor.webassembly.js');
+    expect(entry.definitionFile).toBeUndefined();
+  });
+
+  it('root-level .js route uses the file name (with extension) as the package', () => {
+    const resolver = createResolver(['boot.js'], { 'boot.js': '/dist/boot.js' });
+    const discoverer = new FileDiscoverer(resolver);
+
+    const group = discoverer.discover()[0]!;
+    expect(group.packageName).toBe('boot.js');
+    expect(group.entries[0]!.subpath).toBe('');
+    expect(group.entries[0]!.sourceFile).toBe('/dist/boot.js');
+  });
+
+  it('.js route is skipped when a .d.ts sibling covers the same specifier', () => {
+    const resolver = createResolver(['_framework/dotnet.js', '_framework/dotnet.d.ts'], {
+      '_framework/dotnet.js': '/dist/_framework/dotnet.js',
+      '_framework/dotnet.d.ts': '/dist/_framework/dotnet.d.ts',
+    });
+    const discoverer = new FileDiscoverer(resolver);
+
+    const groups = discoverer.discover();
+
+    expect(groups).toHaveLength(1);
+    const group = groups[0]!;
+    // Only the definition-backed entry survives; no redundant `dotnet.js` shim.
+    expect(group.entries).toHaveLength(1);
+    expect(group.entries[0]!.subpath).toBe('dotnet');
+    expect(group.entries[0]!.definitionFile).toBe('/dist/_framework/dotnet.d.ts');
+  });
+
+  it('.js dedup ignores route order (.js seen before its .d.ts sibling)', () => {
+    const resolver = createResolver(['pkg/mod.js', 'pkg/mod.d.ts'], {
+      'pkg/mod.js': '/dist/mod.js',
+      'pkg/mod.d.ts': '/dist/mod.d.ts',
+    });
+    const discoverer = new FileDiscoverer(resolver);
+
+    const group = discoverer.discover()[0]!;
+    expect(group.entries).toHaveLength(1);
+    expect(group.entries[0]!.subpath).toBe('mod');
+    expect(group.entries[0]!.definitionFile).toBe('/dist/mod.d.ts');
+  });
+
+  it('a type-less .js is shimmed alongside a typed sibling in the same package', () => {
+    const resolver = createResolver(
+      ['_framework/dotnet.d.ts', '_framework/blazor.webassembly.js'],
+      {
+        '_framework/dotnet.d.ts': '/dist/_framework/dotnet.d.ts',
+        '_framework/blazor.webassembly.js': '/dist/_framework/blazor.webassembly.js',
+      },
+    );
+    const discoverer = new FileDiscoverer(resolver);
+
+    const group = discoverer.discover()[0]!;
+    expect(group.packageName).toBe('_framework');
+    expect(group.entries).toHaveLength(2);
+    const dotnet = group.entries.find((e) => e.subpath === 'dotnet')!;
+    const blazor = group.entries.find((e) => e.subpath === 'blazor.webassembly.js')!;
+    expect(dotnet.definitionFile).toBe('/dist/_framework/dotnet.d.ts');
+    expect(blazor.sourceFile).toBe('/dist/_framework/blazor.webassembly.js');
   });
 
   it('route resolving to null is excluded', () => {
