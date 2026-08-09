@@ -16,7 +16,6 @@
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "baseUrl": ".",
     "paths": {
       "@src/*": ["src/*"]
     }
