@@ -1,5 +1,5 @@
 {
-  "name": "@blazor-webpack/app",
+  "name": "@dotnet-wasm-bundler/webpack-vanilla-blazor",
   "version": "1.0.0",
   "private": true,
   "description": "Bare Webpack front-end that bundles the Blazor WebAssembly Library.",

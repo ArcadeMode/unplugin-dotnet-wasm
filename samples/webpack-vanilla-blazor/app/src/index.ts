@@ -6,8 +6,6 @@ import './styles.css';
 import '_framework/blazor.webassembly.js';
 // await window.Blazor.start(); // <-- to start Blazor manually (again: if module)
 
-
 // .NET static web assets, importing places them in the webpack output.
 import 'favicon.png';
 import './sample-data/weather.json';
-
