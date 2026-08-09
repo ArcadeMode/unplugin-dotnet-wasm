@@ -24,10 +24,13 @@ export class ShimPackage {
   }
 
   emitPackageJson(): { path: string; json: string } | null {
-    if (Object.keys(this.exports).length === 0) return null;
+    const keys = Object.keys(this.exports);
+    if (keys.length === 0) return null;
+    // Sort keys so repeated builds produce byte-identical manifests (idempotent).
+    const exports = Object.fromEntries(keys.sort().map((k) => [k, this.exports[k]!]));
     const path = join(this.dir, 'package.json');
     const json = JSON.stringify(
-      { name: this.pkgName, version: '0.0.0', private: true, exports: this.exports },
+      { name: this.pkgName, version: '0.0.0', private: true, exports },
       null,
       2,
     );

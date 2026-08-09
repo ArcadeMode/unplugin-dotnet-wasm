@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import { FileDiscoverer } from './file-discoverer';
+import { FileDiscoverer, type DiscoveryGroup, type DiscoveryEntry } from './file-discoverer';
 
 function createResolver(
   routes: string[],
@@ -12,104 +12,160 @@ function createResolver(
   } as unknown as AssetResolver;
 }
 
+function group(groups: DiscoveryGroup[], name: string): DiscoveryGroup {
+  const g = groups.find((x) => x.packageName === name);
+  if (!g) throw new Error(`no group "${name}" in [${groups.map((x) => x.packageName).join(', ')}]`);
+  return g;
+}
+
+function entry(g: DiscoveryGroup, canonical: string): DiscoveryEntry {
+  const e = g.entries.find((x) => x.canonical === canonical);
+  if (!e) throw new Error(`no entry canonical "${canonical}"`);
+  return e;
+}
+
 describe('FileDiscoverer', () => {
-  it('single .ts route produces one group with one entry (sourceFile set)', () => {
+  it('single .ts route emits a suffixed package and a bare package (ts compiled)', () => {
     const resolver = createResolver(['pkg.ts'], { 'pkg.ts': '/src/pkg.ts' });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
+    const bare = group(groups, 'pkg');
+    expect(bare.entries).toHaveLength(1);
+    expect(bare.entries[0]!.canonical).toBe('');
+    expect(bare.entries[0]!.aliases).toEqual([]);
+    expect(bare.entries[0]!.sourceFile).toBe('/src/pkg.ts');
 
-    expect(groups).toHaveLength(1);
-    const group = groups[0]!;
-    expect(group.packageName).toBe('pkg');
-    expect(group.entries).toHaveLength(1);
-    expect(group.entries[0]!.subpath).toBe('');
-    expect(group.entries[0]!.sourceFile).toBe('/src/pkg.ts');
-    expect(group.entries[0]!.definitionFile).toBeUndefined();
+    const suffixed = group(groups, 'pkg.ts');
+    expect(suffixed.entries[0]!.canonical).toBe('');
+    expect(suffixed.entries[0]!.aliases).toEqual([]);
+    expect(suffixed.entries[0]!.sourceFile).toBe('/src/pkg.ts');
   });
 
-  it('single .d.ts route produces entry with definitionFile set', () => {
+  it('single .d.ts route emits only a bare entry that forwards the definition', () => {
     const resolver = createResolver(['pkg.d.ts'], { 'pkg.d.ts': '/src/pkg.d.ts' });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(1);
-    const entry = groups[0]!.entries[0]!;
-    expect(entry.definitionFile).toBe('/src/pkg.d.ts');
-    expect(entry.sourceFile).toBeUndefined();
+    expect(groups.map((g) => g.packageName)).toEqual(['pkg']);
+    const e = group(groups, 'pkg').entries[0]!;
+    expect(e.canonical).toBe('');
+    expect(e.aliases).toEqual([]);
+    expect(e.definitionFile).toBe('/src/pkg.d.ts');
+    expect(e.sourceFile).toBeUndefined();
   });
 
-  it('foo.ts + foo.d.ts in insertion order produces one entry with both slots filled', () => {
+  it('.ts + .d.ts nested base: suffixed + bare share one entry forwarding the .d.ts', () => {
     const resolver = createResolver(['pkg/foo.ts', 'pkg/foo.d.ts'], {
       'pkg/foo.ts': '/src/foo.ts',
       'pkg/foo.d.ts': '/src/foo.d.ts',
     });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(1);
-    const group = groups[0]!;
-    expect(group.entries).toHaveLength(1);
-    expect(group.entries[0]!.sourceFile).toBe('/src/foo.ts');
-    expect(group.entries[0]!.definitionFile).toBe('/src/foo.d.ts');
+    const g = group(groups, 'pkg');
+    expect(g.entries).toHaveLength(1);
+    const e = g.entries[0]!;
+    expect(e.canonical).toBe('foo');
+    expect(e.aliases).toEqual(['foo.ts']);
+    expect(e.definitionFile).toBe('/src/foo.d.ts');
+    expect(e.sourceFile).toBeUndefined();
   });
 
-  it('foo.d.ts + foo.ts produces one entry with both slots filled (definition checked first)', () => {
-    const resolver = createResolver(['pkg/foo.d.ts', 'pkg/foo.ts'], {
-      'pkg/foo.d.ts': '/src/foo.d.ts',
-      'pkg/foo.ts': '/src/foo.ts',
+  it('.js + .d.ts: suffixed + bare share one entry forwarding the .d.ts (real types win)', () => {
+    const resolver = createResolver(['_framework/dotnet.js', '_framework/dotnet.d.ts'], {
+      '_framework/dotnet.js': '/dist/_framework/dotnet.js',
+      '_framework/dotnet.d.ts': '/dist/_framework/dotnet.d.ts',
     });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    const group = groups[0]!;
-    expect(group.entries).toHaveLength(1);
-    expect(group.entries[0]!.sourceFile).toBe('/src/foo.ts');
-    expect(group.entries[0]!.definitionFile).toBe('/src/foo.d.ts');
+    const g = group(groups, '_framework');
+    expect(g.entries).toHaveLength(1);
+    const e = g.entries[0]!;
+    expect(e.canonical).toBe('dotnet');
+    expect(e.aliases).toEqual(['dotnet.js']);
+    expect(e.definitionFile).toBe('/dist/_framework/dotnet.d.ts');
+    expect(e.sourceFile).toBeUndefined();
   });
 
-  it('nested route (pkg/a/b/c.ts) extracts correct packageName and subpath', () => {
+  it('type-less .js: suffixed + bare share one compiled entry, bare canonical', () => {
+    const resolver = createResolver(['_framework/blazor.webassembly.js'], {
+      '_framework/blazor.webassembly.js': '/dist/_framework/blazor.webassembly.js',
+    });
+    const groups = new FileDiscoverer(resolver).discover();
+
+    const g = group(groups, '_framework');
+    expect(g.entries).toHaveLength(1);
+    const e = g.entries[0]!;
+    expect(e.canonical).toBe('blazor.webassembly');
+    expect(e.aliases).toEqual(['blazor.webassembly.js']);
+    expect(e.sourceFile).toBe('/dist/_framework/blazor.webassembly.js');
+    expect(e.definitionFile).toBeUndefined();
+  });
+
+  it('.js + .ts (no .d.ts): two entries; bare joins the .ts unit (authored wins)', () => {
+    const resolver = createResolver(['pkg/mod.js', 'pkg/mod.ts'], {
+      'pkg/mod.js': '/src/mod.js',
+      'pkg/mod.ts': '/src/mod.ts',
+    });
+    const groups = new FileDiscoverer(resolver).discover();
+
+    const g = group(groups, 'pkg');
+    expect(g.entries).toHaveLength(2);
+
+    const js = entry(g, 'mod.js');
+    expect(js.aliases).toEqual([]);
+    expect(js.sourceFile).toBe('/src/mod.js');
+
+    const ts = entry(g, 'mod');
+    expect(ts.aliases).toEqual(['mod.ts']);
+    expect(ts.sourceFile).toBe('/src/mod.ts');
+  });
+
+  it('.js + .ts + .d.ts: all three specifiers forward the single .d.ts', () => {
+    const resolver = createResolver(['pkg/mod.js', 'pkg/mod.ts', 'pkg/mod.d.ts'], {
+      'pkg/mod.js': '/src/mod.js',
+      'pkg/mod.ts': '/src/mod.ts',
+      'pkg/mod.d.ts': '/src/mod.d.ts',
+    });
+    const groups = new FileDiscoverer(resolver).discover();
+
+    const g = group(groups, 'pkg');
+    expect(g.entries).toHaveLength(1);
+    const e = g.entries[0]!;
+    expect(e.canonical).toBe('mod');
+    expect(e.aliases).toEqual(['mod.js', 'mod.ts']);
+    expect(e.definitionFile).toBe('/src/mod.d.ts');
+  });
+
+  it('nested route extracts packageName (first segment) and keeps deep subpaths', () => {
     const resolver = createResolver(['pkg/a/b/c.ts'], { 'pkg/a/b/c.ts': '/src/pkg/a/b/c.ts' });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    const group = groups[0]!;
-    expect(group.packageName).toBe('pkg');
-    expect(group.entries[0]!.subpath).toBe('a/b/c');
+    const g = group(groups, 'pkg');
+    const e = entry(g, 'a/b/c');
+    expect(e.aliases).toEqual(['a/b/c.ts']);
+    expect(e.sourceFile).toBe('/src/pkg/a/b/c.ts');
   });
 
-  it('multiple subpaths in one package produce one group with multiple entries', () => {
-    const resolver = createResolver(['pkg/mod1.ts', 'pkg/mod2.ts'], {
-      'pkg/mod1.ts': '/src/mod1.ts',
-      'pkg/mod2.ts': '/src/mod2.ts',
+  it('multiple subpaths in one package produce multiple entries', () => {
+    const resolver = createResolver(['pkg/mod1.d.ts', 'pkg/mod2.d.ts'], {
+      'pkg/mod1.d.ts': '/src/mod1.d.ts',
+      'pkg/mod2.d.ts': '/src/mod2.d.ts',
     });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(1);
-    const group = groups[0]!;
-    expect(group.entries).toHaveLength(2);
-    expect(group.entries[0]!.subpath).toBe('mod1');
-    expect(group.entries[1]!.subpath).toBe('mod2');
+    const g = group(groups, 'pkg');
+    expect(g.entries).toHaveLength(2);
+    expect(entry(g, 'mod1').definitionFile).toBe('/src/mod1.d.ts');
+    expect(entry(g, 'mod2').definitionFile).toBe('/src/mod2.d.ts');
   });
 
-  it('multiple packages produce multiple groups in first-seen order', () => {
-    const resolver = createResolver(['pkg1.ts', 'pkg2.ts'], {
-      'pkg1.ts': '/src/pkg1.ts',
-      'pkg2.ts': '/src/pkg2.ts',
+  it('multiple packages produce multiple groups', () => {
+    const resolver = createResolver(['pkg1.d.ts', 'pkg2.d.ts'], {
+      'pkg1.d.ts': '/src/pkg1.d.ts',
+      'pkg2.d.ts': '/src/pkg2.d.ts',
     });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(2);
-    expect(groups[0]!.packageName).toBe('pkg1');
-    expect(groups[1]!.packageName).toBe('pkg2');
+    expect(groups.map((g) => g.packageName)).toEqual(['pkg1', 'pkg2']);
   });
 
   it('non-compilable routes (.css, .wasm, .mjs) are skipped', () => {
@@ -118,101 +174,35 @@ describe('FileDiscoverer', () => {
       'mod.wasm': '/src/mod.wasm',
       'util.mjs': '/src/util.mjs',
     });
-    const discoverer = new FileDiscoverer(resolver);
-
-    const groups = discoverer.discover();
+    const groups = new FileDiscoverer(resolver).discover();
 
     expect(groups).toHaveLength(0);
   });
 
-  it('type-less .js route becomes a sourceFile entry that keeps its extension', () => {
-    const resolver = createResolver(['_framework/blazor.webassembly.js'], {
-      '_framework/blazor.webassembly.js': '/dist/_framework/blazor.webassembly.js',
+  it('routes resolving to null are excluded', () => {
+    const resolver = createResolver(['typeshim.d.ts', 'orphan.d.ts'], {
+      'typeshim.d.ts': '/src/typeshim.d.ts',
+      'orphan.d.ts': null,
     });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(1);
-    const group = groups[0]!;
-    expect(group.packageName).toBe('_framework');
-    expect(group.entries).toHaveLength(1);
-    const entry = group.entries[0]!;
-    // Imported WITH the extension, so the subpath keeps `.js`.
-    expect(entry.subpath).toBe('blazor.webassembly.js');
-    expect(entry.sourceFile).toBe('/dist/_framework/blazor.webassembly.js');
-    expect(entry.definitionFile).toBeUndefined();
+    expect(groups.map((g) => g.packageName)).toEqual(['typeshim']);
   });
 
-  it('root-level .js route uses the file name (with extension) as the package', () => {
-    const resolver = createResolver(['boot.js'], { 'boot.js': '/dist/boot.js' });
-    const discoverer = new FileDiscoverer(resolver);
-
-    const group = discoverer.discover()[0]!;
-    expect(group.packageName).toBe('boot.js');
-    expect(group.entries[0]!.subpath).toBe('');
-    expect(group.entries[0]!.sourceFile).toBe('/dist/boot.js');
-  });
-
-  it('.js route is skipped when a .d.ts sibling covers the same specifier', () => {
-    const resolver = createResolver(['_framework/dotnet.js', '_framework/dotnet.d.ts'], {
-      '_framework/dotnet.js': '/dist/_framework/dotnet.js',
-      '_framework/dotnet.d.ts': '/dist/_framework/dotnet.d.ts',
+  it('root-level .js + .ts emit three packages; bare owned by the .ts source', () => {
+    const resolver = createResolver(['typeshim.js', 'typeshim.ts'], {
+      'typeshim.js': '/dist/typeshim.js',
+      'typeshim.ts': '/dist/typeshim.ts',
     });
-    const discoverer = new FileDiscoverer(resolver);
+    const groups = new FileDiscoverer(resolver).discover();
 
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(1);
-    const group = groups[0]!;
-    // Only the definition-backed entry survives; no redundant `dotnet.js` shim.
-    expect(group.entries).toHaveLength(1);
-    expect(group.entries[0]!.subpath).toBe('dotnet');
-    expect(group.entries[0]!.definitionFile).toBe('/dist/_framework/dotnet.d.ts');
-  });
-
-  it('.js dedup ignores route order (.js seen before its .d.ts sibling)', () => {
-    const resolver = createResolver(['pkg/mod.js', 'pkg/mod.d.ts'], {
-      'pkg/mod.js': '/dist/mod.js',
-      'pkg/mod.d.ts': '/dist/mod.d.ts',
-    });
-    const discoverer = new FileDiscoverer(resolver);
-
-    const group = discoverer.discover()[0]!;
-    expect(group.entries).toHaveLength(1);
-    expect(group.entries[0]!.subpath).toBe('mod');
-    expect(group.entries[0]!.definitionFile).toBe('/dist/mod.d.ts');
-  });
-
-  it('a type-less .js is shimmed alongside a typed sibling in the same package', () => {
-    const resolver = createResolver(
-      ['_framework/dotnet.d.ts', '_framework/blazor.webassembly.js'],
-      {
-        '_framework/dotnet.d.ts': '/dist/_framework/dotnet.d.ts',
-        '_framework/blazor.webassembly.js': '/dist/_framework/blazor.webassembly.js',
-      },
-    );
-    const discoverer = new FileDiscoverer(resolver);
-
-    const group = discoverer.discover()[0]!;
-    expect(group.packageName).toBe('_framework');
-    expect(group.entries).toHaveLength(2);
-    const dotnet = group.entries.find((e) => e.subpath === 'dotnet')!;
-    const blazor = group.entries.find((e) => e.subpath === 'blazor.webassembly.js')!;
-    expect(dotnet.definitionFile).toBe('/dist/_framework/dotnet.d.ts');
-    expect(blazor.sourceFile).toBe('/dist/_framework/blazor.webassembly.js');
-  });
-
-  it('route resolving to null is excluded', () => {
-    const resolver = createResolver(['typeshim.ts', 'orphan.ts'], {
-      'typeshim.ts': '/src/typeshim.ts',
-      'orphan.ts': null,
-    });
-    const discoverer = new FileDiscoverer(resolver);
-
-    const groups = discoverer.discover();
-
-    expect(groups).toHaveLength(1);
-    expect(groups[0]!.packageName).toBe('typeshim');
+    expect(groups.map((g) => g.packageName).sort()).toEqual([
+      'typeshim',
+      'typeshim.js',
+      'typeshim.ts',
+    ]);
+    expect(group(groups, 'typeshim.js').entries[0]!.sourceFile).toBe('/dist/typeshim.js');
+    expect(group(groups, 'typeshim.ts').entries[0]!.sourceFile).toBe('/dist/typeshim.ts');
+    expect(group(groups, 'typeshim').entries[0]!.sourceFile).toBe('/dist/typeshim.ts');
   });
 });

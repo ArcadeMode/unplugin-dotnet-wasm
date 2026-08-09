@@ -351,6 +351,7 @@ The plugin is build-time only today. Scope so far and what's planned:
   - the SDK's own `dotnet.d.ts`[^dotnet-dts-net11]
   - your own `.ts` files under `wwwroot`
   - generated output like `typeshim.ts` ([TypeShim](https://github.com/ArcadeMode/TypeShim))
+  - type-less `.js` assets (e.g. the SDK's `blazor.webassembly.js` boot module), compiled to a best-effort `.d.ts` so bare imports resolve without a hand-written `declare module`[^js-shim-any] — reachable both with and without the `.js` extension (e.g. `_framework/blazor.webassembly.js` and `_framework/blazor.webassembly`)[^shim-casing]
 
 **Planned**
 
@@ -387,3 +388,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 [^bun-no-watch]: Bun's build API has no watch mode, so the plugin can't re-run on source changes. Watch support is tracked upstream in [oven-sh/bun#4689](https://github.com/oven-sh/bun/issues/4689).
 
 [^dotnet-dts-net11]: As of .NET 11, the MSBuild property `WasmEmitTypeScriptDefinitions=true` includes `dotnet.d.ts` in the build output.
+
+[^js-shim-any]: A type-less `.js` asset is compiled through `tsc --allowJs`, so the types are whatever TypeScript can infer from the (often minified) source — frequently `any`. A no-export module (like `blazor.webassembly.js`) yields an empty declaration, which still satisfies side-effect imports (`import '_framework/blazor.webassembly.js';`), including under `noUncheckedSideEffectImports`.
+
+[^shim-casing]: Generated specifiers are lower-cased (the plugin's asset lookup is case-insensitive), so a mixed-case asset such as `_framework/Microsoft.DotNet.HotReload.WebAssembly.Browser.lib.module.js` is only typed via its lower-cased specifier; import it in lower case, or add a manual `declare module` for the exact casing.

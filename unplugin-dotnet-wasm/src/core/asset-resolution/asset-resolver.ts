@@ -7,8 +7,7 @@ import { resolve, dirname } from 'node:path';
 import { BINARY_EXTENSIONS_REGEX } from '../constants';
 
 /**
- * Resolves bare/virtual import specifiers against a manifest-backed VFS,
- * with endpoint-route aliasing for fingerprinted asset filenames.
+ * Resolves bare/virtual import specifiers with endpoint-route aliasing for fingerprinted asset filenames.
  */
 export class AssetResolver {
   constructor(
@@ -20,10 +19,6 @@ export class AssetResolver {
    * Resolve a bundler `source` specifier to an absolute physical path or `null` if the specifier is unrecognized.
    */
   resolve(source: string): string | null {
-    // Collapse relative specifiers (e.g. the bundler-friendly boot config's
-    // `./../_content/<pkg>/<pkg>.lib.module.js`) to their canonical manifest
-    // route. normalizePath preserves case for the VFS physical-file probe;
-    // only the endpoint-map lookup below case-folds via the lookupKey.
     const { path: virtualPath } = normalizePath(source);
     if (virtualPath === '') return null;
 
