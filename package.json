@@ -23,6 +23,11 @@
     "build:sample:vite-blazor": "dotnet build samples/BlazorLibrary/BlazorLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor build",
     "clean:sample:dotnet-blazor": "dotnet clean samples/BlazorLibrary/BlazorLibrary.csproj -c Debug && dotnet clean samples/BlazorLibrary/BlazorLibrary.csproj -c Release",
 
+    "dev:sample:webpack-blazor": "pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor dev",
+    "preview:sample:webpack-blazor": "pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor preview",
+    "build:sample:webpack-blazor": "dotnet build samples/webpack-vanilla-blazor/Library/Library.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor build",
+    "clean:sample:webpack-blazor": "dotnet clean samples/webpack-vanilla-blazor/Library/Library.csproj -c Debug && dotnet clean samples/webpack-vanilla-blazor/Library/Library.csproj -c Release",
+
     "build:fixtures": "node scripts/build-fixtures.js",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",
     "clean:fixture": "pnpm --filter \"@dotnet-wasm-bundler/library-app-*-*-fixture\" run clean",
