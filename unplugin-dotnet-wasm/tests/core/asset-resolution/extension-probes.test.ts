@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ExtensionProbes } from './extension-probes';
+import { ExtensionProbes } from '@src/core/asset-resolution/extension-probes';
 
 const BARE_EXPANSION = [
   'bare',

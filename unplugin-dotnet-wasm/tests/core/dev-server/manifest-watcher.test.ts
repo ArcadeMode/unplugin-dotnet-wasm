@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { Logger } from '../logger';
-import { ManifestWatcher } from './manifest-watcher';
+import type { Logger } from '@src/core/logger';
+import { ManifestWatcher } from '@src/core/dev-server/manifest-watcher';
 
 const handlers: Record<string, (...args: unknown[]) => void> = {};
 const closeMock = vi.fn().mockResolvedValue(undefined);

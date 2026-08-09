@@ -2,13 +2,13 @@
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import type { SourceFileChangeTracker } from './source-file-change-tracker';
-import type { TsDefinitionEmitter } from './ts-definition-emitter';
-import type { Logger } from '../logger';
-import { ShimPackageGenerator } from './shim-package-generator';
-import { NodeModulesLocator } from './node-modules-locator';
-import { FileDiscoverer } from './file-discoverer';
+import type { AssetResolver } from '@src/core/asset-resolution/asset-resolver';
+import type { SourceFileChangeTracker } from '@src/core/type-shims/source-file-change-tracker';
+import type { TsDefinitionEmitter } from '@src/core/type-shims/ts-definition-emitter';
+import type { Logger } from '@src/core/logger';
+import { ShimPackageGenerator } from '@src/core/type-shims/shim-package-generator';
+import { NodeModulesLocator } from '@src/core/type-shims/node-modules-locator';
+import { FileDiscoverer } from '@src/core/type-shims/file-discoverer';
 
 function createLogger(): Logger {
   return { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
