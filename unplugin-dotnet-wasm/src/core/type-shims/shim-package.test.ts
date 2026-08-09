@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { ShimPackage } from './shim-package';
 import type { NodeModulesLocator } from './node-modules-locator';
 
-// Mock locator that returns a fixed directory
 function createMockLocator(baseDir: string): NodeModulesLocator {
   return {
     resolve: () => baseDir,
@@ -72,7 +71,6 @@ describe('ShimPackage', () => {
     const locator = createMockLocator('/test/node_modules');
     const pkg = new ShimPackage(locator, 'my-pkg');
 
-    // Add in non-sorted order; two aliases share one file.
     pkg.addExport('foo.js', 'foo/index.d.ts');
     pkg.addExport('foo', 'foo/index.d.ts');
 

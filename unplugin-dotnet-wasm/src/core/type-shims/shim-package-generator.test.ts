@@ -14,7 +14,6 @@ function createLogger(): Logger {
   return { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
 }
 
-/** Fake resolver: `routes()` yields the given routes; `resolve()` maps them (missing â†’ null). */
 function createResolver(
   routes: string[],
   resolveMap: Record<string, string | null>,
@@ -45,13 +44,11 @@ function createEmitter(
   };
 }
 
-/** A temp root and its (not-yet-created) node_modules dir - where the generator writes. */
 function tempRoot(): { root: string; nm: string } {
   const root = mkdtempSync(join(tmpdir(), 'gen-'));
   return { root, nm: join(root, 'node_modules') };
 }
 
-/** Compile calls made for a specific source path. */
 function compileCallsFor(emitter: { compileToDTS: ReturnType<typeof vi.fn> }, src: string): number {
   return emitter.compileToDTS.mock.calls.filter((c) => c[0] === src).length;
 }
@@ -65,7 +62,7 @@ describe('ShimPackageGenerator.generate', () => {
         'typeshim.ts': '/src/typeshim.ts',
         '_framework/dotnet.d.ts': '/src/dotnet.d.ts',
         'app.css': '/src/app.css',
-        'orphan.ts': null, // resolves to nothing → skipped
+        'orphan.ts': null,
       },
     );
     const emitter = createEmitter(
@@ -82,7 +79,6 @@ describe('ShimPackageGenerator.generate', () => {
 
     await generator.generate();
 
-    // Bare `typeshim` owns the file; suffixed `typeshim.ts` is a sibling package.
     expect(readFileSync(join(nm, 'typeshim', 'index.d.ts'), 'utf8')).toBe(
       '// compiled:/src/typeshim.ts\n',
     );
@@ -92,10 +88,8 @@ describe('ShimPackageGenerator.generate', () => {
     expect(readFileSync(join(nm, 'typeshim.ts', 'index.d.ts'), 'utf8')).toBe(
       '// compiled:/src/typeshim.ts\n',
     );
-    // Compiled once despite backing two packages (compile-once cache).
     expect(compileCallsFor(emitter, '/src/typeshim.ts')).toBe(1);
 
-    // Nested `.d.ts` → bare `_framework/dotnet` forwards the definition.
     expect(readFileSync(join(nm, '_framework', 'dotnet', 'index.d.ts'), 'utf8')).toBe(
       "export * from '/src/dotnet';\n",
     );
@@ -169,7 +163,6 @@ describe('ShimPackageGenerator.generate', () => {
 
   it('skips emit for an unchanged existing file but keeps the export', async () => {
     const { root, nm } = tempRoot();
-    // Pre-existing generated package (marked as ours with the sentinel).
     mkdirSync(join(nm, '_framework', 'dotnet'), { recursive: true });
     writeFileSync(
       join(nm, '_framework', '.dotnet-wasm-typeshim'),
@@ -185,7 +178,7 @@ describe('ShimPackageGenerator.generate', () => {
           '_framework/dotnet.d.ts': '/src/dotnet.d.ts',
         }),
       ),
-      createTracker(false), // unchanged
+      createTracker(false),
       emitter,
       createLogger(),
     );
@@ -209,13 +202,12 @@ describe('ShimPackageGenerator.generate', () => {
       new NodeModulesLocator(root),
       new FileDiscoverer(createResolver(['typeshim.ts'], { 'typeshim.ts': '/src/typeshim.ts' })),
       createTracker(true),
-      createEmitter(undefined, () => null), // compileToDTS returns null
+      createEmitter(undefined, () => null),
       createLogger(),
     );
 
     await generator.generate();
 
-    // Neither the bare nor the suffixed package is created.
     expect(existsSync(join(nm, 'typeshim'))).toBe(false);
     expect(existsSync(join(nm, 'typeshim.ts'))).toBe(false);
   });
@@ -245,7 +237,6 @@ describe('ShimPackageGenerator.generate', () => {
 
   it('detects a foreign package and leaves it untouched, warning instead of clobbering', async () => {
     const { root, nm } = tempRoot();
-    // Pre-seed with a foreign package (no sentinel).
     mkdirSync(join(nm, '_framework'), { recursive: true });
     const pkgJsonPath = join(nm, '_framework', 'package.json');
     const pkgJsonContent = '{"name":"_framework","version":"9.9.9"}\n';

@@ -6,18 +6,12 @@ import { normalizePath } from '../path-utils';
 import { resolve, dirname } from 'node:path';
 import { BINARY_EXTENSIONS_REGEX } from '../constants';
 
-/**
- * Resolves bare/virtual import specifiers with endpoint-route aliasing for fingerprinted asset filenames.
- */
 export class AssetResolver {
   constructor(
     private readonly vfs: VirtualFileSystem,
     private readonly endpointLookup: EndpointLookup,
   ) {}
 
-  /**
-   * Resolve a bundler `source` specifier to an absolute physical path or `null` if the specifier is unrecognized.
-   */
   resolve(source: string): string | null {
     const { path: virtualPath } = normalizePath(source);
     if (virtualPath === '') return null;
@@ -39,9 +33,6 @@ export class AssetResolver {
     return null;
   }
 
-  /**
-   * Return the canonical, fingerprint-free route for a specifier, or `null` if the specifier is unrecognized.
-   */
   canonicalRoute(source: string): string | null {
     const { path } = normalizePath(source);
     if (path === '') return null;
@@ -49,8 +40,7 @@ export class AssetResolver {
     for (const probe of new ExtensionProbes(path)) {
       const match = this.endpointLookup.get(normalizePath(probe));
       if (match !== undefined) {
-        // Fingerprinted endpoints carry a `label` pointing at their canonical
-        // route; canonical endpoints have none, so the probe route is canonical.
+        // Fingerprinted endpoints use `label` for the canonical route; bare ones have none.
         return match.label ?? probe;
       }
     }
@@ -72,20 +62,13 @@ export class AssetResolver {
     return this.endpointLookup.get(normalizePath(route))?.responseHeaders;
   }
 
-  /**
-   * Enumerate the canonical routes this resolver knows about, skipping
-   * fingerprint-alias endpoints (those carry a `label` pointing back to their
-   * canonical route). Each yielded route is resolvable via {@link resolve}.
-   */
+  // Skips fingerprint-alias endpoints (those with a `label`).
   *routes(): IterableIterator<string> {
     for (const [route, match] of this.endpointLookup) {
       if (match.label === undefined) yield route;
     }
   }
 
-  /**
-   * @returns all physical content roots that the asset resolver covers
-   */
   roots(): string[] {
     return this.vfs.listRoots();
   }

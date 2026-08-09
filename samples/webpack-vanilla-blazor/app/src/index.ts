@@ -1,11 +1,8 @@
 import './styles.css';
 
-// This is the blazor entrypoint, importing it is enough to get all dependencies
-// NOTE ON AUTO-START: The Blazor boot script does not auto-start if the entry is loaded as a module!
-// (See webpack.config.js for the `scriptLoading: 'module'` option.)
+// Blazor does not auto-start if the entry is loaded as a module (see webpack.config.js).
 import '_framework/blazor.webassembly';
-// await window.Blazor.start(); // <-- to start Blazor manually (again: if module)
+// await window.Blazor.start();
 
-// .NET static web assets, importing places them in the webpack output.
 import 'favicon.png';
 import './sample-data/weather.json';

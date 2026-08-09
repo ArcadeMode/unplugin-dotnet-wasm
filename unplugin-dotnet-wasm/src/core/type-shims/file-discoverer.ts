@@ -5,7 +5,6 @@ const DECL_EXT = '.d.ts';
 const JS_EXT = '.js';
 
 export interface DiscoveryEntry {
-  /** Owns the physical shim file. Bare (extension-less) wins when present. */
   canonical: string;
   aliases: string[];
   sourceFile?: string;

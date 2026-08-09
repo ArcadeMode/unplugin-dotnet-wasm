@@ -4,4 +4,4 @@ Bare Webpack front-end that bundles a Blazor WebAssembly Library via `unplugin-d
 
 ## Differences from the default Blazor sample
 
-- Bootstrap is an npm dependency of the webpack app (`bootstrap`), imported from `app/src/styles.css`, instead of the template’s `Library/wwwroot/lib` (LibMan) copy.
+- Bootstrap is an npm dependency of the webpack app (`bootstrap`), imported from `app/src/styles.css`, instead of the template’s `Library/wwwroot/lib` copy.

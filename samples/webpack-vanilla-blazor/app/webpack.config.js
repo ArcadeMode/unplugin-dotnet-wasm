@@ -34,15 +34,11 @@ module.exports = (env, argv) => {
           use: [MiniCssExtractPlugin.loader, 'css-loader'],
         },
         {
-          // The Weather page fetches this JSON at runtime; emit it at a stable path
-          // so Blazor's `HttpClient` GET of `sample-data/weather.json` resolves.
           test: /sample-data[\\/].+\.json$/,
           type: 'asset/resource',
           generator: { filename: 'sample-data/[name][ext]' },
         },
         {
-          // favicon.png is a .NET static web asset resolved by unplugin-dotnet-wasm.
-          // Emit it at its plain name so the <link rel="icon"> in index.html resolves.
           test: /\.png$/,
           type: 'asset/resource',
           generator: { filename: '[name][ext]' },
@@ -50,8 +46,6 @@ module.exports = (env, argv) => {
       ],
     },
     plugins: [
-      // Makes the fast `dotnet build` output of the Blazor Library directly bundleable,
-      // and serves the runtime + static web assets through the dev server.
       DotnetWasm({
         projectName: 'Library',
         projectRoot: path.resolve(__dirname, '../Library'),
@@ -65,21 +59,19 @@ module.exports = (env, argv) => {
       }),
       new HtmlWebpackPlugin({
         template: './index.html',
-        // If you load the entry as a module then Blazor's boot script does NOT auto-start
+        // If set to 'module', Blazor will NOT auto-start — call Blazor.start() yourself.
         // scriptLoading: 'module',
       }),
     ],
     devServer: {
-      // Blazor's client-side router needs unknown routes to fall back to index.html.
+      // Required for Blazor's client-side router.
       historyApiFallback: true,
       hot: false,
       open: true,
       port: 5080,
     },
-    // Source maps that don't choke on the dotnet runtime's emitted JS.
     devtool: isProduction ? false : 'source-map',
-    // The .NET SDK's `blazor.webassembly.js` uses dynamic requires that webpack
-    // can't statically analyze; the plugin still resolves them correctly at runtime.
+    // blazor.webassembly.js uses dynamic requires webpack can't analyze; safe at runtime.
     ignoreWarnings: [
       { message: /Critical dependency: the request of a dependency is an expression/ },
     ],
