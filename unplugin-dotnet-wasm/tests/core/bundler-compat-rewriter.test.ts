@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BundlerCompatRewriter, type BundlerFramework } from './bundler-compat-rewriter';
+import { BundlerCompatRewriter, type BundlerFramework } from '@src/core/bundler-compat-rewriter';
 
 describe('BundlerCompatRewriter - vite', () => {
   const rewriter = new BundlerCompatRewriter('vite');

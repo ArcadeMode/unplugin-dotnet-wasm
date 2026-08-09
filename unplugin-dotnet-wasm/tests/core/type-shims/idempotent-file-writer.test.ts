@@ -3,7 +3,7 @@ import { writeFile, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { IdempotentFileWriter } from './idempotent-file-writer';
+import { IdempotentFileWriter } from '@src/core/type-shims/idempotent-file-writer';
 
 describe('IdempotentFileWriter', () => {
   it('writes when the file is absent', async () => {

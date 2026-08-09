@@ -87,10 +87,12 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "build:fixture": "dotnet build tests/fixtures/Library/Library.csproj -c Debug && dotnet publish tests/fixtures/Library/Library.csproj -c Release",
+    "clean:fixture": "dotnet clean tests/fixtures/Library/Library.csproj -c Debug && dotnet clean tests/fixtures/Library/Library.csproj -c Release && node -e \"require('node:fs').rmSync('tests/fixtures/Library/bin/Release/net10.0/publish', { recursive: true, force: true })\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist && pnpm clean:fixture"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

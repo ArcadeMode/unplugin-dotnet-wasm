@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { describe, it, expect, vi } from 'vitest';
-import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import type { Logger } from '../logger';
-import { createAssetMiddleware } from './asset-middleware';
+import type { AssetResolver } from '@src/core/asset-resolution/asset-resolver';
+import type { Logger } from '@src/core/logger';
+import { createAssetMiddleware } from '@src/core/dev-server/asset-middleware';
 
 interface FakeReq {
   method?: string;

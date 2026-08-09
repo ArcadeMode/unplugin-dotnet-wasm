@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { collapseDotSegments, normalizePath } from './path-utils';
+import { collapseDotSegments, normalizePath } from '@src/core/path-utils';
 
 describe('collapseDotSegments', () => {
   it("collapses './' segments", () => {

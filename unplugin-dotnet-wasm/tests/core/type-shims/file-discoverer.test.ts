@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { AssetResolver } from '../asset-resolution/asset-resolver';
-import { FileDiscoverer } from './file-discoverer';
+import type { AssetResolver } from '@src/core/asset-resolution/asset-resolver';
+import { FileDiscoverer } from '@src/core/type-shims/file-discoverer';
 
 function createResolver(
   routes: string[],

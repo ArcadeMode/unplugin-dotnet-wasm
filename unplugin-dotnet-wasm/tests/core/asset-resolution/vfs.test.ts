@@ -2,15 +2,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseRuntimeManifest } from '../manifest-parsing/manifest-runtime';
-import { buildVfs, type VirtualFileSystem } from './vfs';
+import { parseRuntimeManifest } from '@src/core/manifest-parsing/manifest-runtime';
+import { buildVfs, type VirtualFileSystem } from '@src/core/asset-resolution/vfs';
 
-const SAMPLE_ROOT = resolve(__dirname, '../../../../samples/SampleLibrary');
+const LIBRARY_ROOT = resolve(__dirname, '../../fixtures/Library');
 const MANIFEST_PATH = resolve(
-  SAMPLE_ROOT,
-  'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
+  LIBRARY_ROOT,
+  'bin/Debug/net10.0/Library.staticwebassets.runtime.json',
 );
-const BIN_WWWROOT = resolve(SAMPLE_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
+const BIN_WWWROOT = resolve(LIBRARY_ROOT, 'bin', 'Debug', 'net10.0', 'wwwroot');
 
 describe('buildVfs with real fixture', () => {
   let vfs: VirtualFileSystem;
@@ -31,9 +31,7 @@ describe('buildVfs with real fixture', () => {
   it('list _framework returns direct children with full virtual paths', () => {
     const children = vfs.list('_framework');
     expect(children.some((c) => /^_framework\/dotnet(\.[a-z0-9]+)?\.js$/.test(c))).toBe(true);
-    expect(children.some((c) => /^_framework\/SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(
-      true,
-    );
+    expect(children.some((c) => /^_framework\/Library(\.[a-z0-9]+)?\.wasm$/.test(c))).toBe(true);
     for (const c of children) {
       expect(c.split('/'), `"${c}" should have exactly 2 segments`).toHaveLength(2);
     }

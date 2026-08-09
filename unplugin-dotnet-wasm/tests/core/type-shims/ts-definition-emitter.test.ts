@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { NULL_LOGGER, type Logger } from '../logger';
-import { TsDefinitionEmitter, selectTsStrategy } from './ts-definition-emitter';
+import { NULL_LOGGER, type Logger } from '@src/core/logger';
+import { TsDefinitionEmitter, selectTsStrategy } from '@src/core/type-shims/ts-definition-emitter';
 
 describe('TsDefinitionEmitter.forwardDTS', () => {
   it('returns export statement with posix path for .d.ts', () => {

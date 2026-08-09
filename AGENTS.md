@@ -7,7 +7,8 @@ Run all commands from repo root unless noted.
 ## Plugin - `unplugin-dotnet-wasm`
 
 - Build: `pnpm build:plugin`
-- Unit test: `pnpm test:unit` (auto-builds `SampleLibrary` first)
+- Build unit-test Library fixture: `pnpm build:plugin:fixture`
+- Unit test: `pnpm test:unit` (requires fixture build; tests live under `unplugin-dotnet-wasm/tests/`)
 
 ## Fixture-builder E2E - `test/e2e` (CI)
 

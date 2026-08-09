@@ -9,8 +9,11 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { IdempotentFileWriter } from './idempotent-file-writer';
-import { PackageCollisionChecker, type CollisionSentinelFile } from './package-collision-checker';
+import { IdempotentFileWriter } from '@src/core/type-shims/idempotent-file-writer';
+import {
+  PackageCollisionChecker,
+  type CollisionSentinelFile,
+} from '@src/core/type-shims/package-collision-checker';
 
 const TEST_SENTINEL: CollisionSentinelFile = {
   name: '.test-sentinel',

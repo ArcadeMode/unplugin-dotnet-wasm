@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AssetResolver } from './asset-resolver';
-import { type VirtualFileSystem, type ResolvedAsset } from './vfs';
-import { EndpointLookup, type EndpointMatch } from './endpoint-lookup';
-import { normalizePath } from '../path-utils';
+import { AssetResolver } from '@src/core/asset-resolution/asset-resolver';
+import { type VirtualFileSystem, type ResolvedAsset } from '@src/core/asset-resolution/vfs';
+import { EndpointLookup, type EndpointMatch } from '@src/core/asset-resolution/endpoint-lookup';
+import { normalizePath } from '@src/core/path-utils';
 
 function stubVfs(opts?: {
   resolve?: VirtualFileSystem['resolve'];

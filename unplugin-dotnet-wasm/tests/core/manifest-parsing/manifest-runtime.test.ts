@@ -1,15 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { parseRuntimeManifest, ManifestParseError } from './manifest-runtime';
+import {
+  parseRuntimeManifest,
+  ManifestParseError,
+} from '@src/core/manifest-parsing/manifest-runtime';
 
 const FIXTURE_MANIFEST = resolve(
   __dirname,
-  '../../../../samples/SampleLibrary/bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
+  '../../fixtures/Library/bin/Debug/net10.0/Library.staticwebassets.runtime.json',
 );
 
 describe('parseRuntimeManifest', () => {
-  it('parses the real SampleLibrary manifest without errors', () => {
+  it('parses the real Library manifest without errors', () => {
     const raw = readFileSync(FIXTURE_MANIFEST, 'utf8');
     expect(() => parseRuntimeManifest(raw)).not.toThrow();
   });
@@ -44,13 +47,11 @@ describe('parseRuntimeManifest', () => {
     expect(asset?.SubPath).toMatch(/^_framework\/dotnet\.[a-z0-9]+\.js$/);
   });
 
-  it('_framework contains a SampleLibrary.wasm asset (fingerprinted or canonical)', () => {
+  it('_framework contains a Library.wasm asset (fingerprinted or canonical)', () => {
     const manifest = parseRuntimeManifest(readFileSync(FIXTURE_MANIFEST, 'utf8'));
     const frameworkChildren = manifest.Root.Children?.['_framework']?.Children ?? {};
-    const key = Object.keys(frameworkChildren).find((k) =>
-      /^SampleLibrary(\.[a-z0-9]+)?\.wasm$/.test(k),
-    );
-    expect(key, 'expected a SampleLibrary.wasm entry in _framework').toBeDefined();
+    const key = Object.keys(frameworkChildren).find((k) => /^Library(\.[a-z0-9]+)?\.wasm$/.test(k));
+    expect(key, 'expected a Library.wasm entry in _framework').toBeDefined();
     const asset = frameworkChildren[key!]?.Asset;
     expect(asset).not.toBeNull();
   });

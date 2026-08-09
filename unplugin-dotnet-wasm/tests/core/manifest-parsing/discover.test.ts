@@ -1,34 +1,32 @@
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
-import { discoverManifests } from './discover';
+import { discoverManifests } from '@src/core/manifest-parsing/discover';
 
-const SAMPLE_ROOT = resolve(__dirname, '../../../../samples/SampleLibrary');
+const LIBRARY_ROOT = resolve(__dirname, '../../fixtures/Library');
 const EXPECTED_MANIFEST = resolve(
-  SAMPLE_ROOT,
-  'bin/Debug/net10.0/SampleLibrary.staticwebassets.runtime.json',
+  LIBRARY_ROOT,
+  'bin/Debug/net10.0/Library.staticwebassets.runtime.json',
 );
-const PUBLISH_DIR = resolve(SAMPLE_ROOT, 'bin/Release/net10.0/publish');
+const PUBLISH_DIR = resolve(LIBRARY_ROOT, 'bin/Release/net10.0/publish');
 
 describe('discoverManifests with real fixture', () => {
   it('finds both manifests with explicit TFM', () => {
     const result = discoverManifests({
-      projectRoot: SAMPLE_ROOT,
-      projectName: 'SampleLibrary',
+      projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
       configuration: 'Debug',
       targetFramework: 'net10.0',
     });
     expect(result.runtimeManifestPath).toBe(EXPECTED_MANIFEST);
-    expect(result.endpointsManifestPath).toMatch(
-      /SampleLibrary\.staticwebassets\.endpoints\.json$/,
-    );
+    expect(result.endpointsManifestPath).toMatch(/Library\.staticwebassets\.endpoints\.json$/);
   });
 
   it('throws for an unbuilt configuration', () => {
     expect(() =>
       discoverManifests({
-        projectRoot: SAMPLE_ROOT,
-        projectName: 'SampleLibrary',
+        projectRoot: LIBRARY_ROOT,
+        projectName: 'Library',
         configuration: 'Bonkers',
         targetFramework: 'net10.0',
       }),
@@ -38,8 +36,8 @@ describe('discoverManifests with real fixture', () => {
   it('throws for an unknown targetFramework', () => {
     expect(() =>
       discoverManifests({
-        projectRoot: SAMPLE_ROOT,
-        projectName: 'SampleLibrary',
+        projectRoot: LIBRARY_ROOT,
+        projectName: 'Library',
         configuration: 'Debug',
         targetFramework: 'net8.0',
       }),
@@ -50,21 +48,21 @@ describe('discoverManifests with real fixture', () => {
 describe('discoverManifests with real publish fixture', () => {
   it('finds the endpoints manifest under bin/Release/net10.0/publish/', () => {
     const result = discoverManifests({
-      projectRoot: SAMPLE_ROOT,
-      projectName: 'SampleLibrary',
+      projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
       configuration: 'Release',
       targetFramework: 'net10.0',
       isPublish: true,
     });
     expect(result.endpointsManifestPath).toBe(
-      join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.endpoints.json'),
+      join(PUBLISH_DIR, 'Library.staticwebassets.endpoints.json'),
     );
   });
 
   it('returns runtimeManifestPath as null (publish does not emit runtime.json)', () => {
     const result = discoverManifests({
-      projectRoot: SAMPLE_ROOT,
-      projectName: 'SampleLibrary',
+      projectRoot: LIBRARY_ROOT,
+      projectName: 'Library',
       configuration: 'Release',
       targetFramework: 'net10.0',
       isPublish: true,
@@ -75,8 +73,8 @@ describe('discoverManifests with real publish fixture', () => {
   it('throws when the publish directory does not exist', () => {
     expect(() =>
       discoverManifests({
-        projectRoot: SAMPLE_ROOT,
-        projectName: 'SampleLibrary',
+        projectRoot: LIBRARY_ROOT,
+        projectName: 'Library',
         configuration: 'Staging',
         targetFramework: 'net10.0',
         isPublish: true,
@@ -88,20 +86,20 @@ describe('discoverManifests with real publish fixture', () => {
 describe('discoverManifests with explicit dotnetOutputDir option', () => {
   it('finds the endpoints sibling and returns null runtime path when file is absent', () => {
     const result = discoverManifests({
-      projectName: 'SampleLibrary',
+      projectName: 'Library',
       dotnetOutputDir: PUBLISH_DIR,
     });
     expect(result.runtimeManifestPath).toBeNull();
     expect(result.endpointsManifestPath).toBe(
-      join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.endpoints.json'),
+      join(PUBLISH_DIR, 'Library.staticwebassets.endpoints.json'),
     );
   });
 
   it('throws when given a file path instead of a directory (regression: old manifestPath shape)', () => {
     expect(() =>
       discoverManifests({
-        projectName: 'SampleLibrary',
-        dotnetOutputDir: join(PUBLISH_DIR, 'SampleLibrary.staticwebassets.runtime.json'),
+        projectName: 'Library',
+        dotnetOutputDir: join(PUBLISH_DIR, 'Library.staticwebassets.runtime.json'),
       }),
     ).toThrowError(/Endpoints manifest not found/);
   });

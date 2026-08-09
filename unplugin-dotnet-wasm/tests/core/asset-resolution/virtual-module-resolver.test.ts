@@ -2,10 +2,10 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { BundlerCompatRewriter } from '../bundler-compat-rewriter';
-import type { Logger } from '../logger';
-import type { AssetResolver } from './asset-resolver';
-import { VirtualModuleResolver } from './virtual-module-resolver';
+import { BundlerCompatRewriter } from '@src/core/bundler-compat-rewriter';
+import type { Logger } from '@src/core/logger';
+import type { AssetResolver } from '@src/core/asset-resolution/asset-resolver';
+import { VirtualModuleResolver } from '@src/core/asset-resolution/virtual-module-resolver';
 
 const nullLogger: Logger = {
   error: () => {},

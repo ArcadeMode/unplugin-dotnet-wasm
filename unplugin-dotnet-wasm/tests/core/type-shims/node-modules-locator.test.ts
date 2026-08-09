@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { NodeModulesLocator } from './node-modules-locator';
+import { NodeModulesLocator } from '@src/core/type-shims/node-modules-locator';
 
 describe('NodeModulesLocator', () => {
   it('returns <root>/node_modules when it exists', async () => {

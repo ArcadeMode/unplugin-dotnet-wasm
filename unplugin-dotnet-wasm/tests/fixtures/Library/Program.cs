@@ -1,3 +1,4 @@
+using System;
 namespace Client.Library;
 
 public partial class Program

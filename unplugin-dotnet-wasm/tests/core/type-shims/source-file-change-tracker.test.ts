@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { SourceFileChangeTracker } from './source-file-change-tracker';
+import { SourceFileChangeTracker } from '@src/core/type-shims/source-file-change-tracker';
 
 describe('SourceFileChangeTracker', () => {
   it('returns true for a newly-seen file', async () => {

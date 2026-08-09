@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { ShimPackage } from './shim-package';
-import type { NodeModulesLocator } from './node-modules-locator';
+import { ShimPackage } from '@src/core/type-shims/shim-package';
+import type { NodeModulesLocator } from '@src/core/type-shims/node-modules-locator';
 
 // Mock locator that returns a fixed directory
 function createMockLocator(baseDir: string): NodeModulesLocator {
