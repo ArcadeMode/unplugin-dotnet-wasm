@@ -46,12 +46,3 @@ export function normalizePath(p: string): NormalizedPath {
   const path = collapseDotSegments(toPosixPath(p));
   return { path, lookupKey: path.toLowerCase() } as NormalizedPath;
 }
-
-/**
- * True when the last path segment contains a `.` after its first character.
- * `dotnet.js` → true, `wasm-bootstrap` → false, `.gitignore` → false.
- */
-export function hasExtension(posixPath: string): boolean {
-  const base = posixPath.split('/').at(-1) ?? '';
-  return base.lastIndexOf('.') > 0;
-}

@@ -55,11 +55,25 @@ describe('AssetResolver input normalisation', () => {
 });
 
 describe('AssetResolver probe expansion', () => {
-  it('does not expand probes when the source already has a file extension', () => {
+  it('does not expand probes when the source already ends with a known suffix', () => {
     const resolveFn = vi.fn().mockReturnValue(undefined);
     new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup()).resolve('foo.js');
     expect(resolveFn).toHaveBeenCalledTimes(1);
     expect(resolveFn).toHaveBeenCalledWith('foo.js');
+  });
+
+  it('expands multi-dot bare names so blazor.webassembly resolves to .js', () => {
+    const resolveFn = vi
+      .fn()
+      .mockImplementation((vp: string) =>
+        vp === '_framework/blazor.webassembly.js'
+          ? vfsAsset('/abs/_framework/blazor.webassembly.js')
+          : undefined,
+      );
+    const r = new AssetResolver(stubVfs({ resolve: resolveFn }), new EndpointLookup());
+    expect(r.resolve('_framework/blazor.webassembly')).toBe(
+      '/abs/_framework/blazor.webassembly.js',
+    );
   });
 
   it('returns the index.<ext> hit when no extension probe matches', () => {

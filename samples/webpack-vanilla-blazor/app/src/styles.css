@@ -1,0 +1,8 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/*
+ * Import files relative to output dir (wwwroot) from dotnet Library project.
+ * unplugin-dotnet-wasm automatically resolves regardless of dotnet build or publish.
+ */
+@import 'css/app.css';
+@import 'Library.styles.css';

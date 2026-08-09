@@ -6,7 +6,7 @@ import { IdempotentFileWriter } from './idempotent-file-writer';
 import type { NodeModulesLocator } from './node-modules-locator';
 import { PackageCollisionChecker, type CollisionSentinelFile } from './package-collision-checker';
 import { ShimPackage } from './shim-package';
-import type { FileDiscoverer, DiscoveryGroup } from './file-discoverer';
+import type { FileDiscoverer, DiscoveryGroup, DiscoveryEntry } from './file-discoverer';
 
 const TYPESHIM_SENTINEL: CollisionSentinelFile = {
   name: '.dotnet-wasm-typeshim',
@@ -15,16 +15,15 @@ const TYPESHIM_SENTINEL: CollisionSentinelFile = {
 };
 
 interface PlannedEntry {
-  subpath: string;
+  canonical: string;
+  aliases: string[];
   relFile: string;
   absFile: string;
   dts?: string;
 }
 
-/**
- * Generates "magic" type-only packages under the consumer's `node_modules` so
- * tsserver/`tsc` resolve the plugin's virtual imports with full types.
- */
+type ContentCache = Map<string, string | null>;
+
 export class ShimPackageGenerator {
   private readonly writer = new IdempotentFileWriter();
   private readonly collisionChecker = new PackageCollisionChecker(this.writer, TYPESHIM_SENTINEL);
@@ -37,20 +36,20 @@ export class ShimPackageGenerator {
     private readonly logger: Logger,
   ) {}
 
-  /** Idempotent: safe to call on every build. */
   async generate(): Promise<void> {
     const groups = this.discoverer.discover();
     if (groups.length === 0) return;
 
+    const contentCache: ContentCache = new Map();
     for (const group of groups) {
-      await this.writePackage(group);
+      await this.writePackage(group, contentCache);
     }
   }
 
-  private async writePackage(group: DiscoveryGroup): Promise<void> {
+  private async writePackage(group: DiscoveryGroup, contentCache: ContentCache): Promise<void> {
     const pkg = new ShimPackage(this.locator, group.packageName);
     try {
-      const planned = await this.planPackageEntries(pkg, group);
+      const planned = await this.planPackageEntries(pkg, group, contentCache);
 
       if (planned.length === 0) return;
       if (await this.collision(pkg, group)) return;
@@ -59,7 +58,9 @@ export class ShimPackageGenerator {
         if (item.dts !== undefined) {
           await this.writer.write(item.absFile, item.dts);
         }
-        pkg.addExport(item.subpath, item.relFile);
+        for (const subpath of [item.canonical, ...item.aliases]) {
+          pkg.addExport(subpath, item.relFile);
+        }
       }
       const manifest = pkg.emitPackageJson();
       if (manifest !== null) {
@@ -73,26 +74,50 @@ export class ShimPackageGenerator {
   private async planPackageEntries(
     pkg: ShimPackage,
     group: DiscoveryGroup,
+    contentCache: ContentCache,
   ): Promise<PlannedEntry[]> {
     const planned: PlannedEntry[] = [];
     for (const entry of group.entries) {
       const chosenFile = entry.definitionFile ?? entry.sourceFile;
       if (!chosenFile) continue;
 
-      const { relFile, absFile } = pkg.fileFor(entry.subpath);
-      const changed = await this.changeTracker.hasChanged(chosenFile);
-      if (!changed && existsSync(absFile)) {
-        planned.push({ subpath: entry.subpath, relFile, absFile });
-        continue;
-      }
+      const { relFile, absFile } = pkg.fileFor(entry.canonical);
 
-      const dts = entry.definitionFile
-        ? this.emitter.forwardDTS(entry.definitionFile)
-        : this.emitter.compileToDTS(entry.sourceFile!);
+      const dts = await this.contentFor(entry, chosenFile, absFile, contentCache);
       if (dts === null) continue;
-      planned.push({ subpath: entry.subpath, relFile, absFile, dts });
+      const item: PlannedEntry = {
+        canonical: entry.canonical,
+        aliases: entry.aliases,
+        relFile,
+        absFile,
+      };
+      if (dts.write !== undefined) item.dts = dts.write;
+      planned.push(item);
     }
     return planned;
+  }
+
+  private async contentFor(
+    entry: DiscoveryEntry,
+    source: string,
+    absFile: string,
+    contentCache: ContentCache,
+  ): Promise<{ write: string | undefined } | null> {
+    const cached = contentCache.get(source);
+    if (cached !== undefined) {
+      return cached === null ? null : { write: cached };
+    }
+
+    const changed = await this.changeTracker.hasChanged(source);
+    if (!changed && existsSync(absFile)) {
+      return { write: undefined };
+    }
+
+    const dts = entry.definitionFile
+      ? this.emitter.forwardDTS(entry.definitionFile)
+      : this.emitter.compileToDTS(entry.sourceFile!);
+    contentCache.set(source, dts);
+    return dts === null ? null : { write: dts };
   }
 
   private async collision(pkg: ShimPackage, group: DiscoveryGroup): Promise<boolean> {
