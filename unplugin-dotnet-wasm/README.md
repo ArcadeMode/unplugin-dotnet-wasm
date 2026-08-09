@@ -323,15 +323,15 @@ DotnetWasm({
 
 | Bundler | Browser | Node | Dev server | Watch mode |
 |---|---|---|---|---|
-| Vite | ✅ Supported | ✅ Supported | ✅ Supported | ✅ Supported |
-| Rollup | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] | ✅ Supported |
-| Rolldown | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] | ✅ Supported |
-| Webpack | ✅ Supported | ✅ Supported[^webpack-node-esm] | ✅ Supported | ✅ Supported |
-| Rspack | ✅ Supported | ✅ Supported[^rspack-node-esm] | ✅ Supported | ✅ Supported |
-| Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported | ✅ Supported |
-| esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] | ✅ Supported |
-| Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported | ✅ Supported |
-| Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] | -[^bun-no-watch] |
+| Vite | ✅ | ✅ | ✅ | ✅ |
+| Rollup | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
+| Rolldown | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
+| Webpack | ✅ | ✅[^webpack-node-esm] | ✅ | ✅ |
+| Rspack | ✅ | ✅[^rspack-node-esm] | ✅ | ✅ |
+| Rsbuild | ✅ | ✅[^rsbuild-node-esm] | ✅ | ✅ |
+| esbuild | ✅ | ✅ | -[^esbuild-no-dev-server] | ✅ |
+| Farm | ✅ | ✅[^farm-node-esm] | ✅ | ✅ |
+| Bun | ✅ | ✅ | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
 ## Status & roadmap
 

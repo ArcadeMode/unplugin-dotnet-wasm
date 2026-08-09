@@ -332,15 +332,15 @@ DotnetWasm({
 
 | Bundler | Browser | Node | Dev server | Watch mode |
 |---|---|---|---|---|
-| Vite | ✅ Supported | ✅ Supported | ✅ Supported | ✅ Supported |
-| Rollup | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] | ✅ Supported |
-| Rolldown | ✅ Supported | ✅ Supported | -[^rollup-family-no-dev-server] | ✅ Supported |
-| Webpack | ✅ Supported | ✅ Supported[^webpack-node-esm] | ✅ Supported | ✅ Supported |
-| Rspack | ✅ Supported | ✅ Supported[^rspack-node-esm] | ✅ Supported | ✅ Supported |
-| Rsbuild | ✅ Supported | ✅ Supported[^rsbuild-node-esm] | ✅ Supported | ✅ Supported |
-| esbuild | ✅ Supported | ✅ Supported | -[^esbuild-no-dev-server] | ✅ Supported |
-| Farm | ✅ Supported | ✅ Supported[^farm-node-esm] | ✅ Supported | ✅ Supported |
-| Bun | ✅ Supported | ✅ Supported | -[^bun-no-dev-server] | -[^bun-no-watch] |
+| Vite | ✅ | ✅ | ✅ | ✅ |
+| Rollup | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
+| Rolldown | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
+| Webpack | ✅ | ✅[^webpack-node-esm] | ✅ | ✅ |
+| Rspack | ✅ | ✅[^rspack-node-esm] | ✅ | ✅ |
+| Rsbuild | ✅ | ✅[^rsbuild-node-esm] | ✅ | ✅ |
+| esbuild | ✅ | ✅ | -[^esbuild-no-dev-server] | ✅ |
+| Farm | ✅ | ✅[^farm-node-esm] | ✅ | ✅ |
+| Bun | ✅ | ✅ | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
 ## Run the sample
 
@@ -358,20 +358,32 @@ Then install dependencies
 pnpm install
 ```
 
-Run the vite dev server for the bundled wasm lib sample
+Run the bundled wasm lib sample
 ```bash
+# WebAssembly Browser app bundled by vite
 pnpm build:sample:vite-wasm
 pnpm dev:sample:vite-wasm
 #or use preview to serve the dist folder without dev server
 #pnpm preview:sample:vite-wasm
 ```
-Or run the vite dev server for the bundled blazor sample
+Or run the bundled blazor sample
 ```bash
+# Blazor WebAssembly component library bundled by vite and rendered as custom elements
 pnpm build:sample:vite-blazor
 pnpm dev:sample:vite-blazor
 #or use preview to serve the dist folder without dev server
 #pnpm preview:sample:vite-blazor
 ```
+
+Or run the bundled full blazor sample
+```bash
+# Blazor WebAssembly full app bundled by webpack and runs as blazor app with TypeScript bindings on Counter page
+pnpm build:sample:webpack-blazor
+pnpm dev:sample:webpack-blazor
+#or use preview to serve the dist folder without dev server
+#pnpm preview:sample:webpack-blazor
+```
+
 Other bundler samples can be found in the `./test/fixtures/[browser|node]` directories.
 
 Testing the `bun` integration additionally requires Bun >= 1.3.
