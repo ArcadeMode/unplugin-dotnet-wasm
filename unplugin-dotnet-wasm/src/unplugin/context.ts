@@ -54,6 +54,10 @@ export class PluginContext {
     this.#consumerRoot = root;
   }
 
+  get framework(): BundlerFramework {
+    return this.#framework;
+  }
+
   get assetResolver(): AssetResolver {
     if (!this.#assetResolver) throw new Error('assetResolver accessed before initialize()');
     return this.#assetResolver;

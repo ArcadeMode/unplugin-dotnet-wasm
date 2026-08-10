@@ -134,11 +134,14 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
             : '/_framework/' + basename(id); // Browser dev server: page origin + connect middleware serve /_framework/*.
           ctx.logger.debug(`[load] framework binary load: ${id} => ${exportPath}`);
           return buildLiteralPathExportModule(exportPath);
-        } else {
+        }
+        // Plain Rollup has no URL-from-import for .wasm/.dat/.pdb; Vite/Rolldown do — return null and let them load.
+        if (ctx.framework === 'rollup') {
           const source = await readFile(id);
           const refId = this.emitFile({ type: 'asset', name: basename(id), source });
           return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
         }
+        return null;
       },
     },
   };
