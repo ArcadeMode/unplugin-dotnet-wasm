@@ -135,13 +135,16 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           ctx.logger.debug(`[load] framework binary load: ${id} => ${exportPath}`);
           return buildLiteralPathExportModule(exportPath);
         }
-        // Plain Rollup has no URL-from-import for .wasm/.dat/.pdb; Vite/Rolldown do — return null and let them load.
+        // Plain Rollup: no URL-from-import for .wasm/.dat/.pdb — emit ourselves.
         if (ctx.framework === 'rollup') {
           const source = await readFile(id);
           const refId = this.emitFile({ type: 'asset', name: basename(id), source });
           return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
         }
-        return null;
+        // Vite/Rolldown: hand off to bundler as url import to avoid utf-8 encoding of binary assets
+        const urlId = id.includes('?') ? id : `${id}?url`;
+        ctx.logger.debug(`[load] framework binary handoff: ${id} => ${urlId}`);
+        return `export { default } from ${JSON.stringify(urlId)};`;
       },
     },
   };
