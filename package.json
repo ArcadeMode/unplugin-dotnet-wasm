@@ -13,6 +13,12 @@
     "publish:library:nofingerprint": "dotnet publish test/fixtures/Library/Library.csproj -c Release -p:WasmFingerprintAssets=false",
     "clean:library": "dotnet clean test/fixtures/Library/Library.csproj -c Debug && dotnet clean test/fixtures/Library/Library.csproj -c Release && node -e \"require('node:fs').rmSync('test/fixtures/Library/bin/Release/net10.0/publish', { recursive: true, force: true })\"",
 
+    "build:fixture-library:wasm": "dotnet build test/fixture-builder/templates/WasmLibrary/WasmLibrary.csproj -c Debug -p:WasmFingerprintAssets=true",
+    "publish:fixture-library:wasm": "dotnet publish test/fixture-builder/templates/WasmLibrary/WasmLibrary.csproj -c Release -p:WasmFingerprintAssets=true",
+    "build:fixture-library:blazor": "dotnet build test/fixture-builder/templates/BlazorLibrary/BlazorLibrary.csproj -c Debug -p:WasmFingerprintAssets=true",
+    "publish:fixture-library:blazor": "dotnet publish test/fixture-builder/templates/BlazorLibrary/BlazorLibrary.csproj -c Release -p:WasmFingerprintAssets=true",
+    "prebuild:fixture-libraries": "pnpm build:fixture-library:wasm && pnpm publish:fixture-library:wasm && pnpm build:fixture-library:blazor && pnpm publish:fixture-library:blazor",
+
     "dev:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/sample-vite dev",
     "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @dotnet-wasm-bundler/sample-vite preview",
     "build:sample:vite-wasm": "dotnet build samples/vite-vanilla-wasm/SampleLibrary/SampleLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/sample-vite build",
