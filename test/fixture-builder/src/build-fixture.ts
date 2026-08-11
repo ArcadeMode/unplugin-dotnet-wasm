@@ -1,6 +1,7 @@
 import { Fixture } from './fixture';
 import { materialize } from './materialize';
 import { allocatePort } from './ports';
+import { projectNameFor } from './types';
 import type { BuildFixtureOptions } from './types';
 
 /**
@@ -8,6 +9,7 @@ import type { BuildFixtureOptions } from './types';
  */
 export async function buildFixture(options: BuildFixtureOptions): Promise<Fixture> {
   const buildMode = options.buildMode ?? 'debug';
+  const blazor = options.blazor ?? false;
   const keepOnDispose = options.keepOnDispose ?? false;
   const clean = options.clean ?? false;
   const port = options.port ?? (await allocatePort());
@@ -18,6 +20,7 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
       platform: options.platform,
       serveMode: options.serveMode,
       buildMode,
+      blazor,
     },
     port,
     clean,
@@ -29,6 +32,8 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
     platform: options.platform,
     serveMode: options.serveMode,
     buildMode,
+    blazor,
+    projectName: projectNameFor(blazor),
     port,
     keepOnDispose,
   });

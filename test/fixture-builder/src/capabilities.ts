@@ -51,7 +51,13 @@ export const CAPABILITIES: Record<Bundler, BundlerCapabilities> = {
   bun: { build: true, publish: true, watch: false, devServerBrowser: false, devServerNode: false },
 };
 
-export function supports(bundler: Bundler, platform: Platform, serveMode: ServeMode): boolean {
+export function supports(
+  bundler: Bundler,
+  platform: Platform,
+  serveMode: ServeMode,
+  blazor: boolean,
+): boolean {
+  if (blazor && platform === 'node') return false;
   if (!isBundlerImplemented(bundler)) return false;
   const caps = CAPABILITIES[bundler];
   switch (serveMode) {
@@ -67,6 +73,7 @@ export function supports(bundler: Bundler, platform: Platform, serveMode: ServeM
 const ALL_BUNDLERS = Object.keys(CAPABILITIES) as Bundler[];
 const ALL_PLATFORMS: readonly Platform[] = ['browser', 'node'];
 const ALL_SERVE_MODES: readonly ServeMode[] = ['dist', 'server', 'watch'];
+const ALL_BLAZOR: readonly boolean[] = [false, true];
 
 export function getFixtureParameterPermutations(
   fixed: Partial<FixtureParameters> = {},
@@ -74,11 +81,16 @@ export function getFixtureParameterPermutations(
   const bundlers = fixed.bundler ? [fixed.bundler] : ALL_BUNDLERS;
   const platforms = fixed.platform ? [fixed.platform] : ALL_PLATFORMS;
   const serveModes = fixed.serveMode ? [fixed.serveMode] : ALL_SERVE_MODES;
+  const blazors = fixed.blazor !== undefined ? [fixed.blazor] : ALL_BLAZOR;
   const out: FixtureParameters[] = [];
   for (const bundler of bundlers) {
     for (const platform of platforms) {
       for (const serveMode of serveModes) {
-        out.push({ bundler, platform, serveMode });
+        for (const blazor of blazors) {
+          // Blazor WebAssembly is browser-only; never emit node×blazor=true.
+          if (platform === 'node' && blazor) continue;
+          out.push({ bundler, platform, serveMode, blazor });
+        }
       }
     }
   }

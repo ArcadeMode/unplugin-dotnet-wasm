@@ -8,7 +8,8 @@ import type { BuildFixtureOptions, BuildMode, ServeMode } from './types';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const PACKAGE_ROOT = resolve(__dirname, '..');
 export const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
-export const TEMPLATE_LIBRARY_DIR = join(TEMPLATES_DIR, 'library');
+export const TEMPLATE_WASM_LIBRARY_DIR = join(TEMPLATES_DIR, 'WasmLibrary');
+export const TEMPLATE_BLAZOR_LIBRARY_DIR = join(TEMPLATES_DIR, 'BlazorLibrary');
 export const MATERIALIZED_ROOT = join(PACKAGE_ROOT, '.materialized');
 
 export interface MaterializedProject {
@@ -19,16 +20,19 @@ export interface MaterializedProject {
 }
 
 interface MaterializeInput {
-  options: Required<Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode'>>;
+  options: Required<
+    Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode' | 'blazor'>
+  >;
   port: number;
   clean?: boolean;
 }
 
 function makeId(input: MaterializeInput): string {
-  const { bundler, platform, serveMode } = input.options;
+  const { bundler, platform, serveMode, blazor } = input.options;
   const stamp = Date.now().toString(36);
   const rand = randomBytes(4).toString('hex');
-  return `${bundler}-${platform}-${serveMode}-${stamp}-${rand}`;
+  const kind = blazor ? 'blazor' : 'wasm';
+  return `${bundler}-${platform}-${serveMode}-${kind}-${stamp}-${rand}`;
 }
 
 export function materialize(input: MaterializeInput): MaterializedProject {
@@ -37,17 +41,21 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   const rootDir = join(MATERIALIZED_ROOT, id);
   const dir = join(rootDir, 'app');
   const libraryDir = join(rootDir, 'Library');
+  const templateLibraryDir = options.blazor
+    ? TEMPLATE_BLAZOR_LIBRARY_DIR
+    : TEMPLATE_WASM_LIBRARY_DIR;
+  const entryFile = options.blazor ? 'entry.blazor.ts' : 'entry.ts';
 
   mkdirSync(dir, { recursive: true });
   mkdirSync(join(dir, 'node_modules'), { recursive: true });
 
   mkdirSync(join(dir, 'src'), { recursive: true });
-  cpSync(join(TEMPLATES_DIR, 'shared', 'entry.ts'), join(dir, 'src', 'entry.ts'));
+  cpSync(join(TEMPLATES_DIR, 'shared', entryFile), join(dir, 'src', 'entry.ts'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'index.html'), join(dir, 'index.html'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'tsconfig.base.json'), join(dir, 'tsconfig.json'));
   cpSync(join(TEMPLATES_DIR, 'shared', 'sentinel.mjs'), join(dir, 'sentinel.mjs'));
 
-  cpSync(TEMPLATE_LIBRARY_DIR, libraryDir, {
+  cpSync(templateLibraryDir, libraryDir, {
     recursive: true,
     preserveTimestamps: true,
     filter: clean ? (src) => !['bin', 'obj'].includes(basename(src)) : undefined,

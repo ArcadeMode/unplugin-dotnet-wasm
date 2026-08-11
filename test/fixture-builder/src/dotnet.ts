@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { runToCompletion } from './proc';
-import type { BuildMode } from './types';
+import type { BuildMode, FixtureProjectName } from './types';
 
 export interface DotnetConfig {
   configuration: 'Debug' | 'Release';
@@ -24,6 +24,7 @@ export function libraryOutputDir(libraryDir: string, buildMode: BuildMode): stri
 
 export interface BuildLibraryParams {
   libraryDir: string;
+  projectName: FixtureProjectName;
   buildMode: BuildMode;
   fingerprint: boolean;
   altered: boolean;
@@ -31,10 +32,10 @@ export interface BuildLibraryParams {
 }
 
 export async function buildLibrary(params: BuildLibraryParams): Promise<void> {
-  const { libraryDir, buildMode, fingerprint, altered } = params;
+  const { libraryDir, projectName, buildMode, fingerprint, altered } = params;
   const timeout = params.timeout ?? DOTNET_BUILD_TIMEOUT_MS;
   const { configuration, isPublish } = dotnetConfigFor(buildMode);
-  const csproj = join(libraryDir, 'Library.csproj');
+  const csproj = join(libraryDir, `${projectName}.csproj`);
   const args = [
     isPublish ? 'publish' : 'build',
     csproj,

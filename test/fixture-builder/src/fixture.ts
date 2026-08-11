@@ -14,6 +14,7 @@ import type { MaterializedProject } from './materialize';
 import type {
   BuildMode,
   Bundler,
+  FixtureProjectName,
   Platform,
   RunResult,
   ServeMode,
@@ -26,6 +27,8 @@ export interface FixtureInit {
   platform: Platform;
   serveMode: ServeMode;
   buildMode: BuildMode;
+  blazor: boolean;
+  projectName: FixtureProjectName;
   port: number;
   keepOnDispose: boolean;
 }
@@ -37,6 +40,8 @@ export class Fixture {
   readonly platform: Platform;
   readonly serveMode: ServeMode;
   readonly buildMode: BuildMode;
+  readonly blazor: boolean;
+  readonly projectName: FixtureProjectName;
   readonly port: number;
 
   private readonly keepOnDispose: boolean;
@@ -52,6 +57,8 @@ export class Fixture {
     this.platform = init.platform;
     this.serveMode = init.serveMode;
     this.buildMode = init.buildMode;
+    this.blazor = init.blazor;
+    this.projectName = init.projectName;
     this.port = init.port;
     this.keepOnDispose = init.keepOnDispose;
   }
@@ -69,6 +76,7 @@ export class Fixture {
     return {
       ...process.env,
       DOTNET_PROJECT_ROOT: this.libraryDir,
+      DOTNET_PROJECT_NAME: this.projectName,
       DOTNET_CONFIGURATION: configuration,
       DOTNET_IS_PUBLISH: String(isPublish),
       DOTNET_FIXTURE_PLATFORM: this.platform,
@@ -82,6 +90,7 @@ export class Fixture {
   async buildLibrary(opts: { fingerprint?: boolean; altered?: boolean } = {}): Promise<void> {
     await buildLibrary({
       libraryDir: this.libraryDir,
+      projectName: this.projectName,
       buildMode: this.buildMode,
       fingerprint: opts.fingerprint ?? true,
       altered: opts.altered ?? false,
