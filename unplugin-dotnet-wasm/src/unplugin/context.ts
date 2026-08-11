@@ -86,7 +86,7 @@ export class PluginContext {
   async reinitialize(): Promise<void> {
     try {
       this.logger.debug('reinitialize: begin');
-      await this.initAssetResolution();
+      await this.initAssetResolutionSafe();
       this.logger.info('dotnet staticwebassets manifests changed');
 
       for (const fn of this.reloadTriggers) await fn();
@@ -131,6 +131,28 @@ export class PluginContext {
       this.logger,
     );
     await generator.generate();
+  }
+
+  private async initAssetResolutionSafe(): Promise<void> {
+    const SETTLE_TIMEOUT_MS = 2_000;
+    const SETTLE_POLL_MS = 20; // testing showed 15ms delay between dotnet.js and the first manifest write, hence 20ms for safety
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    for (let attempt = 1; ; attempt++) {
+      await this.initAssetResolution();
+      if (this.#assetResolver!.manifestConsistentWithDisk()) {
+        if (attempt > 1) {
+          this.logger.debug(`manifests settled against disk after ${attempt} reads`);
+        }
+        return;
+      }
+      if (Date.now() >= deadline) {
+        this.logger.warn(
+          `manifests never settled against disk after ${SETTLE_TIMEOUT_MS}ms; proceeding with latest snapshot`,
+        );
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, SETTLE_POLL_MS));
+    }
   }
 
   private async initAssetResolution(): Promise<void> {

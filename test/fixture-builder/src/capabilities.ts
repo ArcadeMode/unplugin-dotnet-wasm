@@ -98,7 +98,7 @@ export function getFixtureParameterPermutations(
         for (const kind of kinds) {
           // Blazor WebAssembly is browser-only; never emit node×blazor.
           if (platform === 'node' && kind === 'blazor') continue;
-          
+
           for (const buildMode of buildModes) {
             out.push({ bundler, platform, serveMode, kind, buildMode });
           }

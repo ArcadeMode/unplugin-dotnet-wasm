@@ -69,6 +69,13 @@ export class AssetResolver {
     }
   }
 
+  manifestConsistentWithDisk(): boolean {
+    for (const [, match] of this.endpointLookup) {
+      if (this.vfs.resolveFile(match.assetFile) === undefined) return false;
+    }
+    return true;
+  }
+
   roots(): string[] {
     return this.vfs.listRoots();
   }
