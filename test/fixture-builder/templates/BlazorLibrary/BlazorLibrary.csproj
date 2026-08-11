@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <WasmBundlerFriendlyBootConfig>true</WasmBundlerFriendlyBootConfig>
+    <CompressionEnabled>false</CompressionEnabled>
+    <WasmEnableHotReload>false</WasmEnableHotReload>
+  </PropertyGroup>
+
+  <!-- The fixture-builder toggles behavior via `-p:LibraryAltered=true`,
+       compiled through the `#if LIBRARY_ALTERED` directive in Counter.cs. -->
+  <PropertyGroup Condition="'$(LibraryAltered)' == 'true'">
+    <DefineConstants>$(DefineConstants);LIBRARY_ALTERED</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <StaticWebAssetFingerprintPattern Include="JS" Pattern="*.js" Expression="#[.{fingerprint}]!" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="TypeShim" />
+  </ItemGroup>
+</Project>
