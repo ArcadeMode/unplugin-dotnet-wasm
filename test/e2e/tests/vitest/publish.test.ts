@@ -70,7 +70,6 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
       const fixture = await buildFixture({
         ...params,
         buildMode: 'publish',
-        clean: true,
       });
       try {
         const expectedDir = libraryPublishDir(fixture);

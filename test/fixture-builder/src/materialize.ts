@@ -24,7 +24,6 @@ interface MaterializeInput {
     Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode' | 'blazor'>
   >;
   port: number;
-  clean?: boolean;
 }
 
 function makeId(input: MaterializeInput): string {
@@ -36,7 +35,7 @@ function makeId(input: MaterializeInput): string {
 }
 
 export function materialize(input: MaterializeInput): MaterializedProject {
-  const { options, port, clean = false } = input;
+  const { options, port } = input;
   const id = makeId(input);
   const rootDir = join(MATERIALIZED_ROOT, id);
   const dir = join(rootDir, 'app');
@@ -58,7 +57,7 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(templateLibraryDir, libraryDir, {
     recursive: true,
     preserveTimestamps: true,
-    filter: clean ? (src) => !['bin', 'obj'].includes(basename(src)) : undefined,
+    filter: (src) => basename(src) !== 'bin',
   });
 
   const manifest = getManifest(options.bundler);

@@ -11,7 +11,6 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
   const buildMode = options.buildMode ?? 'debug';
   const blazor = options.blazor ?? false;
   const keepOnDispose = options.keepOnDispose ?? false;
-  const clean = options.clean ?? false;
   const port = options.port ?? (await allocatePort());
 
   const project = materialize({
@@ -23,7 +22,6 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
       blazor,
     },
     port,
-    clean,
   });
 
   return new Fixture({

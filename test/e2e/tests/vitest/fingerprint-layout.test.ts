@@ -10,7 +10,7 @@ for (const fingerprint of [true, false] as const) {
       let fixture: Fixture;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'debug', clean: true });
+        fixture = await buildFixture({ ...params, buildMode: 'debug' });
         await fixture.buildLibrary({ fingerprint });
       });
 

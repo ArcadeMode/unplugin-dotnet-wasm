@@ -21,7 +21,6 @@ export interface BuildFixtureOptions {
   buildMode?: BuildMode;
   port?: number;
   keepOnDispose?: boolean;
-  clean?: boolean;
 }
 
 export interface RunResult {
