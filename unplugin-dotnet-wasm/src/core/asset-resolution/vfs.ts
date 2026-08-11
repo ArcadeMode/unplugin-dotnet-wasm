@@ -31,21 +31,11 @@ export interface VirtualFileSystem {
 
   /**
    * Resolve a virtual path to its physical file.
-   *
-   * 1. Exact lookup in the manifest-built map.
-   * 2. For each `**` pattern: a single `statSync` at the verbatim path under
-   *    the pattern's content root, with hits cached into the map.
-   *
-   * No extension or index probing here - callers expand specifiers upstream.
-   * Returns `undefined` when nothing matches.
    */
   resolve(virtualPath: string): ResolvedAsset | undefined;
 
   /**
-   * Locate an exact asset filename across all content roots via a targeted
-   * `statSync` probe - no extension or index probing.
-   *
-   * Returns `undefined` when the file is absent from all roots.
+   * Locate a physical asset filename across all content roots
    */
   resolveFile(assetFile: string): ResolvedFile | undefined;
 }
