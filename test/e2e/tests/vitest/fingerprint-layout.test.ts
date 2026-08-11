@@ -19,7 +19,7 @@ for (const fingerprint of [true, false] as const) {
       });
 
       it('Library _framework naming matches WasmFingerprintAssets', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint, fixture.projectName);
       });
     });
   });

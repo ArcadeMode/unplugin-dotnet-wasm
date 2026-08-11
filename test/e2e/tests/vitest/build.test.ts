@@ -62,13 +62,14 @@ for (const fingerprint of [true, false] as const) {
         expect(files.some((f) => /\.pdb$/.test(f))).toBe(true);
       });
 
-      it('Library*.wasm is present (user assembly emitted)', () => {
+      it('project assembly *.wasm is present (user assembly emitted)', () => {
         const files = readdirSync(distAssetsDir(fixture));
-        expect(files.some((f) => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
+        const re = new RegExp(`^${fixture.projectName}([.-][^/]+)?\\.wasm$`);
+        expect(files.some((f) => re.test(f))).toBe(true);
       });
 
       it('Library _framework fingerprint layout matches requested fingerprint', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint, fixture.projectName);
       });
 
       it('entry chunk references a *.wasm asset URL', () => {

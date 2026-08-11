@@ -32,9 +32,10 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
         expect(wasmFiles.length).toBeGreaterThan(0);
       });
 
-      it('Library*.wasm is emitted', () => {
+      it('project assembly *.wasm is emitted', () => {
         const files = readdirSync(distAssetsDir(fixture));
-        expect(files.some((f) => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
+        const re = new RegExp(`^${fixture.projectName}([.-][^/]+)?\\.wasm$`);
+        expect(files.some((f) => re.test(f))).toBe(true);
       });
 
       it('dotnet.native*.wasm byte length matches publish source', () => {
@@ -54,7 +55,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
       });
 
       it('Library _framework fingerprint layout matches requested fingerprint', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint, fixture.projectName);
       });
 
       it('entry chunk references a *.wasm asset URL', () => {

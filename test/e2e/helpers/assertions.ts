@@ -1,25 +1,29 @@
 import { ConsoleMessage, expect, type Page } from '@playwright/test';
 import { readdirSync } from 'node:fs';
 
-const FINGERPRINTED_LIBRARY_RE = /^Library\.[a-z0-9]+\.wasm$/;
-
-export function expectFingerprintLayout(dir: string, fingerprint: boolean): void {
-  const libraryWasms = readdirSync(dir).filter((f) => /^Library.*\.wasm$/.test(f));
-  const fingerprinted = libraryWasms.filter((f) => FINGERPRINTED_LIBRARY_RE.test(f));
+export function expectFingerprintLayout(
+  dir: string,
+  fingerprint: boolean,
+  projectName: string,
+): void {
+  const fingerprintedRe = new RegExp(`^${projectName}\\.[a-z0-9]+\\.wasm$`);
+  const anyLibraryWasmRe = new RegExp(`^${projectName}.*\\.wasm$`);
+  const libraryWasms = readdirSync(dir).filter((f) => anyLibraryWasmRe.test(f));
+  const fingerprinted = libraryWasms.filter((f) => fingerprintedRe.test(f));
 
   if (fingerprint) {
     expect(
       fingerprinted,
-      `Expected fingerprinted Library.<hash>.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
+      `Expected fingerprinted ${projectName}.<hash>.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
     ).not.toHaveLength(0);
   } else {
     expect(
       libraryWasms,
-      `Expected canonical Library.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
-    ).toContain('Library.wasm');
+      `Expected canonical ${projectName}.wasm under ${dir}, found: ${libraryWasms.join(', ') || '(none)'}`,
+    ).toContain(`${projectName}.wasm`);
     expect(
       fingerprinted,
-      `Expected no fingerprinted Library.<hash>.wasm under ${dir}, found: ${fingerprinted.join(', ')}`,
+      `Expected no fingerprinted ${projectName}.<hash>.wasm under ${dir}, found: ${fingerprinted.join(', ')}`,
     ).toHaveLength(0);
   }
 }
