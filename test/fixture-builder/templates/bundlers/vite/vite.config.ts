@@ -41,12 +41,12 @@ export default defineConfig({
     rollupOptions:
       platform === 'node'
         ? {
-            input: resolve(__dirname, 'src/entry.ts'),
+            input: resolve(import.meta.dirname, 'src/entry.ts'),
             preserveEntrySignatures: 'strict',
             output: { format: 'es', entryFileNames: 'entry.js' },
           }
         : {
-            input: resolve(__dirname, 'index.html'),
+            input: resolve(import.meta.dirname, 'index.html'),
           },
   },
 });
