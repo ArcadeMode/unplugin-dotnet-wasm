@@ -11,13 +11,13 @@ import {
 } from '../../helpers/dist-artifacts';
 import { expectFingerprintLayout } from '../../helpers/assertions';
 
-permuteFixture({ serveMode: 'dist' }, (params) => {
+permuteFixture({ serveMode: 'dist', buildMode: 'publish' }, (params) => {
   for (const fingerprint of [true, false] as const) {
     describe(`publish build (isPublish: true) [fingerprint=${fingerprint}]`, () => {
       let fixture: Fixture;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'publish' });
+        fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
         const result = await fixture.build();
         expect(result.exitCode).toBe(0);
@@ -67,10 +67,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
 
   describe('DiscoveryError when publish output is absent', () => {
     it('isPublish: true -> fails naming the searched publish dir', async () => {
-      const fixture = await buildFixture({
-        ...params,
-        buildMode: 'publish',
-      });
+      const fixture = await buildFixture(params);
       try {
         const expectedDir = libraryPublishDir(fixture);
         // Deliberately skip fixture.buildLibrary(): the publish output must

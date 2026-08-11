@@ -17,11 +17,11 @@ function runTypecheck(cwd: string): string {
   }
 }
 
-permuteFixture({ serveMode: 'dist' }, (params) => {
+permuteFixture({ serveMode: 'dist', buildMode: 'debug' }, (params) => {
   let fixture: Fixture;
 
   beforeAll(async () => {
-    fixture = await buildFixture({ ...params, buildMode: 'debug' });
+    fixture = await buildFixture(params);
     await fixture.buildLibrary();
     await fixture.build();
   });

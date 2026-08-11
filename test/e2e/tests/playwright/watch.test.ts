@@ -8,11 +8,11 @@ import {
   reloadUntilBooted,
 } from '../../helpers/assertions';
 
-permuteFixture({ platform: 'browser', serveMode: 'watch' }, (params) => {
+permuteFixture({ platform: 'browser', serveMode: 'watch', buildMode: 'debug' }, (params) => {
   let fixture: Fixture;
 
   test.beforeAll(async () => {
-    fixture = await buildFixture({ ...params, buildMode: 'debug' });
+    fixture = await buildFixture(params);
     await fixture.buildLibrary();
     await fixture.start();
   });

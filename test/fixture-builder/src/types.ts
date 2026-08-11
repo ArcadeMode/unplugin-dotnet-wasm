@@ -3,6 +3,7 @@ export type Bundler =
 export type Platform = 'browser' | 'node';
 export type ServeMode = 'dist' | 'server' | 'watch';
 export type BuildMode = 'debug' | 'publish';
+export type FixtureKind = 'wasm' | 'blazor';
 
 export type FixtureProjectName = 'WasmLibrary' | 'BlazorLibrary';
 
@@ -10,15 +11,11 @@ export interface FixtureParameters {
   bundler: Bundler;
   platform: Platform;
   serveMode: ServeMode;
-  blazor: boolean;
+  kind: FixtureKind;
+  buildMode: BuildMode;
 }
 
-export interface BuildFixtureOptions {
-  bundler: Bundler;
-  platform: Platform;
-  serveMode: ServeMode;
-  blazor?: boolean;
-  buildMode?: BuildMode;
+export interface BuildFixtureOptions extends FixtureParameters {
   port?: number;
   keepOnDispose?: boolean;
 }
@@ -34,6 +31,6 @@ export interface WaitForLogOptions {
   timeout?: number;
 }
 
-export function projectNameFor(blazor: boolean): FixtureProjectName {
-  return blazor ? 'BlazorLibrary' : 'WasmLibrary';
+export function projectNameFor(kind: FixtureKind): FixtureProjectName {
+  return kind === 'blazor' ? 'BlazorLibrary' : 'WasmLibrary';
 }

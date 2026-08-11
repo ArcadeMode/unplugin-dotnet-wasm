@@ -13,9 +13,10 @@ Run all commands from repo root unless noted.
 ## Fixture-builder E2E - `test/e2e` (CI)
 
 CI shards by **os × bundler**; `run.mjs` fans out browser∥node in parallel when
-`--platform` is omitted. Fingerprint / build-mode / serve-mode / blazor live in the
-tests (default fingerprint true; blazor permutes browser-only). At least one of
-`--bundler` / `--platform` is required.
+`--platform` is omitted. Fingerprint stays test-local (default true).
+`permuteFixture` axes: bundler × platform × serveMode × kind (`wasm`|`blazor`) ×
+buildMode (`debug`|`publish`); omit an axis to expand it (`kind=blazor` never
+pairs with `platform=node`). At least one of `--bundler` / `--platform` is required.
 
 ```
 pnpm build:plugin
@@ -28,8 +29,8 @@ pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=vite
 ```
 
 - Templates: `test/fixture-builder/templates/{WasmLibrary,BlazorLibrary}` materialize
-  into `.materialized/.../Library/` (csproj names preserved; `DOTNET_PROJECT_NAME`
-  selects `WasmLibrary` vs `BlazorLibrary`).
+  into `.materialized/.../Library/` (csproj names preserved; `kind` →
+  `DOTNET_PROJECT_NAME` `WasmLibrary`|`BlazorLibrary`).
 - Warmup scripts: `pnpm build:fixture-library:{wasm,blazor}`,
   `pnpm publish:fixture-library:{wasm,blazor}`, `pnpm prebuild:fixture-libraries`.
 - Implemented bundlers: `vite`, `webpack`, `esbuild`, `rollup`, `rolldown`, `rspack`, `rsbuild`, `farm`, `bun` (gated by capabilities: e.g. bun/esbuild skip watch/server).

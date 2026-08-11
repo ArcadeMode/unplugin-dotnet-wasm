@@ -3,11 +3,11 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture';
 import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
 
-permuteFixture({ platform: 'browser', serveMode: 'server' }, (params) => {
+permuteFixture({ platform: 'browser', serveMode: 'server', buildMode: 'debug' }, (params) => {
   let fixture: Fixture;
 
   test.beforeAll(async () => {
-    fixture = await buildFixture({ ...params, buildMode: 'debug' });
+    fixture = await buildFixture(params);
     await fixture.buildLibrary();
     await fixture.start();
   });

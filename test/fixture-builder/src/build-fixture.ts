@@ -6,10 +6,13 @@ import type { BuildFixtureOptions } from './types';
 
 /**
  * Materialize a runnable project + isolated .NET Library on disk.
+ *
+ * `DOTNET_PROJECT_ROOT` points at the materialized `Library/` folder;
+ * `DOTNET_PROJECT_NAME` is `WasmLibrary` or `BlazorLibrary` (csproj basename).
+ * Template `bin/` is never copied (avoids stale fingerprint/publish outputs);
+ * `obj/` is kept when present for restore/compile warmup.
  */
 export async function buildFixture(options: BuildFixtureOptions): Promise<Fixture> {
-  const buildMode = options.buildMode ?? 'debug';
-  const blazor = options.blazor ?? false;
   const keepOnDispose = options.keepOnDispose ?? false;
   const port = options.port ?? (await allocatePort());
 
@@ -18,8 +21,8 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
       bundler: options.bundler,
       platform: options.platform,
       serveMode: options.serveMode,
-      buildMode,
-      blazor,
+      buildMode: options.buildMode,
+      kind: options.kind,
     },
     port,
   });
@@ -29,9 +32,9 @@ export async function buildFixture(options: BuildFixtureOptions): Promise<Fixtur
     bundler: options.bundler,
     platform: options.platform,
     serveMode: options.serveMode,
-    buildMode,
-    blazor,
-    projectName: projectNameFor(blazor),
+    buildMode: options.buildMode,
+    kind: options.kind,
+    projectName: projectNameFor(options.kind),
     port,
     keepOnDispose,
   });

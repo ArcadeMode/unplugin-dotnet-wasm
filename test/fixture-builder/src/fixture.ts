@@ -14,6 +14,7 @@ import type { MaterializedProject } from './materialize';
 import type {
   BuildMode,
   Bundler,
+  FixtureKind,
   FixtureProjectName,
   Platform,
   RunResult,
@@ -27,7 +28,7 @@ export interface FixtureInit {
   platform: Platform;
   serveMode: ServeMode;
   buildMode: BuildMode;
-  blazor: boolean;
+  kind: FixtureKind;
   projectName: FixtureProjectName;
   port: number;
   keepOnDispose: boolean;
@@ -40,7 +41,7 @@ export class Fixture {
   readonly platform: Platform;
   readonly serveMode: ServeMode;
   readonly buildMode: BuildMode;
-  readonly blazor: boolean;
+  readonly kind: FixtureKind;
   readonly projectName: FixtureProjectName;
   readonly port: number;
 
@@ -57,7 +58,7 @@ export class Fixture {
     this.platform = init.platform;
     this.serveMode = init.serveMode;
     this.buildMode = init.buildMode;
-    this.blazor = init.blazor;
+    this.kind = init.kind;
     this.projectName = init.projectName;
     this.port = init.port;
     this.keepOnDispose = init.keepOnDispose;

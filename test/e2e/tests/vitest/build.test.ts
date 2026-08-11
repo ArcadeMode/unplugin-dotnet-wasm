@@ -8,12 +8,12 @@ import { expectFingerprintLayout } from '../../helpers/assertions';
 
 for (const fingerprint of [true, false] as const) {
   describe(`[fingerprint=${fingerprint}]`, () => {
-    permuteFixture({ serveMode: 'dist' }, (params) => {
+    permuteFixture({ serveMode: 'dist', buildMode: 'debug' }, (params) => {
       let fixture: Fixture;
       let buildResult: RunResult;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'debug' });
+        fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
         buildResult = await fixture.build();
       });

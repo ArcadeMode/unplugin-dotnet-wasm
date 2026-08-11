@@ -1,5 +1,12 @@
 import { isBundlerImplemented } from './manifest';
-import type { Bundler, FixtureParameters, Platform, ServeMode } from './types';
+import type {
+  BuildMode,
+  Bundler,
+  FixtureKind,
+  FixtureParameters,
+  Platform,
+  ServeMode,
+} from './types';
 
 export interface BundlerCapabilities {
   build: boolean;
@@ -55,9 +62,9 @@ export function supports(
   bundler: Bundler,
   platform: Platform,
   serveMode: ServeMode,
-  blazor: boolean,
+  kind: FixtureKind,
 ): boolean {
-  if (blazor && platform === 'node') return false;
+  if (kind === 'blazor' && platform === 'node') return false;
   if (!isBundlerImplemented(bundler)) return false;
   const caps = CAPABILITIES[bundler];
   switch (serveMode) {
@@ -73,7 +80,8 @@ export function supports(
 const ALL_BUNDLERS = Object.keys(CAPABILITIES) as Bundler[];
 const ALL_PLATFORMS: readonly Platform[] = ['browser', 'node'];
 const ALL_SERVE_MODES: readonly ServeMode[] = ['dist', 'server', 'watch'];
-const ALL_BLAZOR: readonly boolean[] = [false, true];
+const ALL_KINDS: readonly FixtureKind[] = ['wasm', 'blazor'];
+const ALL_BUILD_MODES: readonly BuildMode[] = ['debug', 'publish'];
 
 export function getFixtureParameterPermutations(
   fixed: Partial<FixtureParameters> = {},
@@ -81,15 +89,18 @@ export function getFixtureParameterPermutations(
   const bundlers = fixed.bundler ? [fixed.bundler] : ALL_BUNDLERS;
   const platforms = fixed.platform ? [fixed.platform] : ALL_PLATFORMS;
   const serveModes = fixed.serveMode ? [fixed.serveMode] : ALL_SERVE_MODES;
-  const blazors = fixed.blazor !== undefined ? [fixed.blazor] : ALL_BLAZOR;
+  const kinds = fixed.kind ? [fixed.kind] : ALL_KINDS;
+  const buildModes = fixed.buildMode ? [fixed.buildMode] : ALL_BUILD_MODES;
   const out: FixtureParameters[] = [];
   for (const bundler of bundlers) {
     for (const platform of platforms) {
       for (const serveMode of serveModes) {
-        for (const blazor of blazors) {
-          // Blazor WebAssembly is browser-only; never emit node×blazor=true.
-          if (platform === 'node' && blazor) continue;
-          out.push({ bundler, platform, serveMode, blazor });
+        for (const kind of kinds) {
+          // Blazor WebAssembly is browser-only; never emit node×blazor.
+          if (platform === 'node' && kind === 'blazor') continue;
+          for (const buildMode of buildModes) {
+            out.push({ bundler, platform, serveMode, kind, buildMode });
+          }
         }
       }
     }

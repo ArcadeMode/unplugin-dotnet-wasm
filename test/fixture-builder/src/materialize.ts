@@ -21,17 +21,21 @@ export interface MaterializedProject {
 
 interface MaterializeInput {
   options: Required<
-    Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode' | 'blazor'>
+    Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode' | 'kind'>
   >;
   port: number;
 }
 
 function makeId(input: MaterializeInput): string {
-  const { bundler, platform, serveMode, blazor } = input.options;
+  const { bundler, platform, serveMode, kind, buildMode } = input.options;
   const stamp = Date.now().toString(36);
   const rand = randomBytes(4).toString('hex');
-  const kind = blazor ? 'blazor' : 'wasm';
-  return `${bundler}-${platform}-${serveMode}-${kind}-${stamp}-${rand}`;
+  return `${bundler}-${platform}-${serveMode}-${kind}-${buildMode}-${stamp}-${rand}`;
+}
+
+/** Skip template `bin/` (stale outputs across fingerprint/buildMode); keep `obj/` for warmup. */
+function copyLibraryTemplate(src: string): boolean {
+  return basename(src) !== 'bin';
 }
 
 export function materialize(input: MaterializeInput): MaterializedProject {
@@ -40,10 +44,9 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   const rootDir = join(MATERIALIZED_ROOT, id);
   const dir = join(rootDir, 'app');
   const libraryDir = join(rootDir, 'Library');
-  const templateLibraryDir = options.blazor
-    ? TEMPLATE_BLAZOR_LIBRARY_DIR
-    : TEMPLATE_WASM_LIBRARY_DIR;
-  const entryFile = options.blazor ? 'entry.blazor.ts' : 'entry.ts';
+  const templateLibraryDir =
+    options.kind === 'blazor' ? TEMPLATE_BLAZOR_LIBRARY_DIR : TEMPLATE_WASM_LIBRARY_DIR;
+  const entryFile = options.kind === 'blazor' ? 'entry.blazor.ts' : 'entry.ts';
 
   mkdirSync(dir, { recursive: true });
   mkdirSync(join(dir, 'node_modules'), { recursive: true });
@@ -57,7 +60,7 @@ export function materialize(input: MaterializeInput): MaterializedProject {
   cpSync(templateLibraryDir, libraryDir, {
     recursive: true,
     preserveTimestamps: true,
-    filter: (src) => basename(src) !== 'bin',
+    filter: copyLibraryTemplate,
   });
 
   const manifest = getManifest(options.bundler);

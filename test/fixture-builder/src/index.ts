@@ -14,6 +14,7 @@ export type {
   BuildFixtureOptions,
   BuildMode,
   Bundler,
+  FixtureKind,
   FixtureParameters,
   FixtureProjectName,
   Platform,
