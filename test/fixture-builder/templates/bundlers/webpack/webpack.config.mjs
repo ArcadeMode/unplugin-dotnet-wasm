@@ -31,6 +31,7 @@ export default (_env, argv) => {
   const common = {
     mode: argv.mode ?? 'development',
     entry: resolve(__dirname, 'src/entry.ts'),
+    watchOptions: { ignored: ['**/node_modules/**', '**/dist/**', '**/.rebuild-*'] },
     resolve: {
       extensions: ['.ts', '.js'],
     },
