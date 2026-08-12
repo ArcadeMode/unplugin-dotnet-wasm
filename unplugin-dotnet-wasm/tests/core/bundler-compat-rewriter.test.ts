@@ -143,6 +143,16 @@ describe('BundlerCompatRewriter - pins the .NET SDK JS shapes the rewriter depen
     expect(rewriter.rewrite(`return await import("./dotnet.js")`)).toBeNull();
   });
 
+  it('leaves bundler-friendly _content initializer import() bundler-visible', () => {
+    expect(
+      rewriter.rewrite(`import("./../_content/TypeShim/TypeShim.lz6s1esrje.lib.module.js")`),
+    ).toBeNull();
+  });
+
+  it('does not treat an unrelated block comment as an ignore pragma', () => {
+    expect(rewriter.rewrite(`import(/* loaded lazily */ "./foo.js")`)).toBeNull();
+  });
+
   it('rewrites blazor.webassembly.js expression import() and keeps the string literal', () => {
     const code = `await import(e); return await import("./dotnet.js")`;
     expect(rewriter.rewrite(code)).toBe(

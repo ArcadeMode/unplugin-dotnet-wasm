@@ -105,8 +105,6 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
 
     build.onLoad({ filter: /\.js$/ }, async (args) => {
       if (!FRAMEWORK_JS_REGEX.test(args.path)) return null;
-      // dotnet SDK js files contain some warning-producing statements,
-      // we rewrite them to silence the warnings end users cannot resolve anyway.
       const source = await readFile(args.path, 'utf-8');
       return {
         contents: ctx.rewriter.rewrite(source) ?? source,

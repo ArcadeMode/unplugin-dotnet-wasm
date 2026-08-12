@@ -48,8 +48,8 @@ export class BundlerCompatRewriter {
     return code.replace(/\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)?/g, (match, offset: number) => {
       const next = code[offset + match.length];
       const isStringLiteral = next === '"' || next === "'";
-      const hadComment = match.includes('/*');
-      if (isStringLiteral && !hadComment) return match;
+      const hadIgnorePragma = /webpackIgnore|@vite-ignore|\$farm-ignore/.test(match);
+      if (isStringLiteral && !hadIgnorePragma) return match;
       return `import(${this.pragma} `;
     });
   }
