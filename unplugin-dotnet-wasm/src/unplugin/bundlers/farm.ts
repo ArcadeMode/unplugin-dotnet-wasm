@@ -19,6 +19,7 @@ interface FarmConfig {
     output?: { targetEnv?: string };
     presetEnv?: unknown;
     watch?: boolean | object;
+    lazyCompilation?: boolean;
   };
 }
 
@@ -55,7 +56,7 @@ export interface FarmHooks {
     handler(id: string): Promise<string | null>;
   };
   farm: {
-    config(userConfig: FarmConfig): Record<string, never>;
+    config(userConfig: FarmConfig): { compilation: { lazyCompilation: boolean } };
     configureCompiler(compiler: FarmCompiler): void;
     configureDevServer(server: FarmDevServer): void;
     updateModules: {
@@ -197,7 +198,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       },
     },
     farm: {
-      config(userConfig: FarmConfig): Record<string, never> {
+      config(userConfig: FarmConfig): { compilation: { lazyCompilation: boolean } } {
         if (userConfig.root) ctx.setConsumerRoot(userConfig.root);
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         isNodeTarget = typeof targetEnv === 'string' && targetEnv.startsWith('node');
@@ -216,7 +217,13 @@ export function createFarm(ctx: PluginContext): FarmHooks {
               `to skip polyfills.`,
           );
         }
-        return {};
+        // farm dev server panics on lazy virtual module compilation
+        if (userConfig.compilation?.lazyCompilation === true) {
+          ctx.logger.warn(
+            'Farm lazyCompilation is incompatible with the .NET WASM boot modules; disabling it for this project.',
+          );
+        }
+        return { compilation: { lazyCompilation: false } };
       },
       configureCompiler(c: FarmCompiler): void {
         compiler = c;
