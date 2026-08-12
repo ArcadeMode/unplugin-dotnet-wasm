@@ -19,12 +19,12 @@ export class BundlerCompatRewriter {
     this.rewritesBunBuiltins = framework === 'bun';
   }
 
-  /** Returns the rewritten source, or null if no changes were needed. */
+  /** SDK boot JS contains expression import() multiple bundlers warn: rewrite with ignore pragmas. */
   rewrite(code: string): string | null {
     let result = code;
 
     if (this.pragma) {
-      result = result.replace(/\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g, `import(${this.pragma} `);
+      result = this.rewriteImportCalls(result);
       if (this.rewritesNewUrl) {
         result = result.replace(
           /\bnew URL\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*/g,
@@ -42,6 +42,16 @@ export class BundlerCompatRewriter {
     }
 
     return result !== code ? result : null;
+  }
+
+  private rewriteImportCalls(code: string): string {
+    return code.replace(/\bimport\(\s*(?:\/\*[\s\S]*?\*\/\s*)?/g, (match, offset: number) => {
+      const next = code[offset + match.length];
+      const isStringLiteral = next === '"' || next === "'";
+      const hadComment = match.includes('/*');
+      if (isStringLiteral && !hadComment) return match;
+      return `import(${this.pragma} `;
+    });
   }
 
   // Returns the single magic comment for the given framework, or '' when none applies.
