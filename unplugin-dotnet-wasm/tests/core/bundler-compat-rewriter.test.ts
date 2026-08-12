@@ -4,8 +4,12 @@ import { BundlerCompatRewriter, type BundlerFramework } from '@src/core/bundler-
 describe('BundlerCompatRewriter - vite', () => {
   const rewriter = new BundlerCompatRewriter('vite');
 
-  it('inserts /* @vite-ignore */ before import() argument', () => {
-    expect(rewriter.rewrite(`import("./foo.js")`)).toBe(`import(/* @vite-ignore */ "./foo.js")`);
+  it('inserts /* @vite-ignore */ on expression import()', () => {
+    expect(rewriter.rewrite(`import(foo)`)).toBe(`import(/* @vite-ignore */ foo)`);
+  });
+
+  it('does not rewrite string-literal import()', () => {
+    expect(rewriter.rewrite(`import("./foo.js")`)).toBeNull();
   });
 
   it('replaces existing comments on import()', () => {
@@ -20,8 +24,8 @@ describe('BundlerCompatRewriter - vite', () => {
     );
   });
 
-  it('rewrites all import() calls in a single source', () => {
-    const input = [`import("./a.js");`, `import("./b.js");`].join('\n');
+  it('rewrites all expression import() calls in a single source', () => {
+    const input = [`import(a);`, `import(b);`].join('\n');
     const result = rewriter.rewrite(input);
     expect(result?.match(/import\(\/\* @vite-ignore \*\//g)).toHaveLength(2);
   });
@@ -36,10 +40,12 @@ describe('BundlerCompatRewriter - webpack / rspack / rsbuild', () => {
     describe(fw, () => {
       const rewriter = new BundlerCompatRewriter(fw);
 
-      it('inserts /* webpackIgnore: true */ on import()', () => {
-        expect(rewriter.rewrite(`import("./foo.js")`)).toBe(
-          `import(/* webpackIgnore: true */ "./foo.js")`,
-        );
+      it('inserts /* webpackIgnore: true */ on expression import()', () => {
+        expect(rewriter.rewrite(`import(foo)`)).toBe(`import(/* webpackIgnore: true */ foo)`);
+      });
+
+      it('does not rewrite string-literal import()', () => {
+        expect(rewriter.rewrite(`import("./foo.js")`)).toBeNull();
       });
 
       it('does NOT rewrite new URL() (handled by webpackJsParserRule instead)', () => {
@@ -58,8 +64,12 @@ describe('BundlerCompatRewriter - webpack / rspack / rsbuild', () => {
 describe('BundlerCompatRewriter - farm', () => {
   const rewriter = new BundlerCompatRewriter('farm');
 
-  it('inserts /* $farm-ignore */ on import()', () => {
-    expect(rewriter.rewrite(`import("./foo.js")`)).toBe(`import(/* $farm-ignore */ "./foo.js")`);
+  it('inserts /* $farm-ignore */ on expression import()', () => {
+    expect(rewriter.rewrite(`import(foo)`)).toBe(`import(/* $farm-ignore */ foo)`);
+  });
+
+  it('does not rewrite string-literal import()', () => {
+    expect(rewriter.rewrite(`import("./foo.js")`)).toBeNull();
   });
 
   it('inserts /* $farm-ignore */ on new URL()', () => {
@@ -112,7 +122,7 @@ describe('BundlerCompatRewriter - idempotency', () => {
   for (const fw of ['vite', 'webpack', 'farm'] as BundlerFramework[]) {
     it(`${fw}: second rewrite() on the output returns null`, () => {
       const rewriter = new BundlerCompatRewriter(fw);
-      const first = rewriter.rewrite(`import("./foo.js")`);
+      const first = rewriter.rewrite(`import(foo)`);
       expect(first).not.toBeNull();
       expect(rewriter.rewrite(first!)).toBeNull();
     });
@@ -122,10 +132,28 @@ describe('BundlerCompatRewriter - idempotency', () => {
 describe('BundlerCompatRewriter - pins the .NET SDK JS shapes the rewriter depends on', () => {
   const rewriter = new BundlerCompatRewriter('vite');
 
-  it('rewrites import() dynamic imports', () => {
-    const code = `import("./foo.js")`;
-    const result = rewriter.rewrite(code);
-    expect(result).toContain(`import(/* @vite-ignore */ "./foo.js")`);
+  it('rewrites expression import() (dotnet.js loadBootResource / library initializers)', () => {
+    expect(rewriter.rewrite(`import(I(n))`)).toBe(`import(/* @vite-ignore */ I(n))`);
+    expect(rewriter.rewrite(`import(ce(o,"manifest"))`)).toBe(
+      `import(/* @vite-ignore */ ce(o,"manifest"))`,
+    );
+  });
+
+  it('leaves blazor.webassembly.js import("./dotnet.js") bundler-visible', () => {
+    expect(rewriter.rewrite(`return await import("./dotnet.js")`)).toBeNull();
+  });
+
+  it('rewrites blazor.webassembly.js expression import() and keeps the string literal', () => {
+    const code = `await import(e); return await import("./dotnet.js")`;
+    expect(rewriter.rewrite(code)).toBe(
+      `await import(/* @vite-ignore */ e); return await import("./dotnet.js")`,
+    );
+  });
+
+  it('replaces SDK webpackIgnore on string-literal Node builtins', () => {
+    expect(rewriter.rewrite(`import(/*! webpackIgnore: true */"process")`)).toBe(
+      `import(/* @vite-ignore */ "process")`,
+    );
   });
 
   it('rewrites new URL() with single space between new and URL', () => {
