@@ -139,7 +139,7 @@ export class PluginContext {
     const deadline = Date.now() + SETTLE_TIMEOUT_MS;
     for (let attempt = 1; ; attempt++) {
       await this.initAssetResolution();
-      if (this.#assetResolver!.manifestConsistentWithDisk()) {
+      if (await this.#assetResolver!.manifestConsistentWithDisk()) {
         if (attempt > 1) {
           this.logger.debug(`manifests settled against disk after ${attempt} reads`);
         }

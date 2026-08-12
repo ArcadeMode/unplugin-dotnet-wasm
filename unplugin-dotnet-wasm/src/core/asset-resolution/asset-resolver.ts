@@ -4,6 +4,8 @@ import type { ResponseHeader } from '../manifest-parsing/manifest-endpoints';
 import { ExtensionProbes } from './extension-probes';
 import { normalizePath } from '../path-utils';
 import { resolve, dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { BINARY_EXTENSIONS_REGEX } from '../constants';
 
 export class AssetResolver {
@@ -69,15 +71,37 @@ export class AssetResolver {
     }
   }
 
-  manifestConsistentWithDisk(): boolean {
+  async manifestConsistentWithDisk(): Promise<boolean> {
     for (const [route, match] of this.endpointLookup) {
       if (!route.startsWith('_framework/')) continue;
-      if (this.vfs.resolveFile(match.assetFile) === undefined) return false;
+
+      const file = this.vfs.resolveFile(match.assetFile);
+      if (file === undefined) return false;
+
+      if (match.fingerprint !== undefined) continue;
+      if (BINARY_EXTENSIONS_REGEX.test(match.assetFile)) continue;
+      if (this.endpointLookup.get(normalizePath(match.assetFile))?.fingerprint !== undefined) {
+        continue;
+      }
+
+      const etag = match.responseHeaders.find((h) => h.Name === 'ETag')?.Value;
+      if (etag !== undefined && !(await bytesMatchEtag(file.physicalPath, etag))) return false;
     }
     return true;
   }
 
   roots(): string[] {
     return this.vfs.listRoots();
+  }
+}
+
+async function bytesMatchEtag(physicalPath: string, etag: string): Promise<boolean> {
+  try {
+    const digest = createHash('sha256')
+      .update(await readFile(physicalPath))
+      .digest('base64');
+    return etag.replace(/^W\//, '').replace(/^"|"$/g, '') === digest;
+  } catch {
+    return false;
   }
 }
