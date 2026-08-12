@@ -35,9 +35,12 @@ export class VirtualModuleResolver {
     const physical = this.assetResolver.resolve(canonical);
     if (physical === null) return null;
 
-    if (JS_MODULE_REGEX.test(physical)) return toVirtualId(canonical);
+    const omitNullByte = this.framework === 'farm';
+    if (JS_MODULE_REGEX.test(physical)) return toVirtualId(canonical, omitNullByte);
     if (BINARY_EXTENSIONS_REGEX.test(physical)) {
-      return this.getBinaryHandling() === 'physical' ? physical : toVirtualId(canonical);
+      return this.getBinaryHandling() === 'physical'
+        ? physical
+        : toVirtualId(canonical, omitNullByte);
     }
     return physical;
   }
