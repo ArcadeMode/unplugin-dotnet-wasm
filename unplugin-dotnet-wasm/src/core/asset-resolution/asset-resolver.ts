@@ -70,7 +70,8 @@ export class AssetResolver {
   }
 
   manifestConsistentWithDisk(): boolean {
-    for (const [, match] of this.endpointLookup) {
+    for (const [route, match] of this.endpointLookup) {
+      if (!route.startsWith('_framework/')) continue;
       if (this.vfs.resolveFile(match.assetFile) === undefined) return false;
     }
     return true;
