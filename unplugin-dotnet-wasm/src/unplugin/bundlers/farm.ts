@@ -19,8 +19,11 @@ interface FarmConfig {
     output?: { targetEnv?: string };
     presetEnv?: unknown;
     watch?: boolean | object;
+    lazyCompilation?: boolean;
   };
 }
+
+type FarmConfigPatch = { compilation?: { lazyCompilation?: boolean } };
 
 interface KoaLikeContext {
   req: IncomingMessage;
@@ -55,7 +58,7 @@ export interface FarmHooks {
     handler(id: string): Promise<string | null>;
   };
   farm: {
-    config(userConfig: FarmConfig): Record<string, never>;
+    config(userConfig: FarmConfig): FarmConfigPatch;
     configureCompiler(compiler: FarmCompiler): void;
     configureDevServer(server: FarmDevServer): void;
     updateModules: {
@@ -129,7 +132,8 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       }
       if (isServe) {
         const clients = devServer?.ws?.clients;
-        if (clients) for (const client of clients) client.rawSend("{ type: 'full-reload' }");
+        const reload = JSON.stringify({ type: 'full-reload' });
+        if (clients) for (const client of clients) client.rawSend(reload);
         ctx.logger.debug(
           `[farm-reload] serve: recompiled + full-reload (${clients?.size ?? 0} client(s))`,
         );
@@ -197,7 +201,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       },
     },
     farm: {
-      config(userConfig: FarmConfig): Record<string, never> {
+      config(userConfig: FarmConfig): FarmConfigPatch {
         if (userConfig.root) ctx.setConsumerRoot(userConfig.root);
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         isNodeTarget = typeof targetEnv === 'string' && targetEnv.startsWith('node');
@@ -206,6 +210,15 @@ export function createFarm(ctx: PluginContext): FarmHooks {
           `[farm] config: isWatch=${isWatch} (compilation.watch=${JSON.stringify(userConfig.compilation?.watch)}), ` +
             `isNodeTarget=${isNodeTarget}, manifestWatchPaths=${ctx.manifestPaths.length}`,
         );
+        // farm dev server panics when lazy-compiling the .NET boot chain (blazor's dynamic import of
+        // dotnet.js resolves a virtual id farm's lazy wrapper can't find). Force eager compilation so the
+        // boot modules are in the graph up front, matching the (green) build --watch path.
+        if (userConfig.compilation?.lazyCompilation === true) {
+          ctx.logger.warn(
+            'Farm lazyCompilation is incompatible with the .NET WASM boot modules; disabling it for this project.',
+          );
+        }
+
         const presetEnv = userConfig.compilation?.presetEnv;
         const polyfillFree =
           targetEnv === 'browser-esnext' || targetEnv === 'node-next' || presetEnv === false;
@@ -216,7 +229,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
               `to skip polyfills.`,
           );
         }
-        return {};
+        return { compilation: { lazyCompilation: false } };
       },
       configureCompiler(c: FarmCompiler): void {
         compiler = c;

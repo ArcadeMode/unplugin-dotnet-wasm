@@ -1,11 +1,11 @@
 import { VIRTUAL_ROUTE_PREFIX } from '../constants';
 import { toPosixPath } from '../path-utils';
 
-// Farm messes up the leading `\0` in virtual ids, so we we ignore it in checks.
+// Farm mangles the leading `\0` in virtual ids, so we ignore it in checks.
 export const VIRTUAL_ROUTE_MARKER = VIRTUAL_ROUTE_PREFIX.slice(1);
 
-export function toVirtualId(route: string, omitNullByte = false): string {
-  return (omitNullByte ? VIRTUAL_ROUTE_MARKER : VIRTUAL_ROUTE_PREFIX) + route;
+export function toVirtualId(route: string): string {
+  return VIRTUAL_ROUTE_PREFIX + route;
 }
 
 export function isVirtualId(id: string): boolean {

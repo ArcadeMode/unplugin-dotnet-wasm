@@ -164,7 +164,7 @@ export class Fixture {
       env: this.scriptEnv,
     });
     try {
-      await waitForPort(this.port, 15_000);
+      await waitForPort(this.port, this.bundler === 'farm' ? 30_000 : 15_000);
     } catch (err) {
       const reason = this.server.hasExited ? 'server process exited early' : 'port never opened';
       throw new Error(
