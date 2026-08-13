@@ -143,6 +143,21 @@ describe('createAssetMiddleware', () => {
     expect(resolver.resolve).not.toHaveBeenCalled();
   });
 
+  it('passes through _framework/blazor.webassembly.js without calling resolve', () => {
+    const resolver: Partial<AssetResolver> = {
+      resolve: vi.fn(() => null),
+    };
+    const middleware = createAssetMiddleware(resolver as AssetResolver, nullLogger);
+    const next = vi.fn();
+    const req: FakeReq = { method: 'GET', url: '/_framework/blazor.webassembly.js', headers: {} };
+    const res = createFakeRes();
+
+    middleware(req as unknown as IncomingMessage, res as unknown as ServerResponse, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(resolver.resolve).not.toHaveBeenCalled();
+  });
+
   it('304 on matching If-None-Match', () => {
     const tempFile = createTempFile(Buffer.from([0x00, 0x61, 0x73, 0x6d]));
 

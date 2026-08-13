@@ -71,9 +71,5 @@ module.exports = (env, argv) => {
       port: 5080,
     },
     devtool: isProduction ? false : 'source-map',
-    // blazor.webassembly.js uses dynamic requires webpack can't analyze; safe at runtime.
-    ignoreWarnings: [
-      { message: /Critical dependency: the request of a dependency is an expression/ },
-    ],
   };
 };
