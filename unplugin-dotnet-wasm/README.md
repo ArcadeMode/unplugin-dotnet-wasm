@@ -43,6 +43,38 @@ export default defineConfig({
 });
 ```
 
+**Node target:** `vite build` emits a browser bundle by default. For Node, use a server environment and emit assets so `.wasm` / `.dat` / `.pdb` land in `dist`:
+
+```ts
+export default defineConfig({
+  plugins: [
+    DotnetWasm({
+      projectName: 'MyLibrary',
+      projectRoot: '../MyLibrary',
+      configuration: 'Debug',
+      targetFramework: 'net10.0',
+      isPublish: false,
+    }),
+  ],
+  environments: {
+    node: {
+      consumer: 'server',
+      build: {
+        emitAssets: true, // omitted from non-client builds otherwise
+        rollupOptions: {
+          input: 'src/entry.ts',
+        },
+      },
+    },
+  },
+  builder: {
+    buildApp: async (builder) => {
+      await builder.build(builder.environments.node); // skip the client environment
+    },
+  },
+});
+```
+
 </details>
 
 <details>
@@ -323,7 +355,7 @@ DotnetWasm({
 
 | Bundler | Browser | Node | Dev server | Watch mode |
 |---|---|---|---|---|
-| Vite | ✅ | ✅ | ✅ | ✅ |
+| Vite | ✅ | ✅[^vite-node-env] | ✅ | ✅ |
 | Rollup | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
 | Rolldown | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
 | Webpack | ✅ | ✅[^webpack-node-esm] | ✅ | ✅ |
@@ -366,6 +398,8 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 - Node.js >= 24
 - .NET SDK >= 10 (build output must exist before bundling)
 - TypeScript >= 5 (optional - enables editor / `tsc` type support for .NET WASM imports)
+
+[^vite-node-env]: Node support requires a Vite server environment (`consumer: 'server'`), `build.emitAssets: true`, and `builder.buildApp` so the client bundle is skipped. See the Vite example above.
 
 [^webpack-node-esm]: Node support requires ESM output - set webpack's `experiments.outputModule` and `output.module: true` with `target: 'node'` (the same ESM output every other Node target uses).
 
