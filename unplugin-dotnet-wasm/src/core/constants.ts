@@ -3,8 +3,10 @@ export const BINARY_EXTENSIONS_REGEX = /\.(wasm|dat|pdb)$/;
 
 // .NET SDK output conventions: all dotnet framework files live under a
 // `_framework/` directory. These patterns help scope bundler rules.
+// Boot JS (`dotnet*.js`, `blazor.webassembly.js`) is rewritten for bundler pragmas.
 export const FRAMEWORK_BINARY_REGEX = /[\\/]_framework[\\/][^\\/]+\.(wasm|dat|pdb)$/;
-export const FRAMEWORK_JS_REGEX = /[\\/]_framework[\\/]dotnet(?:\.[^\\/]+)?\.js$/;
+export const FRAMEWORK_JS_REGEX =
+  /[\\/]_framework[\\/](?:dotnet(?:\.[^\\/]+)?|blazor\.webassembly)\.js$/;
 export const JS_MODULE_REGEX = /\.[cm]?js$/;
 
 // Node.js built-ins referenced in dotnet.native.js - guarded by ENVIRONMENT_IS_NODE

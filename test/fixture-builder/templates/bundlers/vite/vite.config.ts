@@ -12,37 +12,65 @@ const configuration = (process.env.DOTNET_CONFIGURATION ?? 'Debug') as 'Debug' |
 const isPublish = process.env.DOTNET_IS_PUBLISH === 'true';
 const platform = process.env.DOTNET_FIXTURE_PLATFORM === 'node' ? 'node' : 'browser';
 
-export default defineConfig({
-  plugins: [
-    DotnetWasm({
-      projectRoot,
-      projectName: 'Library',
-      configuration,
-      isPublish,
-      targetFramework: 'net10.0',
-      logLevel: 'info',
-    }),
-    rollupSentinelPlugin(),
-  ],
-  server: {
-    watch: {
-      ignored: (watchedPath: string) => {
-        // safety-net: ignore files outside project root, let plugin handle it.
-        return !watchedPath.replace(/\\/g, '/').startsWith(projectRoot.replace(/\\/g, '/'));
-      },
+const plugins = [
+  DotnetWasm({
+    projectRoot,
+    projectName: 'Library',
+    configuration,
+    isPublish,
+    targetFramework: 'net10.0',
+    logLevel: 'info',
+  }),
+  rollupSentinelPlugin(),
+];
+
+const server = {
+  watch: {
+    ignored: (watchedPath: string) => {
+      // safety-net: ignore files outside project root, let plugin handle it.
+      return !watchedPath.replace(/\\/g, '/').startsWith(projectRoot.replace(/\\/g, '/'));
     },
   },
-  build: {
-    outDir: 'dist',
-    rollupOptions:
-      platform === 'node'
-        ? {
-            input: resolve(__dirname, 'src/entry.ts'),
-            preserveEntrySignatures: 'strict',
-            output: { format: 'es', entryFileNames: 'entry.js' },
-          }
-        : {
+};
+
+const nodeEntry = {
+  input: resolve(__dirname, 'src/entry.ts'),
+  preserveEntrySignatures: 'strict' as const,
+  output: { format: 'es' as const, entryFileNames: 'entry.js' },
+};
+
+export default defineConfig(
+  platform === 'node'
+    ? {
+        plugins,
+        server,
+        // Vite's client environment is always present; build only the Node one.
+        environments: {
+          node: {
+            consumer: 'server',
+            build: {
+              outDir: 'dist',
+              emitAssets: true,
+              rolldownOptions: nodeEntry,
+            },
+          },
+        },
+        builder: {
+          buildApp: async (builder) => {
+            const node = builder.environments.node;
+            if (!node) throw new Error('Vite "node" environment was not created.');
+            await builder.build(node);
+          },
+        },
+      }
+    : {
+        plugins,
+        server,
+        build: {
+          outDir: 'dist',
+          rollupOptions: {
             input: resolve(__dirname, 'index.html'),
           },
-  },
-});
+        },
+      },
+);
