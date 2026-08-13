@@ -104,7 +104,10 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   // workaround: https://github.com/unjs/unplugin/issues/293
   function awaitContextInit(compiler: { hooks?: CompilerHooks }): void {
     compiler.hooks?.beforeRun?.tapPromise('unplugin-dotnet-wasm', () => ctx.initialize());
-    compiler.hooks?.watchRun?.tapPromise('unplugin-dotnet-wasm', () => ctx.initialize());
+    compiler.hooks?.watchRun?.tapPromise('unplugin-dotnet-wasm', async () => {
+      await ctx.initialize();
+      if (isServe) await ctx.reinitialize({ emitReload: false });
+    });
   }
 
   function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {

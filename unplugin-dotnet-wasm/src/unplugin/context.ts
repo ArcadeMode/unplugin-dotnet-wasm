@@ -83,12 +83,12 @@ export class PluginContext {
     this.initCbs.push(callback);
   }
 
-  async reinitialize(): Promise<void> {
+  async reinitialize({ emitReload = true }: { emitReload?: boolean } = {}): Promise<void> {
     try {
-      this.logger.debug('reinitialize: begin');
+      this.logger.debug('reinitialize start; emitReload=' + emitReload);
       await this.initAssetResolutionSafe();
-      this.logger.info('dotnet staticwebassets manifests changed');
-
+      this.logger.info('dotnet staticwebassets manifests reloaded');
+      if (!emitReload) return;
       for (const fn of this.reloadTriggers) await fn();
       this.logger.debug(`reinitialize: done (${this.reloadTriggers.length} reload trigger(s))`);
     } catch (err) {
