@@ -82,7 +82,6 @@ export default defineConfig(() => {
         path: resolve(__dirname, 'dist'),
         filename: 'assets/[name].[hash].[ext]',
         assetsFilename: 'assets/[resourceName].[hash].[ext]',
-        publicPath: '/',
         targetEnv: 'browser-esnext' as const,
       },
       assets: {
