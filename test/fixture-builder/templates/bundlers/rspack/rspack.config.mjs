@@ -83,6 +83,10 @@ export default (_env, argv) => {
       historyApiFallback: true,
       hot: false,
     },
-    plugins: [new rspack.HtmlRspackPlugin(), dotnet, webpackSentinelPlugin],
+    plugins: [
+      new rspack.HtmlRspackPlugin({ scriptLoading: 'module' }),
+      dotnet,
+      webpackSentinelPlugin,
+    ],
   };
 };

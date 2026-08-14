@@ -83,7 +83,7 @@ export default (_env, argv) => {
     },
     plugins: [
       // The shared index.html is vite-flavored, lazy fix: generate default with HtmlWebpackPlugin.
-      new HtmlWebpackPlugin(),
+      new HtmlWebpackPlugin({ scriptLoading: 'module' }),
       dotnet,
       webpackSentinelPlugin,
     ],

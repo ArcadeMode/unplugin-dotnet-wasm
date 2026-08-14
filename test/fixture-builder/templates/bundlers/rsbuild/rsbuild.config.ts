@@ -83,6 +83,9 @@ export default defineConfig(() => {
       filenameHash: true,
       minify: false,
     },
+    tools: {
+      htmlPlugin: { scriptLoading: 'module' },
+    },
     plugins,
   };
 });
