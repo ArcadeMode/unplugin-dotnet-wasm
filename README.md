@@ -345,7 +345,11 @@ export default defineConfig({
 
 ### Runtime usage
 
-Once the plugin is configured, import .NET assets as regular ES modules:
+Once the plugin is configured, import .NET assets as regular ES modules. How you boot depends on your app type.
+
+#### WebAssembly Browser App
+
+Dotnet is imported from the `_framework/dotnet` module to create the runtime and start your app.
 
 ```ts
 import { dotnet } from '_framework/dotnet';
@@ -353,6 +357,19 @@ import { dotnet } from '_framework/dotnet';
 const runtime = await dotnet.create();
 runtime.runMain();
 ```
+
+#### Blazor WebAssembly App
+
+Blazor boots through `blazor.webassembly.js`. Importing it assigns `window.Blazor`:
+
+```ts
+import '_framework/blazor.webassembly.js';
+
+await window.Blazor.start(); // only if bundle loaded as module or with autostart=false
+```
+
+> [!IMPORTANT]
+> Loading your bundle as `<script type="module">` stops Blazor from autostarting, so you start it manually as shown above. Without `type="module"` Blazor autostarts unless you set `<script autostart=false>`.
 
 ### Dev server
 
