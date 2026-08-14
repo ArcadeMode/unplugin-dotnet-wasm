@@ -45,7 +45,6 @@ export default (_env, argv) => {
         },
       ],
     },
-    optimization: { minimize: false },
   };
 
   if (platform === 'node') {
@@ -57,9 +56,7 @@ export default (_env, argv) => {
       output: {
         path: resolve(__dirname, 'dist'),
         filename: 'entry.js',
-        assetModuleFilename: 'assets/[name]-[contenthash][ext]',
         module: true,
-        clean: true,
       },
       plugins: [dotnet, webpackSentinelPlugin],
     };
@@ -68,17 +65,12 @@ export default (_env, argv) => {
   // Browser: dev-server + injected HTML document.
   return {
     ...common,
-    target: 'web',
     output: {
       path: resolve(__dirname, 'dist'),
       filename: 'assets/entry.js',
-      assetModuleFilename: 'assets/[name]-[contenthash][ext]',
-      publicPath: '',
-      clean: true,
     },
     devServer: {
       static: false,
-      historyApiFallback: true,
       hot: false,
     },
     plugins: [
