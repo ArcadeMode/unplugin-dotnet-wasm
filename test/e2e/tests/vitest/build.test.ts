@@ -8,12 +8,12 @@ import { expectFingerprintLayout } from '../../helpers/assertions';
 
 for (const fingerprint of [true, false] as const) {
   describe(`[fingerprint=${fingerprint}]`, () => {
-    permuteFixture({ serveMode: 'dist' }, (params) => {
+    permuteFixture({ serveMode: 'dist', buildMode: 'debug' }, (params) => {
       let fixture: Fixture;
       let buildResult: RunResult;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'debug', clean: true });
+        fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
         buildResult = await fixture.build();
       });
@@ -62,13 +62,14 @@ for (const fingerprint of [true, false] as const) {
         expect(files.some((f) => /\.pdb$/.test(f))).toBe(true);
       });
 
-      it('Library*.wasm is present (user assembly emitted)', () => {
+      it('project assembly *.wasm is present (user assembly emitted)', () => {
         const files = readdirSync(distAssetsDir(fixture));
-        expect(files.some((f) => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
+        const re = new RegExp(`^${fixture.projectName}([.-][^/]+)?\\.wasm$`);
+        expect(files.some((f) => re.test(f))).toBe(true);
       });
 
       it('Library _framework fingerprint layout matches requested fingerprint', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint, fixture.projectName);
       });
 
       it('entry chunk references a *.wasm asset URL', () => {

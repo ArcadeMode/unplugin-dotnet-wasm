@@ -1,0 +1,28 @@
+@inject IJSRuntime JS
+
+<div id="wasm-initialized-marker" data-ts="@ts" data-typeshim="ok"></div>
+
+@code {
+    private string ts = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var typeShimOk = await JS.InvokeAsync<bool>(
+            "eval",
+            "(() => { const s = globalThis[Symbol.for('@typeshim')]; return typeof s === 'object' && s !== null; })()");
+        if (!typeShimOk)
+        {
+            throw new InvalidOperationException(
+                "LibraryInitializer failed: globalThis[Symbol.for(\"@typeshim\")] is not an object");
+        }
+        Console.WriteLine("NUGET_STATICWEBASSET:ok");
+
+        var counter = new Counter(0);
+        counter.Increment();
+        Console.WriteLine($"INCREMENT:{counter.Value}");
+        counter.Increment();
+        Console.WriteLine($"INCREMENT:{counter.Value}");
+
+        ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+    }
+}

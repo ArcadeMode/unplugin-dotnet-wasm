@@ -3,36 +3,34 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
 for (const fingerprint of [true, false] as const) {
-  for (const buildMode of ['debug', 'publish'] as const) {
-    describe(`[fingerprint=${fingerprint}][${buildMode}]`, () => {
-      permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
-        let fixture: Fixture;
+  describe(`[fingerprint=${fingerprint}]`, () => {
+    permuteFixture({ platform: 'node', serveMode: 'dist' }, (params) => {
+      let fixture: Fixture;
 
-        beforeAll(async () => {
-          fixture = await buildFixture({ ...params, buildMode });
-          await fixture.buildLibrary({ fingerprint });
-          await fixture.build();
-        });
+      beforeAll(async () => {
+        fixture = await buildFixture(params);
+        await fixture.buildLibrary({ fingerprint });
+        await fixture.build();
+      });
 
-        afterAll(async () => {
-          await fixture?.dispose();
-        });
+      afterAll(async () => {
+        await fixture?.dispose();
+      });
 
-        test('interop reflects the altered rebuild', async () => {
-          const baseline = await fixture.run();
-          expect(baseline.stdout).toContain('NUGET_STATICWEBASSET:ok');
-          expect(baseline.stdout).toContain('INCREMENT:3');
-          expect(baseline.stdout).toContain('INCREMENT:6');
+      test('interop reflects the altered rebuild', async () => {
+        const baseline = await fixture.run();
+        expect(baseline.stdout).toContain('NUGET_STATICWEBASSET:ok');
+        expect(baseline.stdout).toContain('INCREMENT:3');
+        expect(baseline.stdout).toContain('INCREMENT:6');
 
-          await fixture.buildLibrary({ fingerprint, altered: true });
-          await fixture.build();
+        await fixture.buildLibrary({ fingerprint, altered: true });
+        await fixture.build();
 
-          const altered = await fixture.run();
-          expect(altered.stdout).toContain('NUGET_STATICWEBASSET:ok');
-          expect(altered.stdout).toContain('INCREMENT:5');
-          expect(altered.stdout).toContain('INCREMENT:10');
-        });
+        const altered = await fixture.run();
+        expect(altered.stdout).toContain('NUGET_STATICWEBASSET:ok');
+        expect(altered.stdout).toContain('INCREMENT:5');
+        expect(altered.stdout).toContain('INCREMENT:10');
       });
     });
-  }
+  });
 }

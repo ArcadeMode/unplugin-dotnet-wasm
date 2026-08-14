@@ -15,8 +15,8 @@ export function permuteFixture(
 ): void {
   const merged = { ...filter, ...envFilter() };
   for (const params of getFixtureParameterPermutations(merged)) {
-    const label = `[${params.bundler}][${params.platform}][${params.serveMode}]`;
-    const runnable = supports(params.bundler, params.platform, params.serveMode);
+    const label = `[${params.bundler}][${params.platform}][${params.serveMode}][${params.kind}][${params.buildMode}]`;
+    const runnable = supports(params.bundler, params.platform, params.serveMode, params.kind);
     (runnable ? describe : describe.skip)(label, () => body(params));
   }
 }

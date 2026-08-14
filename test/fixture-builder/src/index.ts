@@ -14,9 +14,12 @@ export type {
   BuildFixtureOptions,
   BuildMode,
   Bundler,
+  FixtureKind,
   FixtureParameters,
+  FixtureProjectName,
   Platform,
   RunResult,
   ServeMode,
   WaitForLogOptions,
 } from './types';
+export { projectNameFor } from './types';

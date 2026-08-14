@@ -11,13 +11,13 @@ import {
 } from '../../helpers/dist-artifacts';
 import { expectFingerprintLayout } from '../../helpers/assertions';
 
-permuteFixture({ serveMode: 'dist' }, (params) => {
+permuteFixture({ serveMode: 'dist', buildMode: 'publish' }, (params) => {
   for (const fingerprint of [true, false] as const) {
     describe(`publish build (isPublish: true) [fingerprint=${fingerprint}]`, () => {
       let fixture: Fixture;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'publish' });
+        fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
         const result = await fixture.build();
         expect(result.exitCode).toBe(0);
@@ -32,9 +32,10 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
         expect(wasmFiles.length).toBeGreaterThan(0);
       });
 
-      it('Library*.wasm is emitted', () => {
+      it('project assembly *.wasm is emitted', () => {
         const files = readdirSync(distAssetsDir(fixture));
-        expect(files.some((f) => /^Library([.-][^/]+)?\.wasm$/.test(f))).toBe(true);
+        const re = new RegExp(`^${fixture.projectName}([.-][^/]+)?\\.wasm$`);
+        expect(files.some((f) => re.test(f))).toBe(true);
       });
 
       it('dotnet.native*.wasm byte length matches publish source', () => {
@@ -54,7 +55,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
       });
 
       it('Library _framework fingerprint layout matches requested fingerprint', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint, fixture.projectName);
       });
 
       it('entry chunk references a *.wasm asset URL', () => {
@@ -66,11 +67,7 @@ permuteFixture({ serveMode: 'dist' }, (params) => {
 
   describe('DiscoveryError when publish output is absent', () => {
     it('isPublish: true -> fails naming the searched publish dir', async () => {
-      const fixture = await buildFixture({
-        ...params,
-        buildMode: 'publish',
-        clean: true,
-      });
+      const fixture = await buildFixture(params);
       try {
         const expectedDir = libraryPublishDir(fixture);
         // Deliberately skip fixture.buildLibrary(): the publish output must

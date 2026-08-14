@@ -5,12 +5,12 @@ import { libraryFrameworkDir } from '../../helpers/dist-artifacts';
 import { expectFingerprintLayout } from '../../helpers/assertions';
 
 for (const fingerprint of [true, false] as const) {
-  permuteFixture({ bundler: 'vite', serveMode: 'dist' }, (params) => {
+  permuteFixture({ bundler: 'vite', serveMode: 'dist', buildMode: 'debug' }, (params) => {
     describe(`[fingerprint=${fingerprint}] layout`, () => {
       let fixture: Fixture;
 
       beforeAll(async () => {
-        fixture = await buildFixture({ ...params, buildMode: 'debug', clean: true });
+        fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
       });
 
@@ -19,7 +19,7 @@ for (const fingerprint of [true, false] as const) {
       });
 
       it('Library _framework naming matches WasmFingerprintAssets', () => {
-        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint);
+        expectFingerprintLayout(libraryFrameworkDir(fixture), fingerprint, fixture.projectName);
       });
     });
   });
