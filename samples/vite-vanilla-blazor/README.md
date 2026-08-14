@@ -10,7 +10,7 @@ the opposite: Vite owns the page, and Blazor only upgrades a few tags
 
 ## Run
 
-From the repo root (Node 20+, .NET 10 SDK, `pnpm install` already done):
+From the repo root (Node 24+, .NET 10 SDK, `pnpm install` already done):
 
 ```bash
 pnpm build:sample:vite-blazor
