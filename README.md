@@ -67,7 +67,7 @@ export default defineConfig({
       consumer: 'server',
       build: {
         emitAssets: true, // omitted from non-client builds otherwise
-        rolldownOptions: {
+        rolldownOptions: { // rollupOptions on Vite 5–7
           input: 'src/entry.ts',
         },
       },
@@ -181,6 +181,7 @@ await esbuild.build({
 await esbuild.build({
   // ...
   platform: 'node',
+  format: 'esm',
 });
 ```
 
