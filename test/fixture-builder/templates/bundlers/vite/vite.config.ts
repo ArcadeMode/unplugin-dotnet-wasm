@@ -71,7 +71,7 @@ export default defineConfig(
         server,
         build: {
           outDir: 'dist',
-          rollupOptions: {
+          rolldownOptions: {
             input: resolve(__dirname, 'index.html'),
           },
         },
