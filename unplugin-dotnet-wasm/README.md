@@ -97,6 +97,17 @@ export default {
 };
 ```
 
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime:
+
+```js
+export default {
+  // ...
+  target: 'node',
+  experiments: { outputModule: true },
+  output: { module: true },
+};
+```
+
 </details>
 
 <details>
@@ -179,6 +190,17 @@ export default {
 };
 ```
 
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime:
+
+```js
+export default {
+  // ...
+  target: 'node',
+  experiments: { outputModule: true },
+  output: { module: true, publicPath: 'auto' },
+};
+```
+
 </details>
 
 <details>
@@ -199,6 +221,22 @@ export default defineConfig({
       isPublish: false,
     }),
   ],
+});
+```
+
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime:
+
+```ts
+export default defineConfig({
+  // ...
+  output: { target: 'node' },
+  tools: {
+    rspack: (config) => {
+      config.experiments = { ...config.experiments, outputModule: true };
+      config.output = { ...config.output, module: true, publicPath: 'auto' };
+      return config;
+    },
+  },
 });
 ```
 
@@ -401,11 +439,11 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 
 [^vite-node-env]: Node support requires a Vite server environment (`consumer: 'server'`), `build.emitAssets: true`, and `builder.buildApp` so the client bundle is skipped. See the Vite example above.
 
-[^webpack-node-esm]: Node support requires ESM output - set webpack's `experiments.outputModule` and `output.module: true` with `target: 'node'` (the same ESM output every other Node target uses).
+[^webpack-node-esm]: Node support requires ESM output (`experiments.outputModule`, `output.module: true`, `target: 'node'`). See the Webpack example above.
 
-[^rspack-node-esm]: Node support requires ESM output - set rspack's `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'` with `target: 'node'`.
+[^rspack-node-esm]: Node support requires ESM output (`experiments.outputModule`, `output.module: true`, `output.publicPath: 'auto'`, `target: 'node'`). See the Rspack example above.
 
-[^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`.
+[^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`. See the Rsbuild example above.
 
 [^farm-node-esm]: Node support requires ESM output as a single chunk - set `output.targetEnv: 'node'` (or `'node-next'`), `output.format: 'esm'`, `compilation.assets.mode: 'browser'`, and `partialBundling.enforceResources: [{ name: 'entry', test: ['.+'] }]`.
 
