@@ -206,14 +206,17 @@ export default {
 };
 ```
 
-**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime:
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime, and set `publicPath: 'auto'` so asset URLs resolve:
 
 ```js
 export default {
   // ...
   target: 'node',
   experiments: { outputModule: true },
-  output: { module: true, publicPath: 'auto' },
+  output: {
+    module: true,
+    publicPath: 'auto',
+  },
 };
 ```
 
@@ -240,7 +243,7 @@ export default defineConfig({
 });
 ```
 
-**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime:
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime, and set `publicPath: 'auto'` so asset URLs resolve:
 
 ```ts
 export default defineConfig({
@@ -249,7 +252,11 @@ export default defineConfig({
   tools: {
     rspack: (config) => {
       config.experiments = { ...config.experiments, outputModule: true };
-      config.output = { ...config.output, module: true, publicPath: 'auto' };
+      config.output = {
+        ...config.output,
+        module: true,
+        publicPath: 'auto',
+      };
       return config;
     },
   },
