@@ -59,7 +59,6 @@ export default (_env, argv) => {
         filename: 'entry.js',
         assetModuleFilename: 'assets/[name]-[contenthash][ext]',
         module: true,
-        library: { type: 'module' },
         clean: true,
       },
       plugins: [dotnet, webpackSentinelPlugin],

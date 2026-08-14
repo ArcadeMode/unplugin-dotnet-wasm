@@ -64,7 +64,6 @@ export default defineConfig(() => {
           config.output = {
             ...config.output,
             module: true,
-            library: { type: 'module' },
             publicPath: 'auto',
             assetModuleFilename: 'assets/[name]-[contenthash][ext]',
           };
