@@ -1,7 +1,12 @@
 import { test } from '@playwright/test';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture';
-import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
+import {
+  trackConsoleMessages,
+  trackBlazorDoubleStart,
+  expectMessages,
+  waitForInit,
+} from '../../helpers/assertions';
 
 permuteFixture({ platform: 'browser', serveMode: 'server', buildMode: 'debug' }, (params) => {
   let fixture: Fixture;
@@ -18,6 +23,7 @@ permuteFixture({ platform: 'browser', serveMode: 'server', buildMode: 'debug' },
 
   test('interop reflects the altered rebuild after the pushed reload', async ({ page }) => {
     const consoleMsgs = trackConsoleMessages(page);
+    const assertNoBlazorDoubleStart = trackBlazorDoubleStart(page);
 
     await page.goto(fixture.baseUrl);
     const bootTs = await waitForInit(page);
@@ -26,5 +32,6 @@ permuteFixture({ platform: 'browser', serveMode: 'server', buildMode: 'debug' },
     await fixture.buildLibrary({ altered: true });
     await waitForInit(page, bootTs);
     await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
+    assertNoBlazorDoubleStart();
   });
 });

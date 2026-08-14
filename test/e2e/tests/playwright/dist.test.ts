@@ -1,7 +1,12 @@
 import { test } from '@playwright/test';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture';
-import { trackConsoleMessages, expectMessages, waitForInit } from '../../helpers/assertions';
+import {
+  trackConsoleMessages,
+  trackBlazorDoubleStart,
+  expectMessages,
+  waitForInit,
+} from '../../helpers/assertions';
 
 for (const fingerprint of [true, false] as const) {
   test.describe(`[fingerprint=${fingerprint}]`, () => {
@@ -21,6 +26,7 @@ for (const fingerprint of [true, false] as const) {
 
       test('interop reflects the altered rebuild after a manual reload', async ({ page }) => {
         const consoleMsgs = trackConsoleMessages(page);
+        const assertNoBlazorDoubleStart = trackBlazorDoubleStart(page);
         await page.goto(fixture.baseUrl);
 
         const bootTs = await waitForInit(page);
@@ -40,6 +46,7 @@ for (const fingerprint of [true, false] as const) {
           'INCREMENT:5',
           'INCREMENT:10',
         ]);
+        assertNoBlazorDoubleStart();
       });
     });
   });

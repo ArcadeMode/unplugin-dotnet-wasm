@@ -34,6 +34,21 @@ export function trackConsoleMessages(page: Page): ConsoleMessage[] {
   return seen;
 }
 
+export function trackBlazorDoubleStart(page: Page): () => void {
+  const needle = 'Blazor has already started';
+  const hits: string[] = [];
+  page.on('pageerror', (err) => {
+    if (err.message.includes(needle)) hits.push(err.message);
+  });
+  page.on('console', (msg) => {
+    if (msg.text().includes(needle)) hits.push(msg.text());
+  });
+  return () =>
+    expect(hits, "Blazor autostarted and collided with the entry's manual Blazor.start()").toEqual(
+      [],
+    );
+}
+
 export async function expectMessages(
   seen: ConsoleMessage[],
   expected: string[],
