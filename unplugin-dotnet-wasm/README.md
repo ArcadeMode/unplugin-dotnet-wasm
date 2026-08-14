@@ -61,7 +61,7 @@ export default defineConfig({
       consumer: 'server',
       build: {
         emitAssets: true, // omitted from non-client builds otherwise
-        rollupOptions: {
+        rolldownOptions: {
           input: 'src/entry.ts',
         },
       },
@@ -165,6 +165,16 @@ await esbuild.build({
       isPublish: false,
     }),
   ],
+  format: 'esm',
+});
+```
+
+**Node target:** set `platform: 'node'` (keep `format: 'esm'`; esbuild's Node default is CJS):
+
+```ts
+await esbuild.build({
+  // ...
+  platform: 'node',
 });
 ```
 
@@ -285,11 +295,6 @@ import DotnetWasm from 'unplugin-dotnet-wasm/bun';
 
 await Bun.build({
   // ...
-  loader: {
-    '.wasm': 'file',
-    '.dat': 'file',
-    '.pdb': 'file',
-  },
   plugins: [
     DotnetWasm({
       projectName: 'MyLibrary',
@@ -299,6 +304,20 @@ await Bun.build({
       isPublish: false,
     }),
   ],
+  loader: {
+    '.wasm': 'file',
+    '.dat': 'file',
+    '.pdb': 'file',
+  },
+});
+```
+
+**Node target:** Bun's default target is the browser. For Node:
+
+```ts
+await Bun.build({
+  // ...
+  target: 'node',
 });
 ```
 
@@ -307,22 +326,14 @@ await Bun.build({
 <details>
 <summary><strong>Farm</strong></summary>
 
-Farm parses unknown extensions as JavaScript by default and injects `core-js` polyfills. Two options make it emit dotnet's binary assets cleanly without pulling in `core-js`:
+Farm parses unknown extensions as JavaScript by default and injects `core-js` polyfills. Declare the three binary asset types the dotnet runtime references, and set `targetEnv` to `'browser-esnext'` (or `'node-next'` on Node) to skip polyfill injection:
 
 ```ts
 import { defineConfig } from '@farmfe/core';
 import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 
 export default defineConfig({
-  compilation: {
-    // ...
-    assets: {
-      include: ['wasm', 'dat', 'pdb'],   // treat as emittable static assets
-    },
-    output: {
-      targetEnv: 'browser-esnext',       // skip core-js polyfill injection
-    },
-  },
+  // ...
   plugins: [
     DotnetWasm({
       projectName: 'MyLibrary',
@@ -332,6 +343,34 @@ export default defineConfig({
       isPublish: false,
     }),
   ],
+  compilation: {
+    assets: {
+      include: ['wasm', 'dat', 'pdb'],
+    },
+    output: {
+      targetEnv: 'browser-esnext',
+    },
+  },
+});
+```
+
+**Node target:** keep the boot graph in a single chunk and force asset URLs (`mode: 'browser'`). Node's default asset mode emits filesystem paths, but the dotnet bootstrapper expects URLs (will still read from disk):
+
+```ts
+export default defineConfig({
+  // ...
+  compilation: {
+    assets: {
+      include: ['wasm', 'dat', 'pdb'],
+      mode: 'browser',
+    },
+    output: {
+      targetEnv: 'node-next',
+    },
+    partialBundling: {
+      enforceResources: [{ name: 'entry', test: ['.+'] }],
+    },
+  },
 });
 ```
 
@@ -347,23 +386,23 @@ Dotnet is imported from the `_framework/dotnet` module to create the runtime and
 
 ```ts
 import { dotnet } from '_framework/dotnet';
-...
+
 const runtime = await dotnet.create();
 runtime.runMain();
 ```
 
 #### Blazor WebAssembly App
 
-Blazor boots through `blazor.webassembly.js`. Importing it assigns `window.Blazor`:
+Blazor boots through `_framework/blazor.webassembly.js`. Importing it assigns `window.Blazor`:
 
 ```ts
 import '_framework/blazor.webassembly.js';
-...
+
 await window.Blazor.start(); // only if bundle loaded as module or with autostart=false
 ```
 
 > [!IMPORTANT]
-> Loading your bundle as `<script type="module">` stops Blazor from autostarting, so you start it manually as shown above. Without `type="module"` Blazor autostarts unless you set `<script autostart=false>`.
+> Loading your bundle as `<script type="module">` stops Blazor from autostarting. If your bundle is loaded as a classic script without `autostart=false` then Blazor will boot automatically.
 
 ### Dev server
 
@@ -462,7 +501,7 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 
 [^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`. See the Rsbuild example above.
 
-[^farm-node-esm]: Node support requires ESM output as a single chunk - set `output.targetEnv: 'node'` (or `'node-next'`), `output.format: 'esm'`, `compilation.assets.mode: 'browser'`, and `partialBundling.enforceResources: [{ name: 'entry', test: ['.+'] }]`.
+[^farm-node-esm]: Node support requires a single-chunk Node build (`output.targetEnv: 'node-next'`, `compilation.assets.mode: 'browser'`, `partialBundling.enforceResources`). See the Farm example above.
 
 [^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
 
