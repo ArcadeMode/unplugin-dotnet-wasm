@@ -61,7 +61,6 @@ export default (_env, argv) => {
         filename: 'entry.js',
         assetModuleFilename: 'assets/[name]-[contenthash][ext]',
         module: true,
-        chunkFormat: 'module',
         library: { type: 'module' },
         publicPath: 'auto',
         clean: true,
