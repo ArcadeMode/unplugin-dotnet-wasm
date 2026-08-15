@@ -141,7 +141,7 @@ export class PluginContext {
     const { ok, attempts, lastError } = await retryIOUntil(
       async () => {
         await this.initAssetResolution();
-        return await this.#assetResolver!.manifestConsistentWithDisk();
+        return await this.#assetResolver!.checkAssetsOnDisk();
       },
       { timeoutMs: SETTLE_TIMEOUT_MS, pollMs: SETTLE_POLL_MS },
     );
