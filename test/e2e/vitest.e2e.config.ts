@@ -15,8 +15,8 @@ export default defineConfig({
     // .NET restore + build on first materialization can be slow.
     testTimeout: 200_000,
     hookTimeout: 200_000,
-    fileParallelism: false,
-    maxWorkers: 1,
+    fileParallelism: true,
+    maxWorkers: 2,
     reporters: ['default', 'junit'],
     outputFile: {
       junit: resolve(__dirname, `test-results/node/${bundler}/${configName}.junit.xml`),
