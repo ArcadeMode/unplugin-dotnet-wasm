@@ -33,7 +33,7 @@ export async function retryIOUntil(
 ): Promise<RetryIOUntilResult> {
   const deadline = Date.now() + opts.timeoutMs;
   let lastError: unknown = undefined;
-  let attempts = 1;
+  let attempts = 0;
   while (true) {
     attempts++;
     lastError = undefined;
