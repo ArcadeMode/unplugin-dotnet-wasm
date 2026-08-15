@@ -58,6 +58,7 @@ export default (_env, argv) => {
       output: {
         path: resolve(__dirname, 'dist'),
         filename: 'entry.js',
+        assetModuleFilename: 'assets/[name]-[contenthash][ext]',
         module: true,
         publicPath: 'auto',
       },

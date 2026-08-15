@@ -64,6 +64,7 @@ export default defineConfig(() => {
             ...config.output,
             module: true,
             publicPath: 'auto',
+            assetModuleFilename: 'assets/[name]-[contenthash][ext]',
           };
           return config;
         },
