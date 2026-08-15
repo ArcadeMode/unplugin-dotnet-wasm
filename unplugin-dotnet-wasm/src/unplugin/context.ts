@@ -3,6 +3,7 @@ import { createConsoleLogger, type Logger } from '../core/logger';
 import { BundlerCompatRewriter, type BundlerFramework } from '../core/bundler-compat-rewriter';
 import { ManifestLoader } from '../core/manifest-parsing/loader';
 import { discoverManifests } from '../core/manifest-parsing/discover';
+import { retryIOUntil } from '../core/retry';
 import { EndpointLookup } from '../core/asset-resolution/endpoint-lookup';
 import { buildVfs, buildEmptyVfs } from '../core/asset-resolution/vfs';
 import { AssetResolver } from '../core/asset-resolution/asset-resolver';
@@ -86,7 +87,7 @@ export class PluginContext {
   async reinitialize({ emitReload = true }: { emitReload?: boolean } = {}): Promise<void> {
     try {
       this.logger.debug('reinitialize start; emitReload=' + emitReload);
-      await this.initAssetResolutionSafe();
+      if (!(await this.initAssetResolutionSafe())) return;
       this.logger.info('dotnet staticwebassets manifests reloaded');
       if (!emitReload) return;
       for (const fn of this.reloadTriggers) await fn();
@@ -133,26 +134,27 @@ export class PluginContext {
     await generator.generate();
   }
 
-  private async initAssetResolutionSafe(): Promise<void> {
+  private async initAssetResolutionSafe(): Promise<boolean> {
     const SETTLE_TIMEOUT_MS = 2_000;
     const SETTLE_POLL_MS = 20; // testing showed 15ms delay between dotnet.js and the first manifest write, hence 20ms for safety
-    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
-    for (let attempt = 1; ; attempt++) {
-      await this.initAssetResolution();
-      if (await this.#assetResolver!.manifestConsistentWithDisk()) {
-        if (attempt > 1) {
-          this.logger.debug(`manifests settled against disk after ${attempt} reads`);
-        }
-        return;
-      }
-      if (Date.now() >= deadline) {
-        this.logger.warn(
-          `manifests never settled against disk after ${SETTLE_TIMEOUT_MS}ms; proceeding with latest snapshot`,
-        );
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, SETTLE_POLL_MS));
+
+    const { ok, attempts, lastError } = await retryIOUntil(
+      async () => {
+        await this.initAssetResolution();
+        return await this.#assetResolver!.manifestConsistentWithDisk();
+      },
+      { timeoutMs: SETTLE_TIMEOUT_MS, pollMs: SETTLE_POLL_MS },
+    );
+
+    if (ok) {
+      this.logger.debug(`Asset resolution initialized successfully (${attempts} attempts)`);
+      return true;
     }
+
+    this.logger.error(
+      `Asset resolution failed to initialize within ${SETTLE_TIMEOUT_MS}ms / ${attempts} attempts (${formatErr(lastError)})`,
+    );
+    return false;
   }
 
   private async initAssetResolution(): Promise<void> {
@@ -174,4 +176,10 @@ export class PluginContext {
       this.#framework,
     );
   }
+}
+
+function formatErr(err: unknown): string {
+  const code = (err as NodeJS.ErrnoException).code;
+  if (typeof code === 'string') return code;
+  return err instanceof Error ? err.message : String(err);
 }
