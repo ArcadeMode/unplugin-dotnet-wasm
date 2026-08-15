@@ -39,8 +39,7 @@ const server = {
 
 const nodeEntry = {
   input: resolve(__dirname, 'src/entry.ts'),
-  preserveEntrySignatures: 'strict' as const,
-  output: { format: 'es' as const, entryFileNames: 'entry.js' },
+  output: { entryFileNames: 'entry.js' },
 };
 
 export default defineConfig(
@@ -72,7 +71,7 @@ export default defineConfig(
         server,
         build: {
           outDir: 'dist',
-          rollupOptions: {
+          rolldownOptions: {
             input: resolve(__dirname, 'index.html'),
           },
         },

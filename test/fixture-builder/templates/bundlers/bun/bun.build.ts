@@ -24,7 +24,6 @@ const result = await Bun.build({
   entrypoints: [resolve(__dirname, 'src/entry.ts')],
   outdir,
   target: platform,
-  format: 'esm',
   minify: false,
   naming: {
     entry: '[name].[ext]',

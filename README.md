@@ -67,7 +67,7 @@ export default defineConfig({
       consumer: 'server',
       build: {
         emitAssets: true, // omitted from non-client builds otherwise
-        rollupOptions: {
+        rolldownOptions: { // rollupOptions on Vite 5–7
           input: 'src/entry.ts',
         },
       },
@@ -100,6 +100,17 @@ export default {
       isPublish: false,
     }),
   ],
+};
+```
+
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime:
+
+```js
+export default {
+  // ...
+  target: 'node',
+  experiments: { outputModule: true },
+  output: { module: true },
 };
 ```
 
@@ -160,6 +171,17 @@ await esbuild.build({
       isPublish: false,
     }),
   ],
+  format: 'esm',
+});
+```
+
+**Node target:** set `platform: 'node'` (keep `format: 'esm'`; esbuild's Node default is CJS):
+
+```ts
+await esbuild.build({
+  // ...
+  platform: 'node',
+  format: 'esm',
 });
 ```
 
@@ -185,6 +207,20 @@ export default {
 };
 ```
 
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime, and set `publicPath: 'auto'` so asset URLs resolve:
+
+```js
+export default {
+  // ...
+  target: 'node',
+  experiments: { outputModule: true },
+  output: {
+    module: true,
+    publicPath: 'auto',
+  },
+};
+```
+
 </details>
 
 <details>
@@ -205,6 +241,26 @@ export default defineConfig({
       isPublish: false,
     }),
   ],
+});
+```
+
+**Node target:** emit ESM so the dotnet runtime's dynamic imports resolve at runtime, and set `publicPath: 'auto'` so asset URLs resolve:
+
+```ts
+export default defineConfig({
+  // ...
+  output: { target: 'node' },
+  tools: {
+    rspack: (config) => {
+      config.experiments = { ...config.experiments, outputModule: true };
+      config.output = {
+        ...config.output,
+        module: true,
+        publicPath: 'auto',
+      };
+      return config;
+    },
+  },
 });
 ```
 
@@ -253,11 +309,6 @@ import DotnetWasm from 'unplugin-dotnet-wasm/bun';
 
 await Bun.build({
   // ...
-  loader: {
-    '.wasm': 'file',
-    '.dat': 'file',
-    '.pdb': 'file',
-  },
   plugins: [
     DotnetWasm({
       projectName: 'MyLibrary',
@@ -267,6 +318,20 @@ await Bun.build({
       isPublish: false,
     }),
   ],
+  loader: {
+    '.wasm': 'file',
+    '.dat': 'file',
+    '.pdb': 'file',
+  },
+});
+```
+
+**Node target:** Bun's default target is the browser. For Node:
+
+```ts
+await Bun.build({
+  // ...
+  target: 'node',
 });
 ```
 
@@ -275,22 +340,14 @@ await Bun.build({
 <details>
 <summary><strong>Farm</strong></summary>
 
-Farm parses unknown extensions as JavaScript by default and injects `core-js` polyfills. Two options make it emit dotnet's binary assets cleanly without pulling in `core-js`:
+Farm parses unknown extensions as JavaScript by default and injects `core-js` polyfills. Declare the three binary asset types the dotnet runtime references, and set `targetEnv` to `'browser-esnext'` (or `'node-next'` on Node) to skip polyfill injection:
 
 ```ts
 import { defineConfig } from '@farmfe/core';
 import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 
 export default defineConfig({
-  compilation: {
-    // ...
-    assets: {
-      include: ['wasm', 'dat', 'pdb'],   // treat as emittable static assets
-    },
-    output: {
-      targetEnv: 'browser-esnext',       // skip core-js polyfill injection
-    },
-  },
+  // ...
   plugins: [
     DotnetWasm({
       projectName: 'MyLibrary',
@@ -300,6 +357,34 @@ export default defineConfig({
       isPublish: false,
     }),
   ],
+  compilation: {
+    assets: {
+      include: ['wasm', 'dat', 'pdb'],
+    },
+    output: {
+      targetEnv: 'browser-esnext',
+    },
+  },
+});
+```
+
+**Node target:** keep the boot graph in a single chunk and force asset URLs (`mode: 'browser'`). Node's default asset mode emits filesystem paths, but the dotnet bootstrapper expects URLs (will still read from disk):
+
+```ts
+export default defineConfig({
+  // ...
+  compilation: {
+    assets: {
+      include: ['wasm', 'dat', 'pdb'],
+      mode: 'browser',
+    },
+    output: {
+      targetEnv: 'node-next',
+    },
+    partialBundling: {
+      enforceResources: [{ name: 'entry', test: ['.+'] }],
+    },
+  },
 });
 ```
 
@@ -307,7 +392,11 @@ export default defineConfig({
 
 ### Runtime usage
 
-Once the plugin is configured, import .NET assets as regular ES modules:
+Once the plugin is configured, import .NET assets as regular ES modules. How you boot depends on your app type.
+
+#### WebAssembly Browser App
+
+Dotnet is imported from the `_framework/dotnet` module to create the runtime and start your app.
 
 ```ts
 import { dotnet } from '_framework/dotnet';
@@ -315,6 +404,19 @@ import { dotnet } from '_framework/dotnet';
 const runtime = await dotnet.create();
 runtime.runMain();
 ```
+
+#### Blazor WebAssembly App
+
+Blazor boots through `_framework/blazor.webassembly.js`. Importing it assigns `window.Blazor`:
+
+```ts
+import '_framework/blazor.webassembly.js';
+
+await window.Blazor.start(); // only if bundle loaded as module or with autostart=false
+```
+
+> [!IMPORTANT]
+> Loading your bundle as `<script type="module">` stops Blazor from autostarting. If your bundle is loaded as a classic script without `autostart=false` then Blazor will boot automatically.
 
 ### Dev server
 
@@ -430,17 +532,13 @@ Testing the `bun` integration additionally requires Bun >= 1.3.
 
 [^vite-node-env]: Node support requires a Vite server environment (`consumer: 'server'`), `build.emitAssets: true`, and `builder.buildApp` so the client bundle is skipped. See the Vite example above.
 
-[^webpack-node-esm]: Node support requires ESM output - set webpack's `experiments.outputModule` and `output.module: true` with `target: 'node'` (the same ESM output every other Node target uses).
+[^webpack-node-esm]: Node support requires ESM output (`experiments.outputModule`, `output.module: true`, `target: 'node'`). See the Webpack example above.
 
-[^rspack-node-esm]: Node support requires ESM output - set rspack's `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'` with `target: 'node'`.
+[^rspack-node-esm]: Node support requires ESM output (`experiments.outputModule`, `output.module: true`, `output.publicPath: 'auto'`, `target: 'node'`). See the Rspack example above.
 
-[^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`.
+[^rsbuild-node-esm]: Node support requires ESM output - set `output.target: 'node'` and use `tools.rspack` to enable `experiments.outputModule`, `output.module: true`, and `output.publicPath: 'auto'`. See the Rsbuild example above.
 
-[^farm-node-esm]: Node support requires ESM output as a single chunk - set `output.targetEnv: 'node'` (or `'node-next'`), `output.format: 'esm'`, `compilation.assets.mode: 'browser'`, and `partialBundling.enforceResources: [{ name: 'entry', test: ['.+'] }]`.
-
-[^bundlers-wasm-binary-no-plugin-support]: Bun and Farm can't be configured from within the plugin to emit .NET's binary assets (`.wasm`, `.dat`, `.pdb`); See the Bun and Farm examples above on how to configure it in the consuming project.
-
-[^rollup-family-node-externals]: Rollup and Rolldown can't be configured from within the plugin to externalize Node built-ins; See the Rollup and Rolldown examples above on how to configure it in the consuming project.
+[^farm-node-esm]: Node support requires a single-chunk Node build (`output.targetEnv: 'node-next'`, `compilation.assets.mode: 'browser'`, `partialBundling.enforceResources`). See the Farm example above.
 
 [^rollup-family-no-dev-server]: Rollup and Rolldown have no standalone dev server; use Vite (same Rollup-family code path) for a dev-server workflow.
 

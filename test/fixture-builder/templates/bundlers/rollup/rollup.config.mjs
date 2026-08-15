@@ -60,14 +60,12 @@ if (platform === 'browser') {
 /** @type {import('rollup').RollupOptions} */
 const config = {
   input: resolve(__dirname, 'src/entry.ts'),
-  preserveEntrySignatures: 'strict',
   external:
     platform === 'node'
       ? [...builtinModules, ...builtinModules.map((m) => `node:${m}`)]
       : undefined,
   output: {
     dir: resolve(__dirname, 'dist'),
-    format: 'esm',
     entryFileNames: platform === 'node' ? 'entry.js' : 'assets/entry.js',
     assetFileNames: 'assets/[name]-[hash][extname]',
   },

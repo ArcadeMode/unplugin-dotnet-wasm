@@ -48,7 +48,6 @@ export default (_env, argv) => {
         },
       ],
     },
-    optimization: { minimize: false },
   };
 
   if (platform === 'node') {
@@ -61,10 +60,7 @@ export default (_env, argv) => {
         filename: 'entry.js',
         assetModuleFilename: 'assets/[name]-[contenthash][ext]',
         module: true,
-        chunkFormat: 'module',
-        library: { type: 'module' },
         publicPath: 'auto',
-        clean: true,
       },
       plugins: [dotnet, webpackSentinelPlugin],
     };
@@ -72,19 +68,19 @@ export default (_env, argv) => {
 
   return {
     ...common,
-    target: 'web',
     output: {
       path: resolve(__dirname, 'dist'),
       filename: 'assets/entry.js',
       assetModuleFilename: 'assets/[name]-[contenthash][ext]',
-      publicPath: '',
-      clean: true,
     },
     devServer: {
       static: false,
-      historyApiFallback: true,
       hot: false,
     },
-    plugins: [new rspack.HtmlRspackPlugin(), dotnet, webpackSentinelPlugin],
+    plugins: [
+      new rspack.HtmlRspackPlugin({ scriptLoading: 'module' }),
+      dotnet,
+      webpackSentinelPlugin,
+    ],
   };
 };

@@ -19,6 +19,22 @@ const configuration = (process.env.DOTNET_CONFIGURATION ?? 'Debug') as 'Debug' |
 const isPublish = process.env.DOTNET_IS_PUBLISH === 'true';
 const platform = process.env.DOTNET_FIXTURE_PLATFORM === 'node' ? 'node' : 'browser';
 
+const htmlInjectScriptAutostartFalse = {
+  name: 'disable-blazor-autostart',
+  transformHtml: {
+    order: 2,
+    executor({ htmlResource }: { htmlResource: { bytes: number[] } }) {
+      const html = Buffer.from(htmlResource.bytes)
+        .toString()
+        .replace(/<script\b([^>]*)>/gi, (tag, attrs) =>
+          /\bautostart\s*=/i.test(attrs) ? tag : `<script autostart="false"${attrs}>`,
+        );
+      htmlResource.bytes = [...Buffer.from(html)];
+      return htmlResource;
+    },
+  },
+};
+
 export default defineConfig(() => {
   const plugins = [
     DotnetWasm({
@@ -30,6 +46,7 @@ export default defineConfig(() => {
       logLevel: 'info',
     }),
     farmSentinelPlugin(),
+    htmlInjectScriptAutostartFalse,
   ];
 
   if (platform === 'node') {
@@ -42,7 +59,6 @@ export default defineConfig(() => {
           filename: 'assets/[name].[hash].[ext]',
           assetsFilename: 'assets/[resourceName].[hash].[ext]',
           targetEnv: 'node-next' as const,
-          format: 'esm' as const,
         },
         assets: {
           include: ['wasm', 'dat', 'pdb'],
@@ -66,7 +82,6 @@ export default defineConfig(() => {
         path: resolve(__dirname, 'dist'),
         filename: 'assets/[name].[hash].[ext]',
         assetsFilename: 'assets/[resourceName].[hash].[ext]',
-        publicPath: '/',
         targetEnv: 'browser-esnext' as const,
       },
       assets: {

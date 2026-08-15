@@ -60,7 +60,6 @@ const config = {
       : undefined,
   output: {
     dir: resolve(__dirname, 'dist'),
-    format: 'esm',
     entryFileNames: platform === 'node' ? 'entry.js' : 'assets/entry.js',
     assetFileNames: 'assets/[name]-[hash][extname]',
   },

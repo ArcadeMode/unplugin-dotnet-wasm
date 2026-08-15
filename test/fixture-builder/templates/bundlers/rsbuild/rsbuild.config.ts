@@ -56,7 +56,6 @@ export default defineConfig(() => {
         target: 'node',
         distPath: { ...distPath, js: '' },
         filenameHash: false,
-        minify: false,
       },
       tools: {
         rspack: (config) => {
@@ -64,8 +63,6 @@ export default defineConfig(() => {
           config.output = {
             ...config.output,
             module: true,
-            chunkFormat: 'module',
-            library: { type: 'module' },
             publicPath: 'auto',
             assetModuleFilename: 'assets/[name]-[contenthash][ext]',
           };
@@ -83,7 +80,9 @@ export default defineConfig(() => {
     output: {
       distPath,
       filenameHash: true,
-      minify: false,
+    },
+    tools: {
+      htmlPlugin: { scriptLoading: 'module' },
     },
     plugins,
   };

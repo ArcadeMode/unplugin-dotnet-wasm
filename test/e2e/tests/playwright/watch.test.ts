@@ -3,6 +3,7 @@ import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder
 import { permuteFixture } from '../../helpers/permute-fixture';
 import {
   trackConsoleMessages,
+  trackBlazorDoubleStart,
   expectMessages,
   waitForInit,
   reloadUntilBooted,
@@ -23,6 +24,7 @@ permuteFixture({ platform: 'browser', serveMode: 'watch', buildMode: 'debug' }, 
 
   test('interop reflects the altered rebuild after watch re-emit + reload', async ({ page }) => {
     const consoleMsgs = trackConsoleMessages(page);
+    const assertNoBlazorDoubleStart = trackBlazorDoubleStart(page);
     await page.goto(fixture.baseUrl);
 
     const bootTs = await waitForInit(page);
@@ -34,5 +36,6 @@ permuteFixture({ platform: 'browser', serveMode: 'watch', buildMode: 'debug' }, 
     await reloadUntilBooted(page, bootTs);
 
     await expectMessages(consoleMsgs, ['NUGET_STATICWEBASSET:ok', 'INCREMENT:5', 'INCREMENT:10']);
+    assertNoBlazorDoubleStart();
   });
 });

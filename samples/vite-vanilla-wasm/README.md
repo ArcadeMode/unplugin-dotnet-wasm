@@ -9,7 +9,7 @@ custom elements, this sample skips Blazor entirely: the host owns the DOM, and
 
 ## Run
 
-From the repo root (Node 20+, .NET 10 SDK, `pnpm install` already done):
+From the repo root (Node 24+, .NET 10 SDK, `pnpm install` already done):
 
 ```bash
 pnpm build:sample:vite-wasm

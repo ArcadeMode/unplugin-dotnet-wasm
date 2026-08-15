@@ -45,7 +45,6 @@ export default (_env, argv) => {
         },
       ],
     },
-    optimization: { minimize: false },
   };
 
   if (platform === 'node') {
@@ -59,9 +58,6 @@ export default (_env, argv) => {
         filename: 'entry.js',
         assetModuleFilename: 'assets/[name]-[contenthash][ext]',
         module: true,
-        chunkFormat: 'module',
-        library: { type: 'module' },
-        clean: true,
       },
       plugins: [dotnet, webpackSentinelPlugin],
     };
@@ -70,22 +66,18 @@ export default (_env, argv) => {
   // Browser: dev-server + injected HTML document.
   return {
     ...common,
-    target: 'web',
     output: {
       path: resolve(__dirname, 'dist'),
       filename: 'assets/entry.js',
       assetModuleFilename: 'assets/[name]-[contenthash][ext]',
-      publicPath: '',
-      clean: true,
     },
     devServer: {
       static: false,
-      historyApiFallback: true,
       hot: false,
     },
     plugins: [
       // The shared index.html is vite-flavored, lazy fix: generate default with HtmlWebpackPlugin.
-      new HtmlWebpackPlugin(),
+      new HtmlWebpackPlugin({ scriptLoading: 'module' }),
       dotnet,
       webpackSentinelPlugin,
     ],
