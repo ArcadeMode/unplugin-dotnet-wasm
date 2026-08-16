@@ -23,6 +23,7 @@ import type {
 } from './types';
 
 const DEV_SERVER_ATTEMPTS = 3;
+const DEV_SERVER_PROBE_MS = 30_000;
 const STATIC_SERVER_ATTEMPTS = 3;
 
 export interface FixtureInit {
@@ -162,8 +163,6 @@ export class Fixture {
       );
     }
 
-    const timeoutMs = this.bundler === 'farm' ? 30_000 : 15_000;
-
     for (let attempt = 1; attempt <= DEV_SERVER_ATTEMPTS; attempt++) {
       const port = await allocatePort();
       this.server = spawnManaged('npm', ['run', 'dev', '--', '--port', String(port)], {
@@ -175,7 +174,7 @@ export class Fixture {
       void this.server.whenExited().then(() => ac.abort());
 
       try {
-        await waitForPort(port, timeoutMs, ac.signal);
+        await waitForPort(port, DEV_SERVER_PROBE_MS, ac.signal);
         if (this.server.hasExited) {
           throw new Error('server process exited early');
         }
@@ -188,7 +187,8 @@ export class Fixture {
         this.server = undefined;
         ac.abort();
 
-        if (attempt === DEV_SERVER_ATTEMPTS) {
+        // Live process + probe timeout: still booting or hung. Do not retry.
+        if (!exitedEarly || attempt === DEV_SERVER_ATTEMPTS) {
           const reason = exitedEarly ? 'server process exited early' : 'port never opened';
           throw new Error(
             `Dev server failed to start (${reason}) after ${attempt} attempt(s).\n--- server output ---\n${output}\n--- end output ---`,
