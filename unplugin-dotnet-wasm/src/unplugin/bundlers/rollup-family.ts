@@ -135,6 +135,8 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           ctx.logger.debug(`[load] framework binary load: ${id} => ${exportPath}`);
           return buildLiteralPathExportModule(exportPath);
         } else {
+          this.addWatchFile(id);
+          for (const manifest of ctx.manifestPaths) this.addWatchFile(manifest);
           const source = await readFile(id);
           const refId = this.emitFile({ type: 'asset', name: basename(id), source });
           return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
