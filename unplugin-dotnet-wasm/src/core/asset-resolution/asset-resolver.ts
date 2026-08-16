@@ -8,6 +8,9 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { BINARY_EXTENSIONS_REGEX, FRAMEWORK_JS_REGEX } from '../constants';
 
+/** SDK lists these in Debug endpoints even when the files are not copied to a content root. */
+const HOTRELOAD_ASSET_RE = /microsoft\.dotnet\.hotreload/i;
+
 export class AssetResolver {
   constructor(
     private readonly vfs: VirtualFileSystem,
@@ -74,6 +77,7 @@ export class AssetResolver {
   async manifestConsistentWithDisk(): Promise<boolean> {
     for (const [route, match] of this.endpointLookup) {
       if (!route.startsWith('_framework/')) continue;
+      if (HOTRELOAD_ASSET_RE.test(route) || HOTRELOAD_ASSET_RE.test(match.assetFile)) continue;
       if (
         !isFrameworkJsPath(route) &&
         !isFrameworkJsPath(match.assetFile) &&
