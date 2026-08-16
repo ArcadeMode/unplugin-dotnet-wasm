@@ -309,3 +309,92 @@ describe('AssetResolver.canonicalRoute', () => {
     expect(resolver().canonicalRoute('')).toBeNull();
   });
 });
+
+describe('AssetResolver.manifestConsistentWithDisk', () => {
+  it('ignores missing HotReload JS and wasm', async () => {
+    const lookup = lookupOf(
+      [
+        '_framework/Microsoft.DotNet.HotReload.WebAssembly.Browser.lib.module.js',
+        {
+          assetFile:
+            '_framework/Microsoft.DotNet.HotReload.WebAssembly.Browser.99zm1jdh75.lib.module.js',
+          responseHeaders: [{ Name: 'ETag', Value: '"abc"' }],
+        },
+      ],
+      [
+        '_framework/Microsoft.DotNet.HotReload.WebAssembly.Browser.wasm',
+        {
+          assetFile: '_framework/Microsoft.DotNet.HotReload.WebAssembly.Browser.r0uvx0ebhi.wasm',
+          responseHeaders: [],
+        },
+      ],
+    );
+    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
+      true,
+    );
+  });
+
+  it('fails when a listed _framework wasm is missing', async () => {
+    const lookup = lookupOf([
+      '_framework/Library.wasm',
+      { assetFile: '_framework/Library.abc.wasm', responseHeaders: [] },
+    ]);
+    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
+      false,
+    );
+  });
+
+  it('fails when framework JS is missing', async () => {
+    const lookup = lookupOf([
+      '_framework/dotnet.js',
+      { assetFile: '_framework/dotnet.js', responseHeaders: [] },
+    ]);
+    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
+      false,
+    );
+  });
+
+  it('ignores missing maps and lib.module.js', async () => {
+    const lookup = lookupOf(
+      [
+        '_framework/dotnet.js.map',
+        {
+          assetFile: '_framework/dotnet.js.map',
+          responseHeaders: [{ Name: 'ETag', Value: '"x"' }],
+        },
+      ],
+      [
+        '_framework/Library.lib.module.js',
+        { assetFile: '_framework/Library.lib.module.js', responseHeaders: [] },
+      ],
+    );
+    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
+      true,
+    );
+  });
+
+  it('treats an existing binary as settled without reading it', async () => {
+    const lookup = lookupOf([
+      '_framework/Library.wasm',
+      {
+        assetFile: '_framework/Library.wasm',
+        responseHeaders: [{ Name: 'ETag', Value: '"nope"' }],
+      },
+    ]);
+    const vfs = stubVfs({
+      resolveFile: vi.fn().mockReturnValue({ physicalPath: '/abs/Library.wasm' }),
+    });
+    await expect(new AssetResolver(vfs, lookup).manifestConsistentWithDisk()).resolves.toBe(true);
+  });
+
+  it('accepts existing framework JS when no ETag is present', async () => {
+    const lookup = lookupOf([
+      '_framework/blazor.webassembly.js',
+      { assetFile: '_framework/blazor.webassembly.js', responseHeaders: [] },
+    ]);
+    const vfs = stubVfs({
+      resolveFile: vi.fn().mockReturnValue({ physicalPath: '/abs/blazor.webassembly.js' }),
+    });
+    await expect(new AssetResolver(vfs, lookup).manifestConsistentWithDisk()).resolves.toBe(true);
+  });
+});
