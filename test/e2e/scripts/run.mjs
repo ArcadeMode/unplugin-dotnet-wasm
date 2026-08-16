@@ -70,8 +70,8 @@ for (const bundler of bundlers) {
 
 const parallelism = availableParallelism();
 const workers = platforms.includes('browser')
-  ? Math.max(1, Math.floor(parallelism / 2))
-  : parallelism;
+  ? Math.max(1, Math.floor(parallelism / 3))
+  : Math.max(1, Math.floor(parallelism / 2));
 
 /**
  * @param {{ bundler: string, platform: string }} shard
@@ -97,9 +97,7 @@ async function runShard(shard) {
 }
 
 console.log(
-  `e2e: ${shards.length} shard(s), sequential, workers=${workers}` +
-    ` (parallelism=${parallelism}` +
-    `${platforms.includes('browser') ? ', browser⇒⌊P/2⌋' : ''})`,
+  `e2e: ${shards.length} shard(s), sequential, workers=${workers} (parallelism=${parallelism})`,
 );
 
 /** @type {{ shard: { bundler: string, platform: string }, exitCode: number }[]} */
