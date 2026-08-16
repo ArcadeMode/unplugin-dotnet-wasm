@@ -69,9 +69,7 @@ for (const bundler of bundlers) {
 }
 
 const parallelism = availableParallelism();
-const workers = platforms.includes('browser')
-  ? Math.max(1, Math.floor(parallelism / 3))
-  : Math.max(1, Math.floor(parallelism / 2));
+const workers = Math.max(1, Math.floor(parallelism / 2));
 
 /**
  * @param {{ bundler: string, platform: string }} shard
