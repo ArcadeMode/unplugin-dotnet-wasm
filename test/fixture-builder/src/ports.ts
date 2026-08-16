@@ -44,7 +44,7 @@ export function waitForPort(port: number, timeoutMs = 5_000, signal?: AbortSigna
 
     const attempt = (): void => {
       if (settled) return;
-      socket = net.connect(port, '127.0.0.1');
+      socket = net.connect(port, 'localhost');
       socket.once('connect', () => {
         settle(() => resolvePromise());
       });
