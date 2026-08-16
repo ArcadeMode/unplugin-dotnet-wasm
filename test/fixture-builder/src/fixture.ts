@@ -9,7 +9,7 @@ import {
   type WaitForSentinelOptions,
 } from './sentinel';
 import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
-import { allocatePort, waitForPort } from './ports';
+import { allocatePort, waitForHttp, waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
 import type {
   BuildMode,
@@ -175,6 +175,7 @@ export class Fixture {
 
       try {
         await waitForPort(port, DEV_SERVER_PROBE_MS, ac.signal);
+        await waitForHttp(port, DEV_SERVER_PROBE_MS, ac.signal);
         if (this.server.hasExited) {
           throw new Error('server process exited early');
         }
@@ -189,7 +190,12 @@ export class Fixture {
 
         // Live process + probe timeout: still booting or hung. Do not retry.
         if (!exitedEarly || attempt === DEV_SERVER_ATTEMPTS) {
-          const reason = exitedEarly ? 'server process exited early' : 'port never opened';
+          const httpFailed = err instanceof Error && err.message.includes('http://');
+          const reason = exitedEarly
+            ? 'server process exited early'
+            : httpFailed
+              ? 'http never responded'
+              : 'port never opened';
           throw new Error(
             `Dev server failed to start (${reason}) after ${attempt} attempt(s).\n--- server output ---\n${output}\n--- end output ---`,
             { cause: err },

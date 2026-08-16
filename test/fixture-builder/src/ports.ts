@@ -64,3 +64,27 @@ export function waitForPort(port: number, timeoutMs = 5_000, signal?: AbortSigna
     attempt();
   });
 }
+
+export async function waitForHttp(
+  port: number,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  const url = `http://localhost:${port}/`;
+  while (true) {
+    if (signal?.aborted) throw new Error(`Aborted waiting for ${url}`);
+    try {
+      await fetch(url, { signal, redirect: 'manual' });
+      return;
+    } catch (err) {
+      if (signal?.aborted) {
+        throw new Error(`Aborted waiting for ${url}`, { cause: err });
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out after ${timeoutMs}ms waiting for ${url}`, { cause: err });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+}
