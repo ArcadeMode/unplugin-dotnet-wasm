@@ -6,7 +6,10 @@ import { normalizePath } from '../path-utils';
 import { resolve, dirname } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { BINARY_EXTENSIONS_REGEX } from '../constants';
+import { BINARY_EXTENSIONS_REGEX, FRAMEWORK_JS_REGEX } from '../constants';
+
+/** SDK lists these in Debug endpoints even when the files are not copied to a content root. */
+const HOTRELOAD_ASSET_RE = /microsoft\.dotnet\.hotreload/i;
 
 export class AssetResolver {
   constructor(
@@ -74,6 +77,14 @@ export class AssetResolver {
   async manifestConsistentWithDisk(): Promise<boolean> {
     for (const [route, match] of this.endpointLookup) {
       if (!route.startsWith('_framework/')) continue;
+      if (HOTRELOAD_ASSET_RE.test(route) || HOTRELOAD_ASSET_RE.test(match.assetFile)) continue;
+      if (
+        !isFrameworkJsPath(route) &&
+        !isFrameworkJsPath(match.assetFile) &&
+        !BINARY_EXTENSIONS_REGEX.test(match.assetFile)
+      ) {
+        continue;
+      }
 
       const file = this.vfs.resolveFile(match.assetFile);
       if (file === undefined) return false;
@@ -93,6 +104,11 @@ export class AssetResolver {
   roots(): string[] {
     return this.vfs.listRoots();
   }
+}
+
+function isFrameworkJsPath(path: string): boolean {
+  const posix = path.replace(/\\/g, '/');
+  return FRAMEWORK_JS_REGEX.test(posix.startsWith('/') ? posix : `/${posix}`);
 }
 
 async function bytesMatchEtag(physicalPath: string, etag: string): Promise<boolean> {
