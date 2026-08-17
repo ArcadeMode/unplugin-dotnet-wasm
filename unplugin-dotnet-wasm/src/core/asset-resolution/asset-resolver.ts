@@ -74,7 +74,12 @@ export class AssetResolver {
     }
   }
 
-  async manifestConsistentWithDisk(): Promise<boolean> {
+  /**
+   * The bundler watch/dev file watchers are racing the MSBuild output writer. To avoid building mid-write,
+   * wait for the disk to contain all files+integrities that the manifest lists.
+   * @returns true if all files are on disk with correct integrities, false if not
+   */
+  async checkAssetsOnDisk(): Promise<boolean> {
     for (const [route, match] of this.endpointLookup) {
       if (!route.startsWith('_framework/')) continue;
       if (HOTRELOAD_ASSET_RE.test(route) || HOTRELOAD_ASSET_RE.test(match.assetFile)) continue;

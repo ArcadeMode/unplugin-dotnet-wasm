@@ -310,7 +310,7 @@ describe('AssetResolver.canonicalRoute', () => {
   });
 });
 
-describe('AssetResolver.manifestConsistentWithDisk', () => {
+describe('AssetResolver.checkAssetsOnDisk', () => {
   it('ignores missing HotReload JS and wasm', async () => {
     const lookup = lookupOf(
       [
@@ -329,9 +329,7 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
         },
       ],
     );
-    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
-      true,
-    );
+    await expect(new AssetResolver(stubVfs(), lookup).checkAssetsOnDisk()).resolves.toBe(true);
   });
 
   it('fails when a listed _framework wasm is missing', async () => {
@@ -339,9 +337,7 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
       '_framework/Library.wasm',
       { assetFile: '_framework/Library.abc.wasm', responseHeaders: [] },
     ]);
-    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
-      false,
-    );
+    await expect(new AssetResolver(stubVfs(), lookup).checkAssetsOnDisk()).resolves.toBe(false);
   });
 
   it('fails when framework JS is missing', async () => {
@@ -349,9 +345,7 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
       '_framework/dotnet.js',
       { assetFile: '_framework/dotnet.js', responseHeaders: [] },
     ]);
-    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
-      false,
-    );
+    await expect(new AssetResolver(stubVfs(), lookup).checkAssetsOnDisk()).resolves.toBe(false);
   });
 
   it('ignores missing maps and lib.module.js', async () => {
@@ -368,9 +362,7 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
         { assetFile: '_framework/Library.lib.module.js', responseHeaders: [] },
       ],
     );
-    await expect(new AssetResolver(stubVfs(), lookup).manifestConsistentWithDisk()).resolves.toBe(
-      true,
-    );
+    await expect(new AssetResolver(stubVfs(), lookup).checkAssetsOnDisk()).resolves.toBe(true);
   });
 
   it('treats a non-empty binary as settled without reading it', async () => {
@@ -384,7 +376,7 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
     const vfs = stubVfs({
       resolveFile: vi.fn().mockReturnValue({ physicalPath: '/abs/Library.wasm', size: 1 }),
     });
-    await expect(new AssetResolver(vfs, lookup).manifestConsistentWithDisk()).resolves.toBe(true);
+    await expect(new AssetResolver(vfs, lookup).checkAssetsOnDisk()).resolves.toBe(true);
   });
 
   it('rejects a zero-byte binary even when the path exists', async () => {
@@ -395,7 +387,7 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
     const vfs = stubVfs({
       resolveFile: vi.fn().mockReturnValue({ physicalPath: '/abs/Library.wasm', size: 0 }),
     });
-    await expect(new AssetResolver(vfs, lookup).manifestConsistentWithDisk()).resolves.toBe(false);
+    await expect(new AssetResolver(vfs, lookup).checkAssetsOnDisk()).resolves.toBe(false);
   });
 
   it('accepts existing framework JS when no ETag is present', async () => {
@@ -406,6 +398,6 @@ describe('AssetResolver.manifestConsistentWithDisk', () => {
     const vfs = stubVfs({
       resolveFile: vi.fn().mockReturnValue({ physicalPath: '/abs/blazor.webassembly.js', size: 1 }),
     });
-    await expect(new AssetResolver(vfs, lookup).manifestConsistentWithDisk()).resolves.toBe(true);
+    await expect(new AssetResolver(vfs, lookup).checkAssetsOnDisk()).resolves.toBe(true);
   });
 });
