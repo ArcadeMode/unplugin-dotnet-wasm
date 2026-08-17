@@ -98,7 +98,7 @@
     "@types/node": "^26.2.0",
     "rimraf": "^6.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10",
     "zod": "^4.4.3"
   },
