@@ -38,7 +38,7 @@ const server = {
 };
 
 const nodeEntry = {
-  input: resolve(__dirname, 'src/entry.ts'),
+  input: resolve(import.meta.dirname, 'src/entry.ts'),
   output: { entryFileNames: 'entry.js' },
 };
 
@@ -72,7 +72,7 @@ export default defineConfig(
         build: {
           outDir: 'dist',
           rolldownOptions: {
-            input: resolve(__dirname, 'index.html'),
+            input: resolve(import.meta.dirname, 'index.html'),
           },
         },
       },

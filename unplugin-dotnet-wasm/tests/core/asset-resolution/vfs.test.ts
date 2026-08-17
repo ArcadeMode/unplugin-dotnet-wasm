@@ -83,6 +83,13 @@ describe('buildVfs with synthetic manifest: pattern fallthrough', () => {
     expect(asset!.physicalPath).toBe(join(root0, 'unlisted.css'));
   });
 
+  it('resolveFile reports the stat size of a regular file', () => {
+    const file = vfs.resolveFile('unlisted.css');
+    expect(file).toBeDefined();
+    expect(file!.physicalPath).toBe(join(root0, 'unlisted.css'));
+    expect(file!.size).toBe(Buffer.byteLength('body {}'));
+  });
+
   it('caches pattern hits into lookup for O(1) follow-up calls', () => {
     const a1 = vfs.resolve('unlisted.css');
     const a2 = vfs.resolve('unlisted.css');

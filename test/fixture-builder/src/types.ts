@@ -16,7 +16,6 @@ export interface FixtureParameters {
 }
 
 export interface BuildFixtureOptions extends FixtureParameters {
-  port?: number;
   keepOnDispose?: boolean;
 }
 

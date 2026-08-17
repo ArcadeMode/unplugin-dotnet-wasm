@@ -15,6 +15,7 @@ export interface ResolvedAsset {
 export interface ResolvedFile {
   /** Absolute OS-native path to the physical file on disk. */
   physicalPath: string;
+  size: number;
 }
 
 export interface VirtualFileSystem {
@@ -50,14 +51,19 @@ interface NodePattern {
 class AssetLookup extends PathLookup<ResolvedAsset> {}
 
 /**
- * statSync that returns true iff the path exists and is a regular file.
+ * statSync that returns the size iff the path exists and is a regular file.
  */
-function isFile(absPath: string): boolean {
+function statRegularFile(absPath: string): number | undefined {
   try {
-    return !statSync(absPath).isDirectory(); // sync kept for simplicity and negiligible cost on the manifest-miss fallback path
+    const st = statSync(absPath);
+    return st.isDirectory() ? undefined : st.size;
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+function isFile(absPath: string): boolean {
+  return statRegularFile(absPath) !== undefined;
 }
 
 /**
@@ -188,7 +194,8 @@ export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }):
     const { path: posixFile } = normalizePath(assetFile);
     for (const rawRoot of manifest.ContentRoots) {
       const absPath = join(rawRoot, posixFile);
-      if (isFile(absPath)) return { physicalPath: absPath };
+      const size = statRegularFile(absPath);
+      if (size !== undefined) return { physicalPath: absPath, size };
     }
     return undefined;
   }

@@ -49,6 +49,7 @@ export class ManagedProcess implements LogSink {
   private _output = '';
   private readonly echo = process.env.FIXTURE_ECHO_LOGS === '1';
   private readonly waiters: Array<{ re: RegExp; fromIndex: number; resolve: () => void }> = [];
+  private readonly exitWaiters: Array<() => void> = [];
   private exited = false;
 
   constructor(private readonly subprocess: ResultPromise) {
@@ -59,12 +60,8 @@ export class ManagedProcess implements LogSink {
       this.append(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString(), 'err');
     });
     void subprocess.then(
-      () => {
-        this.exited = true;
-      },
-      () => {
-        this.exited = true;
-      },
+      () => this.markExited(),
+      () => this.markExited(),
     );
   }
 
@@ -79,6 +76,19 @@ export class ManagedProcess implements LogSink {
   }
   get hasExited(): boolean {
     return this.exited;
+  }
+
+  whenExited(): Promise<void> {
+    if (this.exited) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.exitWaiters.push(resolve);
+    });
+  }
+
+  private markExited(): void {
+    this.exited = true;
+    for (const resolve of this.exitWaiters) resolve();
+    this.exitWaiters.length = 0;
   }
 
   private append(text: string, stream: 'out' | 'err'): void {

@@ -23,7 +23,6 @@ interface MaterializeInput {
   options: Required<
     Pick<BuildFixtureOptions, 'bundler' | 'platform' | 'serveMode' | 'buildMode' | 'kind'>
   >;
-  port: number;
 }
 
 function makeId(input: MaterializeInput): string {
@@ -39,7 +38,7 @@ function copyLibraryTemplate(src: string): boolean {
 }
 
 export function materialize(input: MaterializeInput): MaterializedProject {
-  const { options, port } = input;
+  const { options } = input;
   const id = makeId(input);
   const rootDir = join(MATERIALIZED_ROOT, id);
   const dir = join(rootDir, 'app');
@@ -68,22 +67,17 @@ export function materialize(input: MaterializeInput): MaterializedProject {
     cpSync(join(TEMPLATES_DIR, 'bundlers', options.bundler, file), join(dir, file));
   }
 
-  writeFileSync(join(dir, 'package.json'), generatePackageJson(id, options, port), 'utf8');
+  writeFileSync(join(dir, 'package.json'), generatePackageJson(id, options), 'utf8');
 
   return { id, rootDir, dir, libraryDir };
 }
 
-function generatePackageJson(
-  id: string,
-  options: MaterializeInput['options'],
-  port: number,
-): string {
+function generatePackageJson(id: string, options: MaterializeInput['options']): string {
   const manifest = getManifest(options.bundler);
   const scripts = manifest.scripts({
     platform: options.platform,
     serveMode: options.serveMode,
     buildMode: options.buildMode,
-    port,
   });
   if (options.platform === 'node') {
     scripts.start ??= 'node dist/entry.js';
