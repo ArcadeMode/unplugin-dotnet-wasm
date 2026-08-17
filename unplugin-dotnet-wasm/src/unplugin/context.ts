@@ -29,6 +29,7 @@ export class PluginContext {
   private readonly reloadTriggers: Array<() => void | Promise<void>> = [];
 
   readonly #framework: BundlerFramework;
+  readonly #loader = new ManifestLoader();
   #consumerRoot = process.cwd();
   #assetResolver: AssetResolver | null = null;
   #assetMiddleware: ConnectMiddleware | null = null;
@@ -88,7 +89,6 @@ export class PluginContext {
     try {
       this.logger.debug('reinitialize start; emitReload=' + emitReload);
       if (!(await this.initAssetResolutionSafe())) return;
-      this.logger.info('dotnet staticwebassets manifests reloaded');
       if (!emitReload) return;
       for (const fn of this.reloadTriggers) await fn();
       this.logger.debug(`reinitialize: done (${this.reloadTriggers.length} reload trigger(s))`);
@@ -140,6 +140,7 @@ export class PluginContext {
 
     const { ok, attempts, lastError } = await retryIOUntil(
       async () => {
+        // Always re-check assets: they are often written before the manifest.
         await this.initAssetResolution();
         return await this.#assetResolver!.checkAssetsOnDisk();
       },
@@ -158,8 +159,14 @@ export class PluginContext {
   }
 
   private async initAssetResolution(): Promise<void> {
-    const { endpointsManifest, runtimeManifest, endpointsManifestPath } =
-      await new ManifestLoader().load(this.options);
+    const { endpointsManifest, runtimeManifest, endpointsManifestPath, fromCache } =
+      await this.#loader.load(this.options);
+    if (fromCache && this.#assetResolver) {
+      this.logger.debug('staticwebassets manifests unchanged (cache hit)');
+      return;
+    }
+
+    const isReload = this.#assetResolver !== null;
     const endpointLookup = new EndpointLookup(endpointsManifest);
     const vfs = runtimeManifest
       ? buildVfs(runtimeManifest, { logger: this.logger })
@@ -175,6 +182,7 @@ export class PluginContext {
       this.logger,
       this.#framework,
     );
+    if (isReload) this.logger.info('dotnet staticwebassets manifests reloaded');
   }
 }
 
