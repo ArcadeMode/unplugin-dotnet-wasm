@@ -87,7 +87,7 @@ export class AssetResolver {
       }
 
       const file = this.vfs.resolveFile(match.assetFile);
-      if (file === undefined) return false;
+      if (file === undefined || file.size === 0) return false;
 
       if (match.fingerprint !== undefined) continue;
       if (BINARY_EXTENSIONS_REGEX.test(match.assetFile)) continue;

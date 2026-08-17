@@ -4,7 +4,6 @@ export interface ScriptContext {
   platform: Platform;
   serveMode: ServeMode;
   buildMode: BuildMode;
-  port: number;
 }
 
 export interface BundlerManifest {
@@ -18,7 +17,7 @@ function bundlerMode(buildMode: BuildMode): 'development' | 'production' {
 
 const vite: BundlerManifest = {
   configFiles: ['vite.config.ts', 'vitest.harness.config.ts', 'runtime.harness.test.ts'],
-  scripts({ port, buildMode, platform }) {
+  scripts({ buildMode, platform }) {
     const mode = bundlerMode(buildMode);
     return {
       build: `vite build --mode ${mode}`,
@@ -26,20 +25,20 @@ const vite: BundlerManifest = {
       dev:
         platform === 'node'
           ? `vitest run --mode ${mode} --config vitest.harness.config.ts`
-          : `vite --port ${port} --strictPort --mode ${mode}`,
+          : `vite --strictPort --mode ${mode}`,
     };
   },
 };
 
 const webpack: BundlerManifest = {
   configFiles: ['webpack.config.mjs'],
-  scripts({ port, buildMode }) {
+  scripts({ buildMode }) {
     const mode = bundlerMode(buildMode);
     const config = '--config webpack.config.mjs';
     return {
       build: `webpack ${config} --mode ${mode}`,
       watch: `webpack ${config} --watch --mode ${mode}`,
-      dev: `webpack serve ${config} --port ${port} --mode ${mode}`,
+      dev: `webpack serve ${config} --mode ${mode}`,
     };
   },
 };
@@ -76,7 +75,7 @@ const rolldown: BundlerManifest = {
 
 const rspack: BundlerManifest = {
   configFiles: ['rspack.config.mjs'],
-  scripts({ port, buildMode, platform }) {
+  scripts({ buildMode, platform }) {
     const mode = bundlerMode(buildMode);
     const config = '--config rspack.config.mjs';
     const scripts: Record<string, string> = {
@@ -84,7 +83,7 @@ const rspack: BundlerManifest = {
       watch: `rspack build ${config} --watch --mode ${mode}`,
     };
     if (platform === 'browser') {
-      scripts.dev = `rspack serve ${config} --port ${port} --mode ${mode}`;
+      scripts.dev = `rspack serve ${config} --mode ${mode}`;
     }
     return scripts;
   },
@@ -92,14 +91,14 @@ const rspack: BundlerManifest = {
 
 const rsbuild: BundlerManifest = {
   configFiles: ['rsbuild.config.ts'],
-  scripts({ port, buildMode, platform }) {
+  scripts({ buildMode, platform }) {
     const mode = bundlerMode(buildMode);
     const scripts: Record<string, string> = {
       build: `rsbuild build --env-mode ${mode}`,
       watch: `rsbuild build --watch --env-mode ${mode}`,
     };
     if (platform === 'browser') {
-      scripts.dev = `rsbuild dev --port ${port} --env-mode ${mode}`;
+      scripts.dev = `rsbuild dev --strict-port --env-mode ${mode}`;
     }
     return scripts;
   },
@@ -107,14 +106,14 @@ const rsbuild: BundlerManifest = {
 
 const farm: BundlerManifest = {
   configFiles: ['farm.config.ts'],
-  scripts({ port, buildMode, platform }) {
+  scripts({ buildMode, platform }) {
     const mode = bundlerMode(buildMode);
     const scripts: Record<string, string> = {
       build: `farm build --mode ${mode}`,
       watch: `farm build --watch --mode ${mode}`,
     };
     if (platform === 'browser') {
-      scripts.dev = `farm dev --port ${port}`;
+      scripts.dev = 'farm dev --strictPort';
     }
     return scripts;
   },

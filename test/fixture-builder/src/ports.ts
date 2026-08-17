@@ -16,24 +16,75 @@ export function allocatePort(): Promise<number> {
   });
 }
 
-export function waitForPort(port: number, timeoutMs = 5_000): Promise<void> {
+export function waitForPort(port: number, timeoutMs = 5_000, signal?: AbortSignal): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolvePromise, reject) => {
+    let socket: net.Socket | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let settled = false;
+
+    const settle = (fn: () => void): void => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+      socket?.destroy();
+      if (timer !== undefined) clearTimeout(timer);
+      fn();
+    };
+
+    const onAbort = (): void => {
+      settle(() => reject(new Error(`Aborted waiting for port ${port}`)));
+    };
+
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+
     const attempt = (): void => {
-      const socket = net.connect(port, 'localhost');
+      if (settled) return;
+      socket = net.connect(port, 'localhost');
       socket.once('connect', () => {
-        socket.destroy();
-        resolvePromise();
+        settle(() => resolvePromise());
       });
       socket.once('error', () => {
-        socket.destroy();
+        socket?.destroy();
+        socket = undefined;
+        if (settled) return;
         if (Date.now() > deadline) {
-          reject(new Error(`Timed out after ${timeoutMs}ms waiting for port ${port}`));
+          settle(() =>
+            reject(new Error(`Timed out after ${timeoutMs}ms waiting for port ${port}`)),
+          );
         } else {
-          setTimeout(attempt, 200);
+          timer = setTimeout(attempt, 200);
         }
       });
     };
     attempt();
   });
+}
+
+export async function waitForHttp(
+  port: number,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  const url = `http://localhost:${port}/`;
+  while (true) {
+    if (signal?.aborted) throw new Error(`Aborted waiting for ${url}`);
+    try {
+      await fetch(url, { signal, redirect: 'manual' });
+      return;
+    } catch (err) {
+      if (signal?.aborted) {
+        throw new Error(`Aborted waiting for ${url}`, { cause: err });
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out after ${timeoutMs}ms waiting for ${url}`, { cause: err });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
 }

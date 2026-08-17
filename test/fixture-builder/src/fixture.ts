@@ -9,7 +9,7 @@ import {
   type WaitForSentinelOptions,
 } from './sentinel';
 import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
-import { waitForPort } from './ports';
+import { allocatePort, waitForHttp, waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
 import type {
   BuildMode,
@@ -22,6 +22,10 @@ import type {
   WaitForLogOptions,
 } from './types';
 
+const DEV_SERVER_ATTEMPTS = 3;
+const DEV_SERVER_PROBE_MS = 30_000;
+const STATIC_SERVER_ATTEMPTS = 3;
+
 export interface FixtureInit {
   project: MaterializedProject;
   bundler: Bundler;
@@ -30,7 +34,6 @@ export interface FixtureInit {
   buildMode: BuildMode;
   kind: FixtureKind;
   projectName: FixtureProjectName;
-  port: number;
   keepOnDispose: boolean;
 }
 
@@ -43,7 +46,7 @@ export class Fixture {
   readonly buildMode: BuildMode;
   readonly kind: FixtureKind;
   readonly projectName: FixtureProjectName;
-  readonly port: number;
+  port: number;
 
   private readonly keepOnDispose: boolean;
   private readonly rootDir: string;
@@ -60,7 +63,7 @@ export class Fixture {
     this.buildMode = init.buildMode;
     this.kind = init.kind;
     this.projectName = init.projectName;
-    this.port = init.port;
+    this.port = 0;
     this.keepOnDispose = init.keepOnDispose;
   }
 
@@ -159,19 +162,49 @@ export class Fixture {
           `(got "${this.platform}"). For vite node server (Vitest SSR), use runScript("dev").`,
       );
     }
-    this.server = spawnManaged('npm', ['run', 'dev'], {
-      cwd: this.dir,
-      env: this.scriptEnv,
-    });
-    try {
-      await waitForPort(this.port, this.bundler === 'farm' ? 30_000 : 15_000);
-    } catch (err) {
-      const reason = this.server.hasExited ? 'server process exited early' : 'port never opened';
-      throw new Error(
-        `Dev server failed to start (${reason}).\n--- server output ---\n${this.server.output}\n--- end output ---`,
-        { cause: err },
-      );
+
+    for (let attempt = 1; attempt <= DEV_SERVER_ATTEMPTS; attempt++) {
+      const port = await allocatePort();
+      this.server = spawnManaged('npm', ['run', 'dev', '--', '--port', String(port)], {
+        cwd: this.dir,
+        env: { ...this.scriptEnv, PORT: String(port) },
+      });
+
+      const ac = new AbortController();
+      void this.server.whenExited().then(() => ac.abort());
+
+      try {
+        await waitForPort(port, DEV_SERVER_PROBE_MS, ac.signal);
+        await waitForHttp(port, DEV_SERVER_PROBE_MS, ac.signal);
+        if (this.server.hasExited) {
+          throw new Error('server process exited early');
+        }
+        this.port = port;
+        return;
+      } catch (err) {
+        const output = this.server.output;
+        const exitedEarly = this.server.hasExited;
+        await this.server.stop();
+        this.server = undefined;
+        ac.abort();
+
+        // Live process + probe timeout: still booting or hung. Do not retry.
+        if (!exitedEarly || attempt === DEV_SERVER_ATTEMPTS) {
+          const httpFailed = err instanceof Error && err.message.includes('http://');
+          const reason = exitedEarly
+            ? 'server process exited early'
+            : httpFailed
+              ? 'http never responded'
+              : 'port never opened';
+          throw new Error(
+            `Dev server failed to start (${reason}) after ${attempt} attempt(s).\n--- server output ---\n${output}\n--- end output ---`,
+            { cause: err },
+          );
+        }
+      }
     }
+
+    throw new Error('Dev server failed to start.');
   }
 
   private async startWatch(): Promise<void> {
@@ -215,11 +248,35 @@ export class Fixture {
 
   private async startStaticServer(): Promise<void> {
     const handler = sirv(this.distPath, { dev: true, single: true });
-    this.staticServer = createServer((req, res) => handler(req, res));
-    await new Promise<void>((resolvePromise, reject) => {
-      this.staticServer!.once('error', reject);
-      this.staticServer!.listen(this.port, resolvePromise);
-    });
+
+    for (let attempt = 1; attempt <= STATIC_SERVER_ATTEMPTS; attempt++) {
+      const port = await allocatePort();
+      this.staticServer = createServer((req, res) => handler(req, res));
+      try {
+        await new Promise<void>((resolvePromise, reject) => {
+          this.staticServer!.once('error', reject);
+          this.staticServer!.listen(port, resolvePromise);
+        });
+        this.port = port;
+        return;
+      } catch (err) {
+        const server = this.staticServer;
+        this.staticServer = undefined;
+        if (server) {
+          await new Promise<void>((resolvePromise) => server.close(() => resolvePromise()));
+        }
+        const inUse =
+          err !== null &&
+          typeof err === 'object' &&
+          'code' in err &&
+          (err as NodeJS.ErrnoException).code === 'EADDRINUSE';
+        if (!inUse || attempt === STATIC_SERVER_ATTEMPTS) {
+          throw err;
+        }
+      }
+    }
+
+    throw new Error('Static server failed to start.');
   }
 
   waitForLog(pattern: RegExp, opts: WaitForLogOptions = {}): Promise<void> {

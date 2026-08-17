@@ -12,8 +12,8 @@ export default defineConfig({
   globalTeardown: './setup/playwright-global-teardown.ts',
   // .NET restore + build on first materialization can be slow.
   timeout: 200_000,
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: 2,
   outputDir: resolve(__dirname, `test-results/browser/${bundler}`),
   reporter: [
     ['list'],

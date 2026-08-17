@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
 import { availableParallelism } from 'node:os';
-import { createInterface } from 'node:readline';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { execa } from 'execa';
-import pLimit from 'p-limit';
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -22,7 +20,7 @@ const BUNDLERS = [
   'farm',
   'bun',
 ];
-const PLATFORMS = ['browser', 'node'];
+const PLATFORMS = ['node', 'browser'];
 
 const USAGE = `Usage:
   pnpm test:e2e --bundler=<name>                 # fan out platforms
@@ -71,87 +69,41 @@ for (const bundler of bundlers) {
 }
 
 const parallelism = availableParallelism();
-const concurrency = platforms.includes('browser')
-  ? Math.max(1, Math.floor(parallelism / 2))
-  : parallelism;
-
-const bodyOf = (/** @type {{ bundler: string, platform: string }} */ s) =>
-  `${s.bundler}/${s.platform}`;
-const bodyWidth = Math.max(...shards.map((s) => bodyOf(s).length));
-const prefixOf = (/** @type {{ bundler: string, platform: string }} */ s) =>
-  `[${bodyOf(s).padEnd(bodyWidth)}] `;
-
-/**
- * @param {import('node:stream').Readable | null | undefined} stream
- * @param {string} prefix
- */
-async function pipePrefixed(stream, prefix) {
-  if (!stream) return;
-  const rl = createInterface({ input: stream, crlfDelay: Infinity });
-  for await (const line of rl) {
-    process.stdout.write(`${prefix}${line}\n`);
-  }
-}
+const workers = Math.max(1, Math.floor(parallelism / 2));
 
 /**
  * @param {{ bundler: string, platform: string }} shard
- * @param {{ inherit: boolean }} opts
  */
-async function runShard(shard, opts) {
+async function runShard(shard) {
   const args =
     shard.platform === 'node'
-      ? ['vitest', 'run', '--config', 'vitest.e2e.config.ts']
-      : ['playwright', 'test', '--project=chromium'];
+      ? ['vitest', 'run', '--config', 'vitest.e2e.config.ts', `--maxWorkers=${workers}`]
+      : ['playwright', 'test', '--project=chromium', `--workers=${workers}`];
 
-  const env = {
-    ...process.env,
-    FIXTURE_BUNDLER: shard.bundler,
-    FIXTURE_PLATFORM: shard.platform,
-  };
-
-  if (opts.inherit) {
-    const result = await execa('npx', args, {
-      cwd: PACKAGE_ROOT,
-      env,
-      stdio: 'inherit',
-      reject: false,
-      shell: process.platform === 'win32',
-    });
-    return { shard, exitCode: result.exitCode ?? 1 };
-  }
-
-  const prefix = prefixOf(shard);
-  const subprocess = execa('npx', args, {
+  const result = await execa('npx', args, {
     cwd: PACKAGE_ROOT,
-    env,
-    stdout: 'pipe',
-    stderr: 'pipe',
+    env: {
+      ...process.env,
+      FIXTURE_BUNDLER: shard.bundler,
+      FIXTURE_PLATFORM: shard.platform,
+    },
+    stdio: 'inherit',
     reject: false,
     shell: process.platform === 'win32',
   });
-
-  const [result] = await Promise.all([
-    subprocess,
-    pipePrefixed(subprocess.stdout, prefix),
-    pipePrefixed(subprocess.stderr, prefix),
-  ]);
-
-  const exitCode = result.exitCode ?? 1;
-  const mark = exitCode === 0 ? '✓' : '✗';
-  process.stdout.write(`${prefix}${mark} exit ${exitCode}\n`);
-  return { shard, exitCode };
+  return { shard, exitCode: result.exitCode ?? 1 };
 }
 
-const inherit = shards.length === 1;
-const limit = pLimit(concurrency);
-
 console.log(
-  `e2e: ${shards.length} shard(s), concurrency=${concurrency}` +
-    ` (parallelism=${parallelism}` +
-    `${platforms.includes('browser') ? ', browser⇒⌊P/2⌋' : ''})`,
+  `e2e: ${shards.length} shard(s), sequential, workers=${workers} (parallelism=${parallelism})`,
 );
 
-const results = await Promise.all(shards.map((shard) => limit(() => runShard(shard, { inherit }))));
+/** @type {{ shard: { bundler: string, platform: string }, exitCode: number }[]} */
+const results = [];
+for (const shard of shards) {
+  console.log(`\ne2e: ${shard.bundler}/${shard.platform}`);
+  results.push(await runShard(shard));
+}
 
 const failed = results.filter((r) => r.exitCode !== 0);
 if (failed.length > 0) {

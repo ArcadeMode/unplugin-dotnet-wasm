@@ -76,7 +76,7 @@ export async function waitForBuildSentinelFiles(
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     // Read done first, then start: a start written in-between can only make the
-    // pair look more in-progress, never falsely quiescent.
+    // pair look more in-progress, never falsely completed.
     const doneRaw = readDoneSentinel(appDir);
     const startSeq = readStartSentinel(appDir);
     const done = parseDone(doneRaw);
@@ -101,7 +101,7 @@ export async function waitForBuildSentinelFiles(
   }
 
   throw new Error(
-    `Timed out after ${timeoutMs}ms waiting for a quiescent rebuild` +
+    `Timed out after ${timeoutMs}ms waiting for a completed rebuild` +
       ` (baseline=${baseline ?? 'none'}, last=${candidate ?? readDoneSentinel(appDir) ?? 'none'}).`,
   );
 }
