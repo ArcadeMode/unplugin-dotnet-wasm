@@ -20,6 +20,10 @@ for (const fingerprint of [true, false] as const) {
         await fixture.serve();
       });
 
+      test.afterEach(({}, testInfo) => {
+        if (testInfo.status !== 'passed') fixture?.enableDiagnostics();
+      });
+
       test.afterAll(async () => {
         await fixture?.dispose();
       });

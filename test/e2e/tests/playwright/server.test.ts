@@ -17,6 +17,10 @@ permuteFixture({ platform: 'browser', serveMode: 'server', buildMode: 'debug' },
     await fixture.start();
   });
 
+  test.afterEach(({}, testInfo) => {
+    if (testInfo.status !== 'passed') fixture?.enableDiagnostics();
+  });
+
   test.afterAll(async () => {
     await fixture?.dispose();
   });

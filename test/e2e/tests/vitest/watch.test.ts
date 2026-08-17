@@ -1,4 +1,4 @@
-import { test, expect, beforeAll, afterAll } from 'vitest';
+import { test, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
@@ -9,6 +9,10 @@ permuteFixture({ platform: 'node', serveMode: 'watch', buildMode: 'debug' }, (pa
     fixture = await buildFixture(params);
     await fixture.buildLibrary();
     await fixture.start();
+  });
+
+  afterEach((ctx) => {
+    if (ctx.task.result?.state === 'fail') fixture?.enableDiagnostics();
   });
 
   afterAll(async () => {

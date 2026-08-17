@@ -1,4 +1,4 @@
-import { it, expect, beforeAll, afterAll, describe } from 'vitest';
+import { it, expect, beforeAll, afterEach, afterAll, describe } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
@@ -21,6 +21,10 @@ permuteFixture({ serveMode: 'dist', buildMode: 'publish' }, (params) => {
         await fixture.buildLibrary({ fingerprint });
         const result = await fixture.build();
         expect(result.exitCode).toBe(0);
+      });
+
+      afterEach((ctx) => {
+        if (ctx.task.result?.state === 'fail') fixture?.enableDiagnostics();
       });
 
       afterAll(async () => {
@@ -66,24 +70,33 @@ permuteFixture({ serveMode: 'dist', buildMode: 'publish' }, (params) => {
   }
 
   describe('DiscoveryError when publish output is absent', () => {
+    let fixture: Fixture;
+
+    beforeAll(async () => {
+      fixture = await buildFixture(params);
+    });
+
+    afterEach((ctx) => {
+      if (ctx.task.result?.state === 'fail') fixture?.enableDiagnostics();
+    });
+
+    afterAll(async () => {
+      await fixture?.dispose();
+    });
+
     it('isPublish: true -> fails naming the searched publish dir', async () => {
-      const fixture = await buildFixture(params);
-      try {
-        const expectedDir = libraryPublishDir(fixture);
-        // Deliberately skip fixture.buildLibrary(): the publish output must
-        // be absent for the plugin to raise DiscoveryError. Capture the
-        // rejection once and assert on it multiple times.
-        const err = await fixture.build().then(
-          () => {
-            throw new Error('expected fixture.build() to reject with a DiscoveryError');
-          },
-          (e: unknown) => e as Error,
-        );
-        expect(err.message).toMatch(/Endpoints manifest not found at .*publish/);
-        expect(err.message).toContain(expectedDir);
-      } finally {
-        await fixture.dispose();
-      }
+      const expectedDir = libraryPublishDir(fixture);
+      // Deliberately skip fixture.buildLibrary(): the publish output must
+      // be absent for the plugin to raise DiscoveryError. Capture the
+      // rejection once and assert on it multiple times.
+      const err = await fixture.build().then(
+        () => {
+          throw new Error('expected fixture.build() to reject with a DiscoveryError');
+        },
+        (e: unknown) => e as Error,
+      );
+      expect(err.message).toMatch(/Endpoints manifest not found at .*publish/);
+      expect(err.message).toContain(expectedDir);
     }, 60_000);
   });
 });
