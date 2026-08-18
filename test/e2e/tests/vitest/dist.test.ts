@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
@@ -11,6 +11,10 @@ for (const fingerprint of [true, false] as const) {
         fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
         await fixture.build();
+      });
+
+      afterEach((ctx) => {
+        if (ctx.task.result?.state === 'fail') fixture?.enableDiagnostics();
       });
 
       afterAll(async () => {

@@ -8,6 +8,7 @@ import {
   waitForBuildSentinelFiles,
   type WaitForSentinelOptions,
 } from './sentinel';
+import { FixtureDiagnostics } from './diagnostics';
 import { ManagedProcess, runToCompletion, spawnManaged } from './proc';
 import { allocatePort, waitForHttp, waitForPort } from './ports';
 import type { MaterializedProject } from './materialize';
@@ -50,6 +51,8 @@ export class Fixture {
 
   private readonly keepOnDispose: boolean;
   private readonly rootDir: string;
+  private readonly diagnostics = new FixtureDiagnostics();
+  private fingerprint: boolean | undefined;
   private server?: ManagedProcess;
   private staticServer?: Server;
 
@@ -87,22 +90,30 @@ export class Fixture {
     };
   }
 
-  get logs(): string {
-    return this.server?.output ?? '';
+  /** Enable printing collected process logs when dispose() runs. Collection is always on. */
+  enableDiagnostics(): void {
+    this.diagnostics.enable();
   }
 
   async buildLibrary(opts: { fingerprint?: boolean; altered?: boolean } = {}): Promise<void> {
+    this.fingerprint = opts.fingerprint ?? true;
     await buildLibrary({
       libraryDir: this.libraryDir,
       projectName: this.projectName,
       buildMode: this.buildMode,
-      fingerprint: opts.fingerprint ?? true,
+      fingerprint: this.fingerprint,
       altered: opts.altered ?? false,
     });
   }
 
   runScript(name: string): Promise<RunResult> {
-    return runToCompletion('npm', ['run', name], {
+    const record =
+      name === 'build'
+        ? (output: string) => this.diagnostics.addBuildLog(output)
+        : name === 'dev'
+          ? (output: string) => this.diagnostics.addDevLog(output)
+          : (output: string) => this.diagnostics.addAppLog(output);
+    return this.runRecorded(record, 'npm', ['run', name], {
       cwd: this.dir,
       env: this.scriptEnv,
     });
@@ -120,15 +131,8 @@ export class Fixture {
     return readDoneSentinel(this.dir);
   }
 
-  async waitForRebuild(baseline: string | null, opts?: WaitForSentinelOptions): Promise<string> {
-    try {
-      return await waitForBuildSentinelFiles(this.dir, baseline, opts);
-    } catch (err) {
-      throw new Error(
-        `${err instanceof Error ? err.message : String(err)}\n--- watcher output ---\n${this.logs || '(none)'}\n--- end output ---`,
-        { cause: err },
-      );
-    }
+  waitForRebuild(baseline: string | null, opts?: WaitForSentinelOptions): Promise<string> {
+    return waitForBuildSentinelFiles(this.dir, baseline, opts);
   }
 
   async serve(): Promise<void> {
@@ -184,6 +188,7 @@ export class Fixture {
       } catch (err) {
         const output = this.server.output;
         const exitedEarly = this.server.hasExited;
+        this.diagnostics.addServerLog(output);
         await this.server.stop();
         this.server = undefined;
         ac.abort();
@@ -230,20 +235,17 @@ export class Fixture {
     throw new Error(`Unsupported platform for watch: ${this.platform}`);
   }
 
-  async runNode(opts: { timeout?: number } = {}): Promise<RunResult> {
-    try {
-      return await runToCompletion(process.execPath, ['dist/entry.js'], {
+  runNode(opts: { timeout?: number } = {}): Promise<RunResult> {
+    return this.runRecorded(
+      (output) => this.diagnostics.addAppLog(output),
+      process.execPath,
+      ['dist/entry.js'],
+      {
         cwd: this.dir,
         env: this.scriptEnv,
         timeout: opts.timeout ?? 30_000,
-      });
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `node dist/entry.js failed.\n${detail}\n--- watcher output ---\n${this.server?.output ?? ''}\n--- end output ---`,
-        { cause: err },
-      );
-    }
+      },
+    );
   }
 
   private async startStaticServer(): Promise<void> {
@@ -285,8 +287,11 @@ export class Fixture {
   }
 
   async stop(): Promise<void> {
-    await this.server?.stop();
-    this.server = undefined;
+    if (this.server) {
+      this.diagnostics.addServerLog(this.server.output);
+      await this.server.stop();
+      this.server = undefined;
+    }
     if (this.staticServer) {
       await new Promise<void>((resolvePromise) => this.staticServer!.close(() => resolvePromise()));
       this.staticServer = undefined;
@@ -294,14 +299,44 @@ export class Fixture {
   }
 
   async dispose(): Promise<void> {
-    await this.stop();
-    if (this.keepOnDispose) return;
     try {
-      rmSync(this.rootDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      await this.stop();
+    } finally {
+      this.diagnostics.flush({
+        bundler: this.bundler,
+        platform: this.platform,
+        serveMode: this.serveMode,
+        kind: this.kind,
+        buildMode: this.buildMode,
+        projectName: this.projectName,
+        dir: this.dir,
+        port: this.port,
+        fingerprint: this.fingerprint,
+      });
+      if (this.keepOnDispose) return;
+      try {
+        rmSync(this.rootDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      } catch (err) {
+        console.warn(
+          `[fixture] could not remove ${this.rootDir}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+  }
+
+  private async runRecorded(
+    record: (output: string) => void,
+    command: string,
+    args: string[],
+    options: { cwd: string; env?: NodeJS.ProcessEnv; timeout?: number },
+  ): Promise<RunResult> {
+    try {
+      const result = await runToCompletion(command, args, options);
+      record(result.output);
+      return result;
     } catch (err) {
-      console.warn(
-        `[fixture] could not remove ${this.rootDir}: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      record(err instanceof Error ? err.message : String(err));
+      throw err;
     }
   }
 }

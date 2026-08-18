@@ -1,4 +1,4 @@
-import { it, expect, beforeAll, afterAll, describe } from 'vitest';
+import { it, expect, beforeAll, afterEach, afterAll, describe } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFixture, type Fixture, type RunResult } from '@dotnet-wasm-bundler/fixture-builder';
@@ -16,6 +16,10 @@ for (const fingerprint of [true, false] as const) {
         fixture = await buildFixture(params);
         await fixture.buildLibrary({ fingerprint });
         buildResult = await fixture.build();
+      });
+
+      afterEach((ctx) => {
+        if (ctx.task.result?.state === 'fail') fixture?.enableDiagnostics();
       });
 
       afterAll(async () => {

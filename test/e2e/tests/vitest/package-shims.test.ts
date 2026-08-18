@@ -1,4 +1,4 @@
-import { it, expect, beforeAll, afterAll } from 'vitest';
+import { it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -24,6 +24,10 @@ permuteFixture({ serveMode: 'dist', buildMode: 'debug' }, (params) => {
     fixture = await buildFixture(params);
     await fixture.buildLibrary();
     await fixture.build();
+  });
+
+  afterEach((ctx) => {
+    if (ctx.task.result?.state === 'fail') fixture?.enableDiagnostics();
   });
 
   afterAll(async () => {
