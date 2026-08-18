@@ -1,3 +1,4 @@
+import './styles.css';
 import { dotnet } from '_framework/dotnet';
 import { Counter } from 'typeshim';
 

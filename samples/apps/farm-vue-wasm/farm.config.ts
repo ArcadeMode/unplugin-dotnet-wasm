@@ -9,6 +9,8 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const require = createRequire(import.meta.url);
 // Farm + pnpm cannot follow Vue's nested @vue/* imports; the browser ESM build is self-contained.
 const vueEntry = resolve(require.resolve('vue/package.json'), '../dist/vue.runtime.esm-browser.js');
+// Farm CSS imports do not walk pnpm's tailwindcss package entry; point at the file.
+const tailwindcssCss = resolve(__dirname, 'node_modules/tailwindcss/index.css');
 
 export default defineConfig(() => {
   const isRelease = process.env.DOTNET_RELEASE === '1';
@@ -29,6 +31,9 @@ export default defineConfig(() => {
         // than attempting to parse them as JavaScript modules.
         include: ['wasm', 'dat', 'pdb'],
       },
+      css: {
+        postcss: true,
+      },
       minify: false,
       persistentCache: false,
       progress: false,
@@ -38,7 +43,7 @@ export default defineConfig(() => {
         __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
       },
       resolve: {
-        alias: { vue: vueEntry },
+        alias: { vue: vueEntry, tailwindcss: tailwindcssCss },
       },
     },
     server: { port: 5176, strictPort: true },

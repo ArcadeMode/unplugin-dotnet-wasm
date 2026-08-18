@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 import DotnetWasm from 'unplugin-dotnet-wasm/vite';
 import { resolve } from 'node:path';
 
 export default defineConfig({
   plugins: [
+    tailwindcss(),
     DotnetWasm({
       projectRoot: resolve(import.meta.dirname, '../../libraries/WasmLibrary'),
       projectName: 'WasmLibrary',

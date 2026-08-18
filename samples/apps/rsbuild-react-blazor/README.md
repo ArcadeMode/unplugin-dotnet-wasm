@@ -6,7 +6,8 @@ elements** as [`vite-vanilla-blazor`](../vite-vanilla-blazor), via
 
 The .NET library is shared: [`BlazorElements`](../../libraries/BlazorElements)
 registers `<blazor-counter>` and `<blazor-date-time-now>`. This host renders
-those tags from JSX and passes parameters as React props.
+those tags from JSX. Primitive parameters can be React props; complex types
+(`DateTime`) must be set as JS properties after `Blazor.start()`.
 
 ## Run
 
@@ -29,8 +30,10 @@ pnpm dev:sample:rsbuild-react
 <blazor-counter ref={counterRef} initial={42}></blazor-counter>
 ```
 
-- React 19 sets non-string props as DOM properties (`el.initial = 42`), which
-  Blazor reads as `[Parameter] Initial`.
+- `initial={42}` is a primitive, so Blazor can read it from the attribute.
+- `DateTime Initial` is a complex type: React still writes custom-element props
+  as attributes, so the sample sets `el.initial = new Date()` on the ref after
+  `Blazor.start()` instead.
 - `CountChanged` still surfaces as a DOM `CustomEvent` (`countchanged`); the
   sample listens with `addEventListener` on a ref.
 - Manual `Blazor.start()` is required because the bundle is an ESM module.

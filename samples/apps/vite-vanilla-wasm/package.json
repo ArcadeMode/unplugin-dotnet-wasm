@@ -12,7 +12,9 @@
     "clean": "rimraf dist"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
     "rimraf": "^6.0.0",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.2.1"
   },

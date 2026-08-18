@@ -19,7 +19,7 @@ interface Window {
 }
 
 type BlazorCounterElement = HTMLElement & { initial: number };
-type BlazorDateTimeElement = HTMLElement & { initial: string };
+type BlazorDateTimeElement = HTMLElement & { initial: Date };
 
 declare module 'react' {
   namespace JSX {
@@ -31,7 +31,7 @@ declare module 'react' {
       'blazor-date-time-now': DetailedHTMLProps<
         HTMLAttributes<BlazorDateTimeElement>,
         BlazorDateTimeElement
-      > & { initial?: string };
+      >;
     }
   }
 }

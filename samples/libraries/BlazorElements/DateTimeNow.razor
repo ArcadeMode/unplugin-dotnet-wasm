@@ -1,8 +1,22 @@
-<div class="blazor-date-time-now">
-    <p>Initial: <strong>@Initial.ToLongTimeString()</strong></p>
-    <p>Now: <strong>@_now.ToLongTimeString()</strong></p>
-    <p>Elapsed: <strong>@((_now - Initial).TotalSeconds.ToString("F0"))s</strong> since initial</p>
-    <button @onclick="Refresh">Refresh</button>
+<div class="flex flex-col gap-3 text-sm">
+    <div class="flex justify-between gap-4">
+        <span class="text-stone-500">Initial</span>
+        <span class="tabular-nums">@Initial.ToLongTimeString()</span>
+    </div>
+    <div class="flex justify-between gap-4">
+        <span class="text-stone-500">Now</span>
+        <span class="tabular-nums">@_now.ToLongTimeString()</span>
+    </div>
+    <div class="flex justify-between gap-4">
+        <span class="text-stone-500">Elapsed</span>
+        <span class="tabular-nums">@((_now - Initial).TotalSeconds.ToString("F0"))s</span>
+    </div>
+    <button
+        type="button"
+        class="mt-2 self-start rounded-full bg-stone-800 px-4 py-2 text-sm text-white hover:bg-stone-900"
+        @onclick="Refresh">
+        Refresh
+    </button>
 </div>
 
 @code {
