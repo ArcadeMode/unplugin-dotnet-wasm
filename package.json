@@ -19,20 +19,30 @@
     "publish:fixture-library:blazor": "dotnet publish test/fixture-builder/templates/BlazorLibrary/BlazorLibrary.csproj -c Release -p:WasmFingerprintAssets=true",
     "prebuild:fixture-libraries": "pnpm build:fixture-library:wasm && pnpm publish:fixture-library:wasm && pnpm build:fixture-library:blazor && pnpm publish:fixture-library:blazor",
 
-    "dev:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/sample-vite dev",
-    "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @dotnet-wasm-bundler/sample-vite preview",
-    "build:sample:vite-wasm": "dotnet build samples/vite-vanilla-wasm/SampleLibrary/SampleLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/sample-vite build",
-    "clean:sample:wasm": "dotnet clean samples/vite-vanilla-wasm/SampleLibrary/SampleLibrary.csproj -c Debug && dotnet clean samples/vite-vanilla-wasm/SampleLibrary/SampleLibrary.csproj -c Release",
+    "dev:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/vite-vanilla-wasm dev",
+    "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @dotnet-wasm-bundler/vite-vanilla-wasm preview",
+    "build:sample:vite-wasm": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/vite-vanilla-wasm build",
 
-    "dev:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor dev",
-    "preview:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor preview",
-    "build:sample:vite-blazor": "dotnet build samples/vite-vanilla-blazor/BlazorLibrary/BlazorLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/sample-vite-blazor build",
-    "clean:sample:dotnet-blazor": "dotnet clean samples/vite-vanilla-blazor/BlazorLibrary/BlazorLibrary.csproj -c Debug && dotnet clean samples/vite-vanilla-blazor/BlazorLibrary/BlazorLibrary.csproj -c Release",
+    "dev:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/vite-vanilla-blazor dev",
+    "preview:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/vite-vanilla-blazor preview",
+    "build:sample:vite-blazor": "dotnet build samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/vite-vanilla-blazor build",
 
     "dev:sample:webpack-blazor": "pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor dev",
     "preview:sample:webpack-blazor": "pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor preview",
-    "build:sample:webpack-blazor": "dotnet build samples/webpack-vanilla-blazor/Library/Library.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor build",
-    "clean:sample:webpack-blazor": "dotnet clean samples/webpack-vanilla-blazor/Library/Library.csproj -c Debug && dotnet clean samples/webpack-vanilla-blazor/Library/Library.csproj -c Release",
+    "build:sample:webpack-blazor": "dotnet build samples/libraries/BlazorApp/BlazorApp.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor build",
+
+    "dev:sample:rsbuild-react": "pnpm --filter @dotnet-wasm-bundler/rsbuild-react-blazor dev",
+    "preview:sample:rsbuild-react": "pnpm --filter @dotnet-wasm-bundler/rsbuild-react-blazor preview",
+    "build:sample:rsbuild-react": "dotnet build samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/rsbuild-react-blazor build",
+
+    "dev:sample:farm-vue": "pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm dev",
+    "preview:sample:farm-vue": "pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm preview",
+    "build:sample:farm-vue": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm build",
+
+    "start:sample:esbuild-node": "pnpm --filter @dotnet-wasm-bundler/esbuild-node-wasm start",
+    "build:sample:esbuild-node": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/esbuild-node-wasm build",
+
+    "clean:sample:libraries": "dotnet clean samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && dotnet clean samples/libraries/WasmLibrary/WasmLibrary.csproj -c Release && dotnet clean samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && dotnet clean samples/libraries/BlazorElements/BlazorElements.csproj -c Release && dotnet clean samples/libraries/BlazorApp/BlazorApp.csproj -c Debug && dotnet clean samples/libraries/BlazorApp/BlazorApp.csproj -c Release",
 
     "build:fixtures": "node scripts/build-fixtures.js",
     "preview:fixture": "pnpm --filter @dotnet-wasm-bundler/library-app-browser-vite-fixture preview",

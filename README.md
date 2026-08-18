@@ -476,7 +476,7 @@ DotnetWasm({
 | Farm | ✅ | ✅[^farm-node-esm] | ✅ | ✅ |
 | Bun | ✅ | ✅ | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
-## Run the sample
+## Run the samples
 
 Make sure to have Node 24+ and .NET 10 SDK installed. 
 
@@ -492,33 +492,35 @@ Then install dependencies
 pnpm install
 ```
 
-Run the bundled wasm lib sample
+Shared .NET libraries live in `samples/libraries/` (`WasmLibrary`, `BlazorElements`, `BlazorApp`). Hosts live in `samples/apps/`.
+
 ```bash
-# WebAssembly Browser app bundled by vite
+# Vite + vanilla + WASM library (TypeShim Counter)
 pnpm build:sample:vite-wasm
 pnpm dev:sample:vite-wasm
-#or use preview to serve the dist folder without dev server
-#pnpm preview:sample:vite-wasm
-```
-Or run the bundled blazor sample
-```bash
-# Blazor WebAssembly component library bundled by vite and rendered as custom elements
+
+# Vite + vanilla + Blazor custom elements
 pnpm build:sample:vite-blazor
 pnpm dev:sample:vite-blazor
-#or use preview to serve the dist folder without dev server
-#pnpm preview:sample:vite-blazor
-```
 
-Or run the bundled full blazor sample
-```bash
-# Blazor WebAssembly full app bundled by webpack and runs as blazor app with TypeScript bindings on Counter page
+# Webpack + full Blazor app (router, layout, pages)
 pnpm build:sample:webpack-blazor
 pnpm dev:sample:webpack-blazor
-#or use preview to serve the dist folder without dev server
-#pnpm preview:sample:webpack-blazor
+
+# Rsbuild + React + the same Blazor custom elements
+pnpm build:sample:rsbuild-react
+pnpm dev:sample:rsbuild-react
+
+# Farm + Vue + WASM library (TypeShim Counter)
+pnpm build:sample:farm-vue
+pnpm dev:sample:farm-vue
+
+# esbuild + Node CLI + WASM library
+pnpm build:sample:esbuild-node
+pnpm start:sample:esbuild-node
 ```
 
-Other bundler samples can be found in the `./test/fixtures/[browser|node]` directories.
+Other bundler permutations live in `./test/fixtures/[browser|node]`.
 
 Testing the `bun` integration additionally requires Bun >= 1.3.
 

@@ -1,6 +1,6 @@
 packages:
   - 'unplugin-dotnet-wasm'
-  - 'samples/*/app'
+  - 'samples/apps/*'
   - 'test/fixtures/*/library-app-*'
   - 'test/integration'
   - 'test/fixture-builder'

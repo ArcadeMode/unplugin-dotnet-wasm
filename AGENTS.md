@@ -10,6 +10,21 @@ Run all commands from repo root unless noted.
 - Build unit-test Library fixture: `pnpm build:plugin:fixture`
 - Unit test: `pnpm test:unit` (requires fixture build; tests live under `unplugin-dotnet-wasm/tests/`)
 
+## Samples - `samples/`
+
+Shared .NET libraries in `samples/libraries/` (`WasmLibrary`, `BlazorElements`, `BlazorApp`).
+Hosts in `samples/apps/` (vanilla Vite/Webpack, Rsbuild+React, Farm+Vue, esbuild Node).
+
+```
+pnpm build:sample:vite-wasm && pnpm dev:sample:vite-wasm
+pnpm build:sample:vite-blazor && pnpm dev:sample:vite-blazor
+pnpm build:sample:webpack-blazor && pnpm dev:sample:webpack-blazor
+pnpm build:sample:rsbuild-react && pnpm dev:sample:rsbuild-react
+pnpm build:sample:farm-vue && pnpm dev:sample:farm-vue
+pnpm build:sample:esbuild-node && pnpm start:sample:esbuild-node
+pnpm clean:sample:libraries
+```
+
 ## Fixture-builder E2E - `test/e2e` (CI)
 
 CI shards by **os × bundler**; `run.mjs` fans out browser∥node in parallel when

@@ -1,0 +1,29 @@
+{
+  "name": "@dotnet-wasm-bundler/farm-vue-wasm",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "farm start",
+    "build": "farm build --mode development",
+    "build:release": "cross-env DOTNET_RELEASE=1 farm build --mode production",
+    "preview": "npx serve dist -l 3002",
+    "test": "echo \"No tests in sample - build-only package\" && exit 0",
+    "typecheck": "vue-tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*",
+    "vue": "^3.5.21"
+  },
+  "devDependencies": {
+    "@farmfe/cli": "^1.0.5",
+    "@farmfe/core": "^1.7.0",
+    "@vitejs/plugin-vue": "5.1.4",
+    "cross-env": "^10.1.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.19",
+    "vue-tsc": "^3.0.8"
+  }
+}

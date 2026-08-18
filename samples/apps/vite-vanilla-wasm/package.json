@@ -1,0 +1,22 @@
+{
+  "name": "@dotnet-wasm-bundler/vite-vanilla-wasm",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --open",
+    "test": "echo \"No tests in sample - build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.1"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*"
+  }
+}
