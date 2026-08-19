@@ -6,7 +6,8 @@ import { normalizePath } from '../path-utils';
 import { resolve, dirname } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { BINARY_EXTENSIONS_REGEX, isFrameworkJsPath } from '../constants';
+import { BINARY_EXTENSIONS_REGEX } from '../constants';
+import { isFrameworkJsPath } from './framework-js';
 
 /** SDK lists these in Debug endpoints even when the files are not copied to a content root. */
 const HOTRELOAD_ASSET_RE = /microsoft\.dotnet\.hotreload/i;

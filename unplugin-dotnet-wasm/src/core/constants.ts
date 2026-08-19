@@ -7,12 +7,6 @@ export const BINARY_EXTENSIONS_REGEX = /\.(wasm|dat|pdb)$/;
 export const FRAMEWORK_BINARY_REGEX = /[\\/]_framework[\\/][^\\/]+\.(wasm|dat|pdb)$/;
 export const FRAMEWORK_JS_REGEX =
   /[\\/]_framework[\\/](?:dotnet(?:\.[^\\/]+)?|blazor\.webassembly)\.js$/;
-
-/** True for `_framework/dotnet*.js` / `blazor.webassembly.js` on virtual or OS paths. */
-export function isFrameworkJsPath(path: string): boolean {
-  const posix = path.replace(/\\/g, '/');
-  return FRAMEWORK_JS_REGEX.test(posix.startsWith('/') ? posix : `/${posix}`);
-}
 export const JS_MODULE_REGEX = /\.[cm]?js$/;
 
 // Node.js built-ins referenced in dotnet.native.js - guarded by ENVIRONMENT_IS_NODE
