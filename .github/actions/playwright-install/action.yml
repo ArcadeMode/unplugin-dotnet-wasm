@@ -1,0 +1,54 @@
+name: Install Playwright browsers
+description: Restore cached Chromium, install if needed, and save on a cache miss.
+
+inputs:
+  working-directory:
+    description: Package directory that depends on @playwright/test
+    required: false
+    default: test/e2e
+  timeout-minutes:
+    description: Minutes to wait for Chromium download/install before failing
+    required: false
+    default: '15'
+
+runs:
+  using: composite
+  steps:
+    - name: Export PLAYWRIGHT_BROWSERS_PATH
+      id: paths
+      shell: bash
+      run: |
+        path="${{ github.workspace }}/.cache/ms-playwright"
+        echo "PLAYWRIGHT_BROWSERS_PATH=$path" >> "$GITHUB_ENV"
+        echo "browsers-path=$path" >> "$GITHUB_OUTPUT"
+
+    - name: Get Playwright version
+      id: playwright-version
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+    - name: Restore Playwright browsers
+      id: playwright-cache
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ steps.paths.outputs.browsers-path }}
+        key: playwright-${{ runner.os }}-chromium-${{ steps.playwright-version.outputs.version }}
+
+    - name: Install Playwright browsers
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      timeout-minutes: ${{ fromJSON(inputs.timeout-minutes) }}
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          pnpm exec playwright install --with-deps chromium
+        else
+          pnpm exec playwright install chromium
+        fi
+
+    - name: Save Playwright browsers
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: ${{ steps.paths.outputs.browsers-path }}
+        key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
