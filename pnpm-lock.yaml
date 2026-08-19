@@ -215,7 +215,7 @@ importers:
 
   test/e2e:
     dependencies:
-      '@dotnet-wasm-bundler/fixture-builder':
+      '@unplugin-dotnet-wasm/fixture-builder':
         specifier: workspace:*
         version: link:../fixture-builder
       execa:

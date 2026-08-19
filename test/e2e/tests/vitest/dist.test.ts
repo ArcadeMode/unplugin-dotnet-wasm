@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterEach, afterAll } from 'vitest';
-import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { buildFixture, type Fixture } from '@unplugin-dotnet-wasm/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
 for (const fingerprint of [true, false] as const) {

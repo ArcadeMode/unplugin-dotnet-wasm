@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { libraryOutputDir, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { libraryOutputDir, type Fixture } from '@unplugin-dotnet-wasm/fixture-builder';
 
 export function distAssetsDir(fixture: Fixture): string {
   return join(fixture.dir, 'dist', 'assets');

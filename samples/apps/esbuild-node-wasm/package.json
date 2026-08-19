@@ -1,5 +1,5 @@
 {
-  "name": "@dotnet-wasm-bundler/esbuild-node-wasm",
+  "name": "@unplugin-dotnet-wasm/esbuild-node-wasm",
   "private": true,
   "version": "0.0.0",
   "type": "module",

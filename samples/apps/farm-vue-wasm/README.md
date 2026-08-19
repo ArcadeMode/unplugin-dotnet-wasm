@@ -22,7 +22,7 @@ pnpm dev:sample:farm-vue
 Production (`dotnet publish` + Farm production mode):
 
 ```bash
-pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm build:release
+pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm build:release
 ```
 
 ## How the host boots .NET

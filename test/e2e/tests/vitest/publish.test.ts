@@ -1,7 +1,7 @@
 import { it, expect, beforeAll, afterEach, afterAll, describe } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { buildFixture, type Fixture } from '@unplugin-dotnet-wasm/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 import {
   distAssetsDir,

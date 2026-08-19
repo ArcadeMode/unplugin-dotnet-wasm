@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { buildFixture, type Fixture } from '@unplugin-dotnet-wasm/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 
 function runTypecheck(cwd: string): string {
