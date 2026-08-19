@@ -71,14 +71,12 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
 
   return {
     async buildStart(this: object): Promise<void> {
-      ctx.logger.debug(`[build] buildStart invoked in rollup-family`);
       isWatch = (this as { meta?: { watchMode?: boolean } })?.meta?.watchMode ?? false;
       await ctx.initialize();
       if (isWatch && !isServe) {
         // No dev server to control rebuilds, ensure manifests pulled in before every (re)build
         await ctx.reinitialize();
       }
-      ctx.logger.debug(`[build] buildStart completed: isWatch=${isWatch}, isServe=${isServe}`);
     },
     resolveId,
     vite: {
@@ -100,10 +98,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
 
         const watcher = new ManifestWatcher({
           paths: ctx.manifestPaths,
-          onChange: () => {
-            ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
-            return ctx.reinitialize();
-          },
+          onChange: () => ctx.reinitialize(),
           logger: ctx.logger,
         });
         watcher.start();
@@ -121,7 +116,6 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       ): Promise<string | null> {
         const route = routeFromVirtualId(id);
         if (route !== null) {
-          ctx.logger.debug(`[load] virtual module load: ${id}`);
           const result = await ctx.loadContent(route);
           if (result === null) return null;
           for (const watchPath of [result.path, ...ctx.manifestPaths]) this.addWatchFile(watchPath);
@@ -132,7 +126,6 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           const exportPath = options?.ssr
             ? pathToFileURL(id).href // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.
             : '/_framework/' + basename(id); // Browser dev server: page origin + connect middleware serve /_framework/*.
-          ctx.logger.debug(`[load] framework binary load: ${id} => ${exportPath}`);
           return buildLiteralPathExportModule(exportPath);
         } else {
           this.addWatchFile(id);

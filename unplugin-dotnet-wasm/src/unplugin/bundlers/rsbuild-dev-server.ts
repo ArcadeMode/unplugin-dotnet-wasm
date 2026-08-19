@@ -41,33 +41,21 @@ export interface RsbuildSharedDeps {
 export function createRsbuildSetup(ctx: PluginContext, deps: RsbuildSharedDeps): RsbuildHooks {
   let rsbuildCompiler: RsbuildCompiler | null = null;
 
-  function invalidateWatching(w: Watching | undefined, label: string): void {
-    if (!w) {
-      ctx.logger.debug(`[serve] invalidate: ${label} has no watching handle`);
-      return;
-    }
+  function invalidateWatching(w: Watching | undefined): void {
+    if (!w) return;
     if (typeof w.invalidateWithChangesAndRemovals === 'function') {
       w.invalidateWithChangesAndRemovals(new Set(ctx.manifestPaths), new Set());
     } else if (typeof w.invalidate === 'function') {
-      ctx.logger.debug(`[serve] invalidate: ${label} plain invalidate()`);
       w.invalidate();
-    } else {
-      ctx.logger.debug(`[serve] invalidate: ${label} exposes no invalidate method`);
     }
   }
 
   function invalidateRsbuild(compiler: RsbuildCompiler | null): void {
-    if (!compiler) {
-      ctx.logger.debug('[serve] invalidate: no compiler captured, cannot invalidate');
-      return;
-    }
+    if (!compiler) return;
     if (Array.isArray(compiler.compilers)) {
-      ctx.logger.debug(
-        `[serve] invalidate: MultiCompiler with ${compiler.compilers.length} child compiler(s)`,
-      );
-      compiler.compilers.forEach((c, i) => invalidateWatching(c.watching, `child[${i}]`));
+      compiler.compilers.forEach((c) => invalidateWatching(c.watching));
     } else {
-      invalidateWatching(compiler.watching, 'single compiler');
+      invalidateWatching(compiler.watching);
     }
   }
 
@@ -78,50 +66,29 @@ export function createRsbuildSetup(ctx: PluginContext, deps: RsbuildSharedDeps):
       });
       api.onAfterCreateCompiler(({ compiler }) => {
         rsbuildCompiler = compiler as RsbuildCompiler;
-        const isMulti = Array.isArray((compiler as RsbuildCompiler).compilers);
-        ctx.logger.debug(
-          `[serve] onAfterCreateCompiler: captured ${
-            isMulti ? 'MultiCompiler' : 'single Compiler'
-          }; watching present at capture=${Boolean((compiler as RsbuildCompiler).watching)}`,
-        );
         deps.awaitContextInit(compiler as { hooks?: CompilerHooks });
       });
       api.onBeforeStartDevServer(({ server }) => {
         deps.markServe();
-        ctx.logger.debug(
-          '[serve] onBeforeStartDevServer: registering asset middleware + manifest watcher',
-        );
         server.middlewares.use((...args: Parameters<typeof ctx.assetMiddleware>) => {
           ctx.assetMiddleware(...args);
         });
 
-        ctx.logger.debug(
-          `[serve] manifest watch paths (${ctx.manifestPaths.length}): ${ctx.manifestPaths.join(', ') || '<none>'}`,
-        );
         const watcher = new ManifestWatcher({
           paths: ctx.manifestPaths,
-          onChange: () => {
-            ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
-            return ctx.reinitialize();
-          },
+          onChange: () => ctx.reinitialize(),
           logger: ctx.logger,
         });
 
         ctx.onReinitialized(() => {
-          ctx.logger.debug(
-            '[serve] onReinitialized: invalidate compiler + sockWrite("full-reload")',
-          );
           invalidateRsbuild(rsbuildCompiler);
           server.sockWrite('full-reload', { path: '*' });
-          ctx.logger.debug('[serve] onReinitialized: full-reload sent, handler done');
         });
 
         watcher.start();
-        ctx.logger.debug('[serve] ManifestWatcher started');
 
         // Dispose on server close
         api.onCloseDevServer(() => {
-          ctx.logger.debug('[serve] onCloseDevServer: disposing manifest watcher');
           watcher.dispose();
         });
       });
