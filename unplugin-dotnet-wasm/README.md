@@ -1,8 +1,10 @@
 # unplugin-dotnet-wasm
 
-unplugin-dotnet-wasm enables bundling .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) and [Blazor WebAssembly Apps](https://learn.microsoft.com/en-us/aspnet/core/blazor/) with your favorite JavaScript bundler. Enable [WasmBundlerFriendlyBootConfig](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0#javascript-bundler-support) and install the plugin: no configuration surgery, it just works. Compatible with `dotnet build` output and hooks into each bundler's watch mode and/or dev server to keep your dev loop fast. When you are ready for release it'll bundle the optimized `dotnet publish` output all the same.
+unplugin-dotnet-wasm bundles .NET [WebAssembly Browser Apps](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-interop/wasm-browser-app) and [Blazor WebAssembly Apps](https://learn.microsoft.com/en-us/aspnet/core/blazor/) with a JavaScript bundler. Set [WasmBundlerFriendlyBootConfig](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0#javascript-bundler-support) on the .NET project, register the plugin, and import `_framework/dotnet` (or Blazor's boot script) like any other module. Compatible with `dotnet build` output and with optimized `dotnet publish` output; hooks into watch mode and/or the bundler's dev server so the inner loop stays on `dotnet build`.
 
-Built on [unplugin](https://github.com/unjs/unplugin) to enable support for Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
+Built on [unplugin](https://github.com/unjs/unplugin): Vite, Webpack, Rollup, Rolldown, Rspack, Rsbuild, esbuild, Farm, and Bun.
+
+Browser Vite / Webpack is a plugin registration. Node targets, Farm, Bun, and a few others need extra bundler config — see the examples below and the [support matrix](#bundler-support).
 
 > [!TIP]
 > unplugin-dotnet-wasm pairs great with [TypeShim](https://github.com/ArcadeMode/TypeShim) for seamless .NET + TypeScript interop.
@@ -13,7 +15,7 @@ Built on [unplugin](https://github.com/unjs/unplugin) to enable support for Vite
 npm i -D unplugin-dotnet-wasm
 ```
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > Your .NET WebAssembly project must have [WasmBundlerFriendlyBootConfig](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0#javascript-bundler-support) set to `true`.
 
 ## Usage
@@ -469,15 +471,11 @@ DotnetWasm({
 
 ## Status & roadmap
 
-The plugin is build-time only today. Scope so far and what's planned:
-
 **Done**
 
-- Build-time integration for multple bundlers ([table above](#bundler-support))
-  - 9 on browser targets
-  - 9 on Node targets 
+- Build, watch, and (where the bundler exposes it) dev-server integration for nine bundlers ([table above](#bundler-support)), browser and Node
 - Both output layouts: scattered `dotnet build` and consolidated `dotnet publish`
-- Dev-server support for Vite, Webpack, Rspack, Rsbuild, and Farm ([table above](#bundler-support))
+- Manifest reload on `dotnet build` / `dotnet watch` output changes (full reload, not fine-grained HMR)
 - Fingerprint-agnostic and multi-content-root asset resolution
 - Binary asset emission (`.wasm`, `.dat`, `.pdb`) through each bundler's native pipeline[^bundlers-wasm-binary-no-plugin-support]
 - Node built-ins externalized so the dotnet loader's Node paths don't break browser builds[^rollup-family-node-externals]
@@ -489,9 +487,9 @@ The plugin is build-time only today. Scope so far and what's planned:
 
 **Planned**
 
-1. Watch / HMR: re-read manifests and invalidate on `dotnet build` / `dotnet watch` output changes - including live regeneration of the editor type shims so tsserver/`tsc` stay in sync without a restart
+1. Live regeneration of editor type shims so tsserver / `tsc` stay in sync without a restart
 2. Preload `<link>` injection from the endpoints manifest's preload metadata
-3. Support default exports in generated shim files for types of ts files from the .NET output, today only named imports (`import { dotnet }`) are included (requires some .NET 11 SDK testing)
+3. Default exports in generated shim files for `.ts` from the .NET output; today only named imports (`import { dotnet }`) are included (needs some .NET 11 SDK testing)
 
 Design rationale for the decisions above lives in [`docs/architecture.md`](../docs/architecture.md).
 
@@ -500,6 +498,8 @@ Design rationale for the decisions above lives in [`docs/architecture.md`](../do
 - Node.js >= 24
 - .NET SDK >= 10 (build output must exist before bundling)
 - TypeScript >= 5 (optional - enables editor / `tsc` type support for .NET WASM imports)
+
+Worked examples live in the [repo samples](../README.md#run-the-samples).
 
 [^vite-node-env]: Node support requires a Vite server environment (`consumer: 'server'`), `build.emitAssets: true`, and `builder.buildApp` so the client bundle is skipped. See the Vite example above.
 
