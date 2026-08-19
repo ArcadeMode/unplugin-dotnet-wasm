@@ -67,6 +67,9 @@ importers:
       '@farmfe/core':
         specifier: ^1.7.0
         version: 1.7.11(@types/node@26.2.0)(supports-color@10.2.2)
+      '@farmfe/js-plugin-postcss':
+        specifier: ^1.12.0
+        version: 1.12.0(@farmfe/core@1.7.11(@types/node@26.2.0)(supports-color@10.2.2))(postcss@8.5.26)
       '@tailwindcss/postcss':
         specifier: ^4.2.2
         version: 4.3.3
@@ -316,436 +319,6 @@ importers:
       webpack-dev-server:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)(webpack-cli@7.2.2)(webpack@5.109.2)
-
-  test/fixtures/browser/library-app-bun:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      bun-types:
-        specifier: latest
-        version: 1.3.14
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-esbuild:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-farm:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@farmfe/cli':
-        specifier: ^1.0.5
-        version: 1.0.5
-      '@farmfe/core':
-        specifier: ^1.7.0
-        version: 1.7.11(@types/node@26.2.0)
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      cross-env:
-        specifier: ^10.1.0
-        version: 10.1.0
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-rolldown:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      rolldown:
-        specifier: ^1.2.3
-        version: 1.2.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-rollup:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@rollup/plugin-node-resolve':
-        specifier: ^16.0.0
-        version: 16.0.3(rollup@4.62.4)
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      rollup:
-        specifier: ^4.62.4
-        version: 4.62.4
-      rollup-plugin-esbuild:
-        specifier: ^6.0.0
-        version: 6.2.1(esbuild@0.28.1)(rollup@4.62.4)(supports-color@10.2.2)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-rsbuild:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@rsbuild/core':
-        specifier: ^2.1.10
-        version: 2.1.10(core-js@3.49.0)
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-rspack:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@rspack/cli':
-        specifier: ^2.1.8
-        version: 2.1.8(@rspack/core@2.1.8(@swc/helpers@0.5.23))(@rspack/dev-server@2.2.0(@rspack/core@2.1.8(@swc/helpers@0.5.23))(selfsigned@5.5.0))
-      '@rspack/core':
-        specifier: ^2.1.8
-        version: 2.1.8(@swc/helpers@0.5.23)
-      '@rspack/dev-server':
-        specifier: ^2.2.0
-        version: 2.2.0(@rspack/core@2.1.8(@swc/helpers@0.5.23))(selfsigned@5.5.0)
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/browser/library-app-vite:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^8.2.1
-        version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)
-
-  test/fixtures/browser/library-app-webpack:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      html-webpack-plugin:
-        specifier: ^5.6.8
-        version: 5.6.8(@rspack/core@2.1.8(@swc/helpers@0.5.23))(webpack@5.109.2)
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      ts-loader:
-        specifier: ^9.0.0
-        version: 9.6.2(typescript@5.9.3)(webpack@5.109.2)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      webpack:
-        specifier: ^5.109.2
-        version: 5.109.2(webpack-cli@7.2.2)
-      webpack-cli:
-        specifier: ^7.2.2
-        version: 7.2.2(js-yaml@4.3.0)(webpack-dev-server@6.0.0)(webpack@5.109.2)
-      webpack-dev-server:
-        specifier: ^6.0.0
-        version: 6.0.0(webpack-cli@7.2.2)(webpack@5.109.2)
-
-  test/fixtures/node/library-app-bun:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      bun-types:
-        specifier: latest
-        version: 1.3.14
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-esbuild:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-farm:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@farmfe/cli':
-        specifier: ^1.0.5
-        version: 1.0.5
-      '@farmfe/core':
-        specifier: ^1.7.0
-        version: 1.7.11(@types/node@26.2.0)
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      cross-env:
-        specifier: ^10.1.0
-        version: 10.1.0
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-rolldown:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      rolldown:
-        specifier: ^1.2.3
-        version: 1.2.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-rollup:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      rollup:
-        specifier: ^4.62.4
-        version: 4.62.4
-      rollup-plugin-esbuild:
-        specifier: ^6.0.0
-        version: 6.2.1(esbuild@0.28.1)(rollup@4.62.4)(supports-color@10.2.2)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-rsbuild:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@rsbuild/core':
-        specifier: ^2.1.10
-        version: 2.1.10(core-js@3.49.0)
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-rspack:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      '@rspack/cli':
-        specifier: ^2.1.8
-        version: 2.1.8(@rspack/core@2.1.8(@swc/helpers@0.5.23))(@rspack/dev-server@2.2.0(@rspack/core@2.1.8(@swc/helpers@0.5.23))(selfsigned@5.5.0))
-      '@rspack/core':
-        specifier: ^2.1.8
-        version: 2.1.8(@swc/helpers@0.5.23)
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  test/fixtures/node/library-app-vite:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      concurrently:
-        specifier: ^10.0.4
-        version: 10.0.4
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^8.2.1
-        version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.2.0)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2))
-
-  test/fixtures/node/library-app-webpack:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../../../unplugin-dotnet-wasm
-    devDependencies:
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      ts-loader:
-        specifier: ^9.0.0
-        version: 9.6.2(typescript@5.9.3)(webpack@5.109.2)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      webpack:
-        specifier: ^5.109.2
-        version: 5.109.2(webpack-cli@7.2.2)
-      webpack-cli:
-        specifier: ^7.2.2
-        version: 7.2.2(js-yaml@4.3.0)(webpack-dev-server@6.0.0)(webpack@5.109.2)
-
-  test/integration:
-    dependencies:
-      unplugin-dotnet-wasm:
-        specifier: workspace:*
-        version: link:../../unplugin-dotnet-wasm
-    devDependencies:
-      '@farmfe/core':
-        specifier: ^1.7.0
-        version: 1.7.11(@types/node@26.2.0)
-      '@playwright/test':
-        specifier: ^1.62.1
-        version: 1.62.1
-      '@rollup/plugin-node-resolve':
-        specifier: ^16.0.0
-        version: 16.0.3(rollup@4.62.4)
-      '@rsbuild/core':
-        specifier: ^2.1.10
-        version: 2.1.10(core-js@3.49.0)
-      '@rspack/core':
-        specifier: ^2.1.8
-        version: 2.1.8(@swc/helpers@0.5.23)
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
-      rimraf:
-        specifier: ^6.0.0
-        version: 6.1.3
-      rolldown:
-        specifier: ^1.2.3
-        version: 1.2.3
-      rollup:
-        specifier: ^4.62.4
-        version: 4.62.4
-      rollup-plugin-esbuild:
-        specifier: ^6.0.0
-        version: 6.2.1(esbuild@0.28.1)(rollup@4.62.4)(supports-color@10.2.2)
-      sirv-cli:
-        specifier: ^3.0.0
-        version: 3.0.1
-      ts-loader:
-        specifier: ^9.0.0
-        version: 9.6.2(typescript@5.9.3)(webpack@5.109.2(esbuild@0.28.1))
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^8.2.1
-        version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.2.0)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2))
-      webpack:
-        specifier: ^5.109.2
-        version: 5.109.2(esbuild@0.28.1)
 
   unplugin-dotnet-wasm:
     dependencies:
@@ -1445,6 +1018,12 @@ packages:
   '@farmfe/core@1.7.11':
     resolution: {integrity: sha512-cccnK5p3U+xLsynMOmHRFsGnqYp5QLMgtls3oBYIDbQOqnDatO99shnnQ0wAxnupr/H0IYeDzgpbQbnjCgiCrw==}
     engines: {node: '>=16.15.1'}
+
+  '@farmfe/js-plugin-postcss@1.12.0':
+    resolution: {integrity: sha512-hDzcqVzgaK6ikR8fO+kF5nLfEC7JWQsx9QWn4P3fpAIsvEt6ouUKw9H4nzsDe+hTwQl10d1V/OPMHMQz7J/iOw==}
+    peerDependencies:
+      '@farmfe/core': ^1.7.0
+      postcss: '>=8.0.0'
 
   '@farmfe/runtime-plugin-hmr@3.5.10':
     resolution: {integrity: sha512-ZFwAGDJ1sNuwX77ADdPSO+PoMImrGl0k+nvW/TnzOy72k8JxC8OwaeOiuPgNkYxDGldp55l9mPE9NvcoxR8uzQ==}
@@ -2919,10 +2498,6 @@ packages:
     resolution: {integrity: sha512-5IKcdX0nnYavi6G7TtOhwkYzyjfJlatbjMjuLSfE2kYT5pMDOilZ4OvMhi637CcDICTmz3wARPoyhqyX1Y+XvA==}
     engines: {node: ^14.18.0 || >=16.10.0}
 
-  console-clear@1.1.1:
-    resolution: {integrity: sha512-pMD+MVR538ipqkG5JXeOEbKWS5um1H4LUUccUQG68qpeqBYbzYy79Gh55jkd2TtPdRfUaLWdv6LPP//5Zt0aPQ==}
-    engines: {node: '>=4'}
-
   content-disposition@0.5.4:
     resolution: {integrity: sha512-FveZTNuGw04cxlAiWbzi6zTAL/lhehaWbTtgluJh4/E95DqMwTmha3KZN1aAWA8cFIhHzMZUvLevkw5Rqk+tSQ==}
     engines: {node: '>= 0.6'}
@@ -3548,10 +3123,6 @@ packages:
     resolution: {integrity: sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ==}
     engines: {node: '>= 0.4'}
 
-  get-port@5.1.1:
-    resolution: {integrity: sha512-g/Q1aTSDOxFpchXC4i8ZWvxA1lnPqx/JHqcpIw0/LX9T8x/GBbi6YnlN5nhaKIFkT8oFsscUKgDJYxfwfS6QsQ==}
-    engines: {node: '>=8'}
-
   get-proto@1.0.1:
     resolution: {integrity: sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==}
     engines: {node: '>= 0.4'}
@@ -3951,10 +3522,6 @@ packages:
     resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
     engines: {node: '>=0.10.0'}
 
-  kleur@4.1.5:
-    resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
-    engines: {node: '>=6'}
-
   koa-compose@4.1.0:
     resolution: {integrity: sha512-8ODW8TrDuMYvXRwra/Kh7/rJo9BtOfPc6qO8eAfC80CnCvSjSl0bkRM24X6/XBBEyj0v1nRUQ1LyOy3dbqOWXw==}
 
@@ -4149,10 +3716,6 @@ packages:
   load-tsconfig@0.2.5:
     resolution: {integrity: sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
-  local-access@1.1.0:
-    resolution: {integrity: sha512-XfegD5pyTAfb+GY6chk283Ox5z8WexG56OvM06RWLpAc/UHozO8X6xAxEkIitZOtsSMM1Yr3DkHgW5W+onLhCw==}
-    engines: {node: '>=6'}
 
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
@@ -4857,10 +4420,6 @@ packages:
   rxjs@7.8.2:
     resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
-  sade@1.8.1:
-    resolution: {integrity: sha512-xal3CZX1Xlo/k4ApwCFrHVACi9fBqJ7V+mwhBsuf/1IOKbBy098Fex+Wa/5QMubw09pSZ/u8EY8PWgevJsXp1A==}
-    engines: {node: '>=6'}
-
   safe-buffer@5.1.2:
     resolution: {integrity: sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==}
 
@@ -4887,10 +4446,6 @@ packages:
   selfsigned@5.5.0:
     resolution: {integrity: sha512-ftnu3TW4+3eBfLRFnDEkzGxSF/10BJBkaLJuBHZX0kiPS7bRdlpZGu6YGt4KngMkdTwJE6MbjavFpqHvqVt+Ew==}
     engines: {node: '>=18'}
-
-  semiver@1.1.0:
-    resolution: {integrity: sha512-QNI2ChmuioGC1/xjyYwyZYADILWyW6AmS1UH6gDj/SFUUUS4MBAWs/7mxnkRPc/F4iHezDP+O8t0dO8WHiEOdg==}
-    engines: {node: '>=6'}
 
   semver@7.8.5:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
@@ -4972,11 +4527,6 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
-
-  sirv-cli@3.0.1:
-    resolution: {integrity: sha512-ICXaF2u6IQhLZ0EXF6nqUF4YODfSQSt+mGykt4qqO5rY+oIiwdg7B8w2PVDBJlQulaS2a3J8666CUoDoAuCGvg==}
-    engines: {node: '>=18'}
-    hasBin: true
 
   sirv@3.0.2:
     resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
@@ -5128,10 +4678,6 @@ packages:
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
-
-  tinydate@1.3.0:
-    resolution: {integrity: sha512-7cR8rLy2QhYHpsBDBVYnnWXm8uRTr38RoZakFSW7Bs7PzfMPNZthuMLkwqZv7MTu8lhQ91cOFYS5a7iFj2oR3w==}
-    engines: {node: '>=4'}
 
   tinyexec@0.3.2:
     resolution: {integrity: sha512-KQQR9yN7R5+OSwaK0XQoj22pwHoTlgYqmUscPYoknOoWCWfj/5/ABTMRi69FrKU5ffPVh5QcFikpWJI/P1ocHA==}
@@ -6269,6 +5815,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@farmfe/js-plugin-postcss@1.12.0(@farmfe/core@1.7.11(@types/node@26.2.0)(supports-color@10.2.2))(postcss@8.5.26)':
+    dependencies:
+      '@farmfe/core': 1.7.11(@types/node@26.2.0)(supports-color@10.2.2)
+      postcss: 8.5.26
+
   '@farmfe/runtime-plugin-hmr@3.5.10':
     dependencies:
       core-js: 3.49.0
@@ -6969,7 +6520,7 @@ snapshots:
       tailwindcss: 4.3.3
     optionalDependencies:
       '@rspack/core': 2.1.8(@swc/helpers@0.5.23)
-      webpack: 5.109.2(webpack-cli@7.2.2)
+      webpack: 5.109.2
 
   '@tybys/wasm-util@0.10.3':
     dependencies:
@@ -7765,8 +7316,6 @@ snapshots:
 
   consola@3.4.2: {}
 
-  console-clear@1.1.1: {}
-
   content-disposition@0.5.4:
     dependencies:
       safe-buffer: 5.2.1
@@ -8509,8 +8058,6 @@ snapshots:
       hasown: 2.0.4
       math-intrinsics: 1.1.0
 
-  get-port@5.1.1: {}
-
   get-proto@1.0.1:
     dependencies:
       dunder-proto: 1.0.1
@@ -8912,8 +8459,6 @@ snapshots:
 
   kind-of@6.0.3: {}
 
-  kleur@4.1.5: {}
-
   koa-compose@4.1.0: {}
 
   koa-compress@5.2.2:
@@ -9090,8 +8635,6 @@ snapshots:
 
   load-tsconfig@0.2.5: {}
 
-  local-access@1.1.0: {}
-
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
@@ -9203,16 +8746,6 @@ snapshots:
       postcss: 8.5.26
     optional: true
 
-  minimizer-webpack-plugin@5.6.1(esbuild@0.28.1)(webpack@5.109.2(esbuild@0.28.1)):
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.31
-      jest-worker: 27.5.1
-      schema-utils: 4.3.3
-      terser: 5.49.2
-      webpack: 5.109.2(esbuild@0.28.1)
-    optionalDependencies:
-      esbuild: 0.28.1
-
   minimizer-webpack-plugin@5.6.1(esbuild@0.28.1)(webpack@5.109.2):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
@@ -9239,7 +8772,8 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.49.2
-      webpack: 5.109.2(webpack-cli@7.2.2)
+      webpack: 5.109.2
+    optional: true
 
   minipass@7.1.3: {}
 
@@ -9792,10 +9326,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  sade@1.8.1:
-    dependencies:
-      mri: 1.2.0
-
   safe-buffer@5.1.2: {}
 
   safe-buffer@5.2.1: {}
@@ -9823,8 +9353,6 @@ snapshots:
     dependencies:
       '@peculiar/x509': 1.14.3
       pkijs: 3.4.0
-
-  semiver@1.1.0: {}
 
   semver@7.8.5: {}
 
@@ -9952,17 +9480,6 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
-
-  sirv-cli@3.0.1:
-    dependencies:
-      console-clear: 1.1.1
-      get-port: 5.1.1
-      kleur: 4.1.5
-      local-access: 1.1.0
-      sade: 1.8.1
-      semiver: 1.1.0
-      sirv: 3.0.2
-      tinydate: 1.3.0
 
   sirv@3.0.2:
     dependencies:
@@ -10116,8 +9633,6 @@ snapshots:
 
   tinybench@2.9.0: {}
 
-  tinydate@1.3.0: {}
-
   tinyexec@0.3.2: {}
 
   tinyexec@1.3.0: {}
@@ -10154,14 +9669,6 @@ snapshots:
       typescript: 5.9.3
 
   ts-interface-checker@0.1.13: {}
-
-  ts-loader@9.6.2(typescript@5.9.3)(webpack@5.109.2(esbuild@0.28.1)):
-    dependencies:
-      chalk: 4.1.2
-      picomatch: 4.0.5
-      source-map: 0.7.6
-      typescript: 5.9.3
-      webpack: 5.109.2(esbuild@0.28.1)
 
   ts-loader@9.6.2(typescript@5.9.3)(webpack@5.109.2):
     dependencies:
@@ -10549,41 +10056,6 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  webpack-dev-server@6.0.0(webpack-cli@7.2.2)(webpack@5.109.2):
-    dependencies:
-      '@types/bonjour': 3.5.13
-      '@types/connect-history-api-fallback': 1.5.4
-      '@types/express': 5.0.6
-      '@types/express-serve-static-core': 5.1.3
-      '@types/serve-index': 1.9.4
-      '@types/serve-static': 2.2.0
-      '@types/ws': 8.18.1
-      ansi-html-community: 0.0.8
-      bonjour-service: 1.4.4
-      chokidar: 5.0.0
-      compression: 1.8.1
-      connect-history-api-fallback: 2.0.0
-      express: 5.2.1(supports-color@10.2.2)
-      graceful-fs: 4.2.11
-      http-proxy-middleware: 4.2.0(supports-color@10.2.2)
-      ipaddr.js: 2.5.0
-      launch-editor: 2.14.1
-      open: 11.0.0
-      p-retry: 8.0.0
-      schema-utils: 4.3.3
-      selfsigned: 5.5.0
-      serve-index: 1.9.2
-      tinyglobby: 0.2.17
-      webpack-dev-middleware: 8.1.1(webpack@5.109.2)
-      ws: 8.21.2
-    optionalDependencies:
-      webpack: 5.109.2(webpack-cli@7.2.2)
-      webpack-cli: 7.2.2(js-yaml@4.3.0)(webpack-dev-server@6.0.0)(webpack@5.109.2)
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
   webpack-merge@6.0.1:
     dependencies:
       clone-deep: 4.0.1
@@ -10593,6 +10065,43 @@ snapshots:
   webpack-sources@3.5.1: {}
 
   webpack-virtual-modules@0.6.2: {}
+
+  webpack@5.109.2:
+    dependencies:
+      '@types/estree': 1.0.9
+      '@types/json-schema': 7.0.15
+      '@webassemblyjs/ast': 1.14.1
+      '@webassemblyjs/wasm-edit': 1.14.1
+      '@webassemblyjs/wasm-parser': 1.14.1
+      acorn: 8.18.0
+      browserslist: 4.28.7
+      chrome-trace-event: 1.0.4
+      enhanced-resolve: 5.24.5
+      es-module-lexer: 2.3.1
+      eslint-scope: 5.1.1
+      events: 3.3.0
+      graceful-fs: 4.2.11
+      mime-db: 1.54.0
+      minimizer-webpack-plugin: 5.6.1(webpack@5.109.2)
+      neo-async: 2.6.2
+      schema-utils: 4.3.3
+      tapable: 2.3.3
+      watchpack: 2.5.2
+      webpack-sources: 3.5.1
+    transitivePeerDependencies:
+      - '@minify-html/node'
+      - '@swc/core'
+      - '@swc/css'
+      - '@swc/html'
+      - clean-css
+      - cssnano
+      - csso
+      - esbuild
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - uglify-js
+    optional: true
 
   webpack@5.109.2(esbuild@0.27.7)(postcss@8.5.26):
     dependencies:
@@ -10630,42 +10139,6 @@ snapshots:
       - postcss
       - uglify-js
     optional: true
-
-  webpack@5.109.2(esbuild@0.28.1):
-    dependencies:
-      '@types/estree': 1.0.9
-      '@types/json-schema': 7.0.15
-      '@webassemblyjs/ast': 1.14.1
-      '@webassemblyjs/wasm-edit': 1.14.1
-      '@webassemblyjs/wasm-parser': 1.14.1
-      acorn: 8.18.0
-      browserslist: 4.28.7
-      chrome-trace-event: 1.0.4
-      enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
-      eslint-scope: 5.1.1
-      events: 3.3.0
-      graceful-fs: 4.2.11
-      mime-db: 1.54.0
-      minimizer-webpack-plugin: 5.6.1(esbuild@0.28.1)(webpack@5.109.2(esbuild@0.28.1))
-      neo-async: 2.6.2
-      schema-utils: 4.3.3
-      tapable: 2.3.3
-      watchpack: 2.5.2
-      webpack-sources: 3.5.1
-    transitivePeerDependencies:
-      - '@minify-html/node'
-      - '@swc/core'
-      - '@swc/css'
-      - '@swc/html'
-      - clean-css
-      - cssnano
-      - csso
-      - esbuild
-      - html-minifier-terser
-      - lightningcss
-      - postcss
-      - uglify-js
 
   webpack@5.109.2(esbuild@0.28.1)(webpack-cli@7.2.2):
     dependencies:
@@ -10729,44 +10202,6 @@ snapshots:
       webpack-sources: 3.5.1
     optionalDependencies:
       webpack-cli: 6.0.1(webpack-dev-server@5.2.6)(webpack@5.109.2)
-    transitivePeerDependencies:
-      - '@minify-html/node'
-      - '@swc/core'
-      - '@swc/css'
-      - '@swc/html'
-      - clean-css
-      - cssnano
-      - csso
-      - esbuild
-      - html-minifier-terser
-      - lightningcss
-      - postcss
-      - uglify-js
-
-  webpack@5.109.2(webpack-cli@7.2.2):
-    dependencies:
-      '@types/estree': 1.0.9
-      '@types/json-schema': 7.0.15
-      '@webassemblyjs/ast': 1.14.1
-      '@webassemblyjs/wasm-edit': 1.14.1
-      '@webassemblyjs/wasm-parser': 1.14.1
-      acorn: 8.18.0
-      browserslist: 4.28.7
-      chrome-trace-event: 1.0.4
-      enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
-      eslint-scope: 5.1.1
-      events: 3.3.0
-      graceful-fs: 4.2.11
-      mime-db: 1.54.0
-      minimizer-webpack-plugin: 5.6.1(webpack@5.109.2)
-      neo-async: 2.6.2
-      schema-utils: 4.3.3
-      tapable: 2.3.3
-      watchpack: 2.5.2
-      webpack-sources: 3.5.1
-    optionalDependencies:
-      webpack-cli: 7.2.2(js-yaml@4.3.0)(webpack-dev-server@6.0.0)(webpack@5.109.2)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@swc/core'
