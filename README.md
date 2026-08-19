@@ -492,26 +492,26 @@ Then install dependencies
 pnpm install
 ```
 
-Shared .NET libraries live in `samples/libraries/` (`WasmLibrary`, `BlazorElements`, `BlazorApp`). Hosts live in `samples/apps/`.
+The samples are a few apps that bundle one of the .NET libraries in `samples/libraries/`. The apps (`samples/apps/`) can be launched by running the following commands from the repo root.
 
 ```bash
-# Vite + vanilla + WASM library (TypeShim Counter)
+# Vite + vanilla js + WASM library
 pnpm build:sample:vite-wasm
 pnpm dev:sample:vite-wasm
 
-# Vite + vanilla + Blazor custom elements
+# Vite + vanilla js + Blazor custom elements
 pnpm build:sample:vite-blazor
 pnpm dev:sample:vite-blazor
 
-# Webpack + full Blazor app (router, layout, pages)
+# Webpack + full Blazor app
 pnpm build:sample:webpack-blazor
 pnpm dev:sample:webpack-blazor
 
-# Rsbuild + React + the same Blazor custom elements
+# Rsbuild + React + Blazor custom elements
 pnpm build:sample:rsbuild-react
 pnpm dev:sample:rsbuild-react
 
-# Farm + Vue + WASM library (TypeShim Counter)
+# Farm + Vue + WASM library
 pnpm build:sample:farm-vue
 pnpm dev:sample:farm-vue
 
@@ -519,8 +519,6 @@ pnpm dev:sample:farm-vue
 pnpm build:sample:esbuild-node
 pnpm start:sample:esbuild-node
 ```
-
-Other bundler permutations live in `./test/fixtures/[browser|node]`.
 
 Testing the `bun` integration additionally requires Bun >= 1.3.
 
