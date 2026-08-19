@@ -121,7 +121,6 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           for (const watchPath of [result.path, ...ctx.manifestPaths]) this.addWatchFile(watchPath);
           return result.code;
         }
-        // else: Framework binaries (see filter)
         if (isServe) {
           const exportPath = options?.ssr
             ? pathToFileURL(id).href // Node dev server (e.g. Vitest): no HTTP origin, so hand back an absolute file:// URL.

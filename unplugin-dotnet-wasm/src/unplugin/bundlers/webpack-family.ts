@@ -111,7 +111,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   }
 
   function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {
-    // Set up manifest watcher for webpack/rspack
     const watcher = new ManifestWatcher({
       paths: ctx.manifestPaths,
       onChange: () => ctx.reinitialize(),
@@ -119,7 +118,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
     });
 
     ctx.onReinitialized(() => {
-      // Request recompile and reload.
       devServer.invalidate?.();
 
       const clients = devServer.webSocketServer?.clients ?? [];
@@ -134,7 +132,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
     watcher.start();
 
-    // Dispose on server close
     devServer.server?.once('close', () => watcher.dispose());
   }
 

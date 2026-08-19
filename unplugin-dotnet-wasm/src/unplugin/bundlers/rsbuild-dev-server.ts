@@ -87,7 +87,6 @@ export function createRsbuildSetup(ctx: PluginContext, deps: RsbuildSharedDeps):
 
         watcher.start();
 
-        // Dispose on server close
         api.onCloseDevServer(() => {
           watcher.dispose();
         });

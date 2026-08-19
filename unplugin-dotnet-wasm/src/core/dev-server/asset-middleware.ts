@@ -34,9 +34,8 @@ export function createAssetMiddleware(resolver: AssetResolver, logger: Logger): 
     for (const header of resolver.headersFor(pathname) ?? []) {
       res.setHeader(header.Name, header.Value);
     }
-    res.setHeader('Content-Length', String(size)); // ensure matching actual file
+    res.setHeader('Content-Length', String(size));
 
-    // Conditional request: 304 when the ETag matches.
     const etag = res.getHeader('ETag');
     const ifNoneMatch = req.headers['if-none-match'];
     if (typeof etag === 'string' && ifNoneMatch === etag) {
