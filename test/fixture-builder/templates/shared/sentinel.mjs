@@ -64,6 +64,7 @@ export function farmSentinelPlugin() {
     },
     writeResources: {
       executor() {
+        if (currentSeq === 0) return;
         endBuild('ok');
       },
     },

@@ -85,8 +85,8 @@ export async function waitForBuildSentinelFiles(
       if (done.status === 'error') {
         throw new Error(`Build reported an error (done=${doneRaw}).`);
       }
-      const inFlight = startSeq !== null && startSeq > done.seq;
-      if (inFlight) {
+      const pairReady = startSeq !== null && startSeq === done.seq && done.seq >= 1;
+      if (!pairReady) {
         candidate = null;
         stableSince = 0;
       } else if (doneRaw !== candidate) {
