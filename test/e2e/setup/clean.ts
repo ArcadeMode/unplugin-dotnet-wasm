@@ -1,7 +1,7 @@
 import { readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { execa } from 'execa';
-import { MATERIALIZED_ROOT } from '@dotnet-wasm-bundler/fixture-builder';
+import { MATERIALIZED_ROOT } from '@unplugin-dotnet-wasm/fixture-builder';
 
 function shardPrefix(): string | null {
   const bundler = process.env.FIXTURE_BUNDLER;

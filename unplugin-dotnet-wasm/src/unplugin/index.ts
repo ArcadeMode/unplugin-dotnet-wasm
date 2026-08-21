@@ -44,6 +44,12 @@ export const dotnetWasmUnplugin = createUnplugin(
       };
     }
 
-    return { ...base, ...createFarm(ctx) };
+    if (framework === 'farm') {
+      return { ...base, ...createFarm(ctx) };
+    }
+
+    throw new Error(
+      `unplugin-dotnet-wasm does not support bundler framework ${JSON.stringify(framework)}`,
+    );
   },
 );

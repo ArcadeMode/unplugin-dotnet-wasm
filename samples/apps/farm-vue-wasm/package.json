@@ -1,5 +1,5 @@
 {
-  "name": "@dotnet-wasm-bundler/farm-vue-wasm",
+  "name": "@unplugin-dotnet-wasm/farm-vue-wasm",
   "private": true,
   "version": "0.0.0",
   "type": "module",

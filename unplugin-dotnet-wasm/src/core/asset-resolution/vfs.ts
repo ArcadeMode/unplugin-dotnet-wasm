@@ -122,11 +122,9 @@ function collectPatterns(node: ManifestNode, segments: string[]): NodePattern[] 
 export function buildVfs(manifest: RuntimeManifest, opts?: { logger?: Logger }): VirtualFileSystem {
   const logger = opts?.logger ?? NULL_LOGGER;
 
-  // ── Step 1: ingest every explicit `Asset` node from the manifest. ──
   const lookup = new AssetLookup();
   collectManifestAssets(manifest.Root, manifest.ContentRoots, [], lookup);
 
-  // ── Step 2: pre-compile manifest patterns for lazy fallthrough. ──
   const patterns = collectPatterns(manifest.Root, []);
 
   const patternCount = patterns.filter((p) => p.pattern === '**').length;

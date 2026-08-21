@@ -2,9 +2,6 @@ import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-/**
- * Doesnt write the content of the file wouldnt change.
- */
 export class IdempotentFileWriter {
   async write(absPath: string, content: string): Promise<boolean> {
     if (existsSync(absPath)) {

@@ -54,7 +54,6 @@ export class BundlerCompatRewriter {
     });
   }
 
-  // Returns the single magic comment for the given framework, or '' when none applies.
   private getIgnorePragma(framework: BundlerFramework): string {
     if (framework === 'vite') return '/* @vite-ignore */';
     if (this.isWebpackFamily(framework)) return '/* webpackIgnore: true */';

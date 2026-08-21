@@ -17,5 +17,8 @@ node_modules/.dotnet-vfs/
 ## Vite
 *.local
 
+## Playwright browsers (CI PLAYWRIGHT_BROWSERS_PATH)
+.cache/ms-playwright/
+
 ## Local planning notes
 *-plan.md

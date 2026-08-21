@@ -83,7 +83,7 @@ function generatePackageJson(id: string, options: MaterializeInput['options']): 
     scripts.start ??= 'node dist/entry.js';
   }
   const pkg = {
-    name: `@dotnet-wasm-bundler/materialized-${id}`,
+    name: `@unplugin-dotnet-wasm/materialized-${id}`,
     private: true,
     version: '0.0.0',
     type: 'module',

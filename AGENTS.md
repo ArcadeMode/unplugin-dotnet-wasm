@@ -54,7 +54,7 @@ pnpm test:e2e --bundler=vite
 pnpm test:e2e --bundler=vite --platform=browser
 pnpm test:e2e --platform=node
 # equivalent:
-pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=vite
+pnpm --filter @unplugin-dotnet-wasm/e2e test:e2e --bundler=vite
 ```
 
 - Templates: `test/fixture-builder/templates/{WasmLibrary,BlazorLibrary}` materialize

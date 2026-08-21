@@ -80,10 +80,7 @@ export function createFarm(ctx: PluginContext): FarmHooks {
     if (watcher) return watcher;
     watcher = new ManifestWatcher({
       paths: ctx.manifestPaths,
-      onChange: () => {
-        ctx.logger.debug('[farm] ManifestWatcher.onChange fired, reinitializing');
-        return ctx.reinitialize();
-      },
+      onChange: () => ctx.reinitialize(),
       logger: ctx.logger,
     });
     watcher.start();
@@ -117,29 +114,21 @@ export function createFarm(ctx: PluginContext): FarmHooks {
   }
 
   async function invalidateModules(): Promise<void> {
-    if (!compiler) {
-      ctx.logger.debug('[farm-reload] skip invalidate: no compiler');
-      return;
-    }
+    if (!compiler) return;
     try {
       const dirty = collectVirtualModuleIds();
       if (dirty.length > 0) {
         for (const moduleId of dirty) compiler.invalidateModule(moduleId);
         await compiler.update(dirty, true);
       } else {
-        ctx.logger.debug('[farm-reload] no virtual modules in graph; falling back to compile()');
         await compiler.compile();
       }
       if (isServe) {
         const clients = devServer?.ws?.clients;
         const reload = JSON.stringify({ type: 'full-reload' });
         if (clients) for (const client of clients) client.rawSend(reload);
-        ctx.logger.debug(
-          `[farm-reload] serve: recompiled + full-reload (${clients?.size ?? 0} client(s))`,
-        );
       } else {
         compiler.writeResourcesToDisk();
-        ctx.logger.debug('[farm-reload] watch: writeResourcesToDisk completed');
       }
     } catch (error) {
       ctx.logger.error(`[farm-reload] failed to refresh framework modules: ${error}`);
@@ -186,8 +175,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       async handler(id: string): Promise<string | null> {
         const route = routeFromVirtualId(id);
         if (route !== null) {
-          ctx.logger.debug(`[farm-reload] load re-run for virtual route "${route}"`);
-
           const result = await ctx.loadContent(route);
           if (result === null) return null;
           return result.code;
@@ -206,10 +193,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
         const targetEnv = userConfig.compilation?.output?.targetEnv;
         isNodeTarget = typeof targetEnv === 'string' && targetEnv.startsWith('node');
         isWatch = Boolean(userConfig.compilation?.watch);
-        ctx.logger.debug(
-          `[farm] config: isWatch=${isWatch} (compilation.watch=${JSON.stringify(userConfig.compilation?.watch)}), ` +
-            `isNodeTarget=${isNodeTarget}, manifestWatchPaths=${ctx.manifestPaths.length}`,
-        );
         // farm dev server panics when lazy-compiling the .NET boot chain (blazor's dynamic import of
         // dotnet.js resolves a virtual id farm's lazy wrapper can't find). Force eager compilation so the
         // boot modules are in the graph up front, matching the (green) build --watch path.
@@ -234,9 +217,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
       configureCompiler(c: FarmCompiler): void {
         compiler = c;
         ctx.onReinitialized(invalidateModules);
-        ctx.logger.debug(
-          `[farm] configureCompiler: isWatch=${isWatch}, startingManifestWatcher=${isWatch}`,
-        );
         if (isWatch) startManifestWatcher();
       },
       updateModules: {
@@ -248,11 +228,6 @@ export function createFarm(ctx: PluginContext): FarmHooks {
               if (/staticwebassets\.(endpoints|runtime)\.json$/i.test(p)) return false;
               return existsSync(p);
             });
-          if (next.length !== paths.length) {
-            ctx.logger.debug(
-              `[farm-reload] updateModules: dropped ${paths.length - next.length} path(s)`,
-            );
-          }
           return next;
         },
       },

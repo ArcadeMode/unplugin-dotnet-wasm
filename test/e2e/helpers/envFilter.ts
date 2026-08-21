@@ -1,4 +1,4 @@
-import type { FixtureParameters } from '@dotnet-wasm-bundler/fixture-builder';
+import type { FixtureParameters } from '@unplugin-dotnet-wasm/fixture-builder';
 
 /** Runner shard filter (set by scripts/run.mjs from `--bundler` / `--platform`). */
 export function envFilter(): Partial<FixtureParameters> {

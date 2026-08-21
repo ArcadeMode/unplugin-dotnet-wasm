@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
-import { buildFixture, type Fixture } from '@dotnet-wasm-bundler/fixture-builder';
+import { buildFixture, type Fixture } from '@unplugin-dotnet-wasm/fixture-builder';
 import { permuteFixture } from '../../helpers/permute-fixture-node';
 import { libraryFrameworkDir } from '../../helpers/dist-artifacts';
 import { expectFingerprintLayout } from '../../helpers/assertions';

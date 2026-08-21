@@ -121,18 +121,13 @@ jobs:
       - name: Prebuild .NET fixture libraries
         run: pnpm prebuild:fixture-libraries
 
-      - name: Install Playwright browsers
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            pnpm --filter @dotnet-wasm-bundler/e2e exec playwright install --with-deps chromium
-          else
-            pnpm --filter @dotnet-wasm-bundler/e2e exec playwright install chromium
-          fi
+      - uses: ./.github/actions/playwright-install
+        timeout-minutes: 15
+        with:
+          working-directory: test/e2e
 
       - name: Run e2e
-        #env:
-        #  FIXTURE_ECHO_LOGS: ${{ matrix.bundler == 'farm' && '1' || '' }}
-        run: pnpm --filter @dotnet-wasm-bundler/e2e test:e2e --bundler=${{ matrix.bundler }}
+        run: pnpm --filter @unplugin-dotnet-wasm/e2e test:e2e --bundler=${{ matrix.bundler }}
 
       - uses: actions/upload-artifact@v7
         if: always()

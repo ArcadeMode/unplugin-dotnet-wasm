@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import { BINARY_EXTENSIONS_REGEX, FRAMEWORK_JS_REGEX, JS_MODULE_REGEX } from '../constants';
+import { BINARY_EXTENSIONS_REGEX, JS_MODULE_REGEX } from '../constants';
+import { isFrameworkJsPath } from './framework-js';
 import { collapseDotSegments, toPosixPath } from '../path-utils';
 import type { Logger } from '../logger';
 import type { BundlerCompatRewriter, BundlerFramework } from '../bundler-compat-rewriter';
@@ -78,9 +79,4 @@ export class VirtualModuleResolver {
     }
     return 'physical';
   }
-}
-
-function isFrameworkJsPath(path: string): boolean {
-  const posix = path.replace(/\\/g, '/');
-  return FRAMEWORK_JS_REGEX.test(posix.startsWith('/') ? posix : `/${posix}`);
 }

@@ -69,7 +69,6 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       }
     }
 
-    // Resolve binary assets through proxy modules that re-import the real asset by its absolute path.
     build.onResolve({ filter: /.*/ }, (args) => {
       if (args.importer?.endsWith(PROXY_SUFFIX)) {
         return null; // guard against proxy recursion.
@@ -92,7 +91,6 @@ export function createEsbuildFamily(ctx: PluginContext): EsbuildFamilyHooks {
       return { path: resolved };
     });
 
-    // Emit the proxy module: re-import the real asset by its absolute path
     build.onLoad({ filter: /.*/, namespace: URL_PROXY_NAMESPACE }, (args) => {
       const realPath = args.path.slice(0, -PROXY_SUFFIX.length);
       return {

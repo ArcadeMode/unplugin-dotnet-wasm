@@ -3,7 +3,7 @@ import {
   getFixtureParameterPermutations,
   supports,
   type FixtureParameters,
-} from '@dotnet-wasm-bundler/fixture-builder';
+} from '@unplugin-dotnet-wasm/fixture-builder';
 import { envFilter } from './envFilter';
 
 /**

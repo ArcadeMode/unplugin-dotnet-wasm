@@ -1,5 +1,5 @@
 {
-  "name": "dotnet-wasm-bundler-root",
+  "name": "@unplugin-dotnet-wasm/root",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "build:plugin": "pnpm --filter unplugin-dotnet-wasm build",
     "build:plugin:fixture": "pnpm --filter unplugin-dotnet-wasm build:fixture",
     "test:unit": "pnpm --filter unplugin-dotnet-wasm test",
-    "test:e2e": "pnpm --filter @dotnet-wasm-bundler/e2e test:e2e",
+    "test:e2e": "pnpm --filter @unplugin-dotnet-wasm/e2e test:e2e",
 
     "build:fixture-library:wasm": "dotnet build test/fixture-builder/templates/WasmLibrary/WasmLibrary.csproj -c Debug -p:WasmFingerprintAssets=true",
     "publish:fixture-library:wasm": "dotnet publish test/fixture-builder/templates/WasmLibrary/WasmLibrary.csproj -c Release -p:WasmFingerprintAssets=true",
@@ -16,28 +16,28 @@
     "publish:fixture-library:blazor": "dotnet publish test/fixture-builder/templates/BlazorLibrary/BlazorLibrary.csproj -c Release -p:WasmFingerprintAssets=true",
     "prebuild:fixture-libraries": "pnpm build:fixture-library:wasm && pnpm publish:fixture-library:wasm && pnpm build:fixture-library:blazor && pnpm publish:fixture-library:blazor",
 
-    "build:sample:vite-wasm": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/vite-vanilla-wasm build",
-    "dev:sample:vite-wasm": "pnpm --filter @dotnet-wasm-bundler/vite-vanilla-wasm dev",
-    "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @dotnet-wasm-bundler/vite-vanilla-wasm preview",
+    "build:sample:vite-wasm": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/vite-vanilla-wasm build",
+    "dev:sample:vite-wasm": "pnpm --filter @unplugin-dotnet-wasm/vite-vanilla-wasm dev",
+    "preview:sample:vite-wasm": "pnpm build:sample:vite-wasm && pnpm --filter @unplugin-dotnet-wasm/vite-vanilla-wasm preview",
 
-    "build:sample:vite-blazor": "dotnet build samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/vite-vanilla-blazor build",
-    "dev:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/vite-vanilla-blazor dev",
-    "preview:sample:vite-blazor": "pnpm --filter @dotnet-wasm-bundler/vite-vanilla-blazor preview",
+    "build:sample:vite-blazor": "dotnet build samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/vite-vanilla-blazor build",
+    "dev:sample:vite-blazor": "pnpm --filter @unplugin-dotnet-wasm/vite-vanilla-blazor dev",
+    "preview:sample:vite-blazor": "pnpm --filter @unplugin-dotnet-wasm/vite-vanilla-blazor preview",
 
-    "build:sample:webpack-blazor": "dotnet build samples/libraries/BlazorApp/BlazorApp.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor build",
-    "dev:sample:webpack-blazor": "pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor dev",
-    "preview:sample:webpack-blazor": "pnpm --filter @dotnet-wasm-bundler/webpack-vanilla-blazor preview",
+    "build:sample:webpack-blazor": "dotnet build samples/libraries/BlazorApp/BlazorApp.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/webpack-vanilla-blazor build",
+    "dev:sample:webpack-blazor": "pnpm --filter @unplugin-dotnet-wasm/webpack-vanilla-blazor dev",
+    "preview:sample:webpack-blazor": "pnpm --filter @unplugin-dotnet-wasm/webpack-vanilla-blazor preview",
 
-    "build:sample:rsbuild-react": "dotnet build samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/rsbuild-react-blazor build",
-    "dev:sample:rsbuild-react": "pnpm --filter @dotnet-wasm-bundler/rsbuild-react-blazor dev",
-    "preview:sample:rsbuild-react": "pnpm --filter @dotnet-wasm-bundler/rsbuild-react-blazor preview",
+    "build:sample:rsbuild-react": "dotnet build samples/libraries/BlazorElements/BlazorElements.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/rsbuild-react-blazor build",
+    "dev:sample:rsbuild-react": "pnpm --filter @unplugin-dotnet-wasm/rsbuild-react-blazor dev",
+    "preview:sample:rsbuild-react": "pnpm --filter @unplugin-dotnet-wasm/rsbuild-react-blazor preview",
 
-    "build:sample:farm-vue": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm build",
-    "dev:sample:farm-vue": "pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm dev",
-    "preview:sample:farm-vue": "pnpm --filter @dotnet-wasm-bundler/farm-vue-wasm preview",
+    "build:sample:farm-vue": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm build",
+    "dev:sample:farm-vue": "pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm dev",
+    "preview:sample:farm-vue": "pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm preview",
 
-    "start:sample:esbuild-node": "pnpm --filter @dotnet-wasm-bundler/esbuild-node-wasm start",
-    "build:sample:esbuild-node": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @dotnet-wasm-bundler/esbuild-node-wasm build",
+    "start:sample:esbuild-node": "pnpm --filter @unplugin-dotnet-wasm/esbuild-node-wasm start",
+    "build:sample:esbuild-node": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/esbuild-node-wasm build",
 
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint",

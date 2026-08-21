@@ -87,11 +87,9 @@ export class PluginContext {
 
   async reinitialize({ emitReload = true }: { emitReload?: boolean } = {}): Promise<void> {
     try {
-      this.logger.debug('reinitialize start; emitReload=' + emitReload);
       if (!(await this.initAssetResolutionSafe())) return;
       if (!emitReload) return;
       for (const fn of this.reloadTriggers) await fn();
-      this.logger.debug(`reinitialize: done (${this.reloadTriggers.length} reload trigger(s))`);
     } catch (err) {
       this.logger.error(`manifest reinitialize failed: ${(err as Error).message}`);
     }

@@ -111,18 +111,13 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
   }
 
   function watchStaticWebassetsManifests(devServer: WebpackDevServerInstance): void {
-    // Set up manifest watcher for webpack/rspack
     const watcher = new ManifestWatcher({
       paths: ctx.manifestPaths,
-      onChange: () => {
-        ctx.logger.debug('[serve] ManifestWatcher.onChange fired, reinitializing');
-        return ctx.reinitialize();
-      },
+      onChange: () => ctx.reinitialize(),
       logger: ctx.logger,
     });
 
     ctx.onReinitialized(() => {
-      // Request recompile and reload.
       devServer.invalidate?.();
 
       const clients = devServer.webSocketServer?.clients ?? [];
@@ -137,7 +132,6 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
     watcher.start();
 
-    // Dispose on server close
     devServer.server?.once('close', () => watcher.dispose());
   }
 
@@ -178,10 +172,8 @@ export function createWebpackFamily(ctx: PluginContext): WebpackFamilyHooks {
 
   return {
     async buildStart(this: object): Promise<void> {
-      ctx.logger.debug(`[build] buildStart invoked in webpack-family`);
       await ctx.initialize();
       if (isWatch && !isServe) await ctx.reinitialize(); // No dev server to control rebuilds, ensure manifests pulled in before every (re)build
-      ctx.logger.debug(`[build] buildStart completed in webpack-family`);
     },
     resolveId,
     load,
