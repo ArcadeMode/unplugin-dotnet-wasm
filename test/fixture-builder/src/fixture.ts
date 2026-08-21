@@ -218,7 +218,7 @@ export class Fixture {
       env: this.scriptEnv,
     });
     try {
-      await waitForBuildSentinelFiles(this.dir, null);
+      await waitForBuildSentinelFiles(this.dir, null, { minSeq: 1 });
     } catch (err) {
       const reason = this.server.hasExited ? 'watcher process exited early' : 'dist never settled';
       throw new Error(
