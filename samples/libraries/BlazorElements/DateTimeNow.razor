@@ -1,0 +1,38 @@
+<div class="flex flex-col gap-3 text-sm">
+    <div class="flex justify-between gap-4">
+        <span class="text-stone-500">Initial</span>
+        <span class="tabular-nums">@Initial.ToLongTimeString()</span>
+    </div>
+    <div class="flex justify-between gap-4">
+        <span class="text-stone-500">Now</span>
+        <span class="tabular-nums">@_now.ToLongTimeString()</span>
+    </div>
+    <div class="flex justify-between gap-4">
+        <span class="text-stone-500">Elapsed</span>
+        <span class="tabular-nums">@((_now - Initial).TotalSeconds.ToString("F0"))s</span>
+    </div>
+    <button
+        type="button"
+        class="mt-2 self-start rounded-full bg-stone-800 px-4 py-2 text-sm text-white hover:bg-stone-900"
+        @onclick="Refresh">
+        Refresh
+    </button>
+</div>
+
+@code {
+    private DateTime _now = DateTime.Now;
+
+    // Initial datetime from an attribute or JS property (ISO-8601 string / Date).
+    [Parameter]
+    public DateTime Initial { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (Initial == default)
+        {
+            Initial = _now;
+        }
+    }
+
+    private void Refresh() => _now = DateTime.Now;
+}

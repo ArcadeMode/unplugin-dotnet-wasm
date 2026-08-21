@@ -12,9 +12,9 @@ This plugin concerns .NET WebAssembly projects built in **bundler-friendly mode*
 
 - **Even publish output needs bundler surgery.** Consuming it still requires notable per-bundler configuration (asset handling, resolution, Node built-in shims, and more). That setup burden is a real barrier to adopting .NET WASM into an existing JS project, and it has to be redone for each bundler.
 
-- **The emitted JS trips up static analysis.** The SDK's loader and runtime JavaScript trip up bundler static analysis, producing a stream of warnings on every build. These dont break functionality but are still annoying.
+- **The emitted JS trips up static analysis.** The SDK's loader and runtime JavaScript trip up bundler static analysis, producing a stream of warnings on every build. These don't break functionality but are still annoying.
 
-The plugin aims to adres the above by making the fast `dotnet build` output directly bundleable and absorbs the per-bundler configuration while adjusting the JS to silence warnings. With unplugin-dotnet-wasm, a .NET WASM app drops into a JS project like any other dependency. How it does that is the rest of this document.
+The plugin aims to address the above by making the fast `dotnet build` output directly bundleable and absorbs the per-bundler configuration while adjusting the JS to silence warnings. With unplugin-dotnet-wasm, a .NET WASM app drops into a JS project like any other dependency. How it does that is the rest of this document.
 
 ## The core idea
 
@@ -67,5 +67,9 @@ Node output must be ESM, and a few bundlers require the consumer to opt into ESM
 
 ## Testing model
 
-The integration/E2E suite is modelled as a matrix over four axes: `bundler`, `platform` (`node`/`browser`), `fingerprint` (`fingerprint`/`nofingerprint`), and `build-mode` (`debug`/`publish`/`none`). `fingerprint` and `build-mode` are **fixed per invocation**: the caller builds the fixtures for the mode under test, and the matrix runner never rebuilds them. `build-mode=none` exists to assert that the plugin produces clean error messages. See [AGENTS.md](../AGENTS.md) for the commands.
+E2E lives in [`test/e2e`](../test/e2e) and materializes hosts from [`test/fixture-builder/templates/`](../test/fixture-builder/templates) into `.materialized/` (gitignored). Each test builds the .NET library itself (`dotnet build` or `dotnet publish`); there is no separate fixture-build step and no checked-in `bin/` output.
+
+`permuteFixture` expands any omitted axis among: bundler × platform (`browser`|`node`) × serveMode (`dist`|`server`|`watch`) × kind (`wasm`|`blazor`) × buildMode (`debug`|`publish`). `kind=blazor` never pairs with `platform=node`. Fingerprint on/off is asserted **inside** tests (default on) — it is not a runner flag, and it is not a separate code path in the plugin.
+
+CI shards by **os × bundler**. `test/e2e/scripts/run.mjs` fans out browser∥node when `--platform` is omitted. See [AGENTS.md](../AGENTS.md) for the commands.
 

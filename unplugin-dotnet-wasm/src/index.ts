@@ -1,3 +1,3 @@
 export type { DotnetWasmOptions } from './types';
 
-export { dotnetWasmUnplugin as dotnetStaticAssets } from './unplugin/index';
+export { dotnetWasmUnplugin as DotnetWasm } from './unplugin/index';

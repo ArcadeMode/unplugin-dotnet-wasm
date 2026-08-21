@@ -1,8 +1,6 @@
 packages:
   - 'unplugin-dotnet-wasm'
-  - 'samples/*/app'
-  - 'test/fixtures/*/library-app-*'
-  - 'test/integration'
+  - 'samples/apps/*'
   - 'test/fixture-builder'
   - 'test/e2e'
 allowBuilds:

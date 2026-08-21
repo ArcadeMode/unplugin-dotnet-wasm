@@ -1,0 +1,22 @@
+{
+  "name": "@dotnet-wasm-bundler/esbuild-node-wasm",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "start": "node dist/entry.js",
+    "test": "echo \"No tests in sample - build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "esbuild": "^0.28.1",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@dotnet-wasm-bundler/vite-vanilla-blazor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview --open",
+    "test": "echo \"No tests in sample - build-only package\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "rimraf": "^6.0.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.1"
+  },
+  "dependencies": {
+    "unplugin-dotnet-wasm": "workspace:*"
+  }
+}
