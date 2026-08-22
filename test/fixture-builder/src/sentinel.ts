@@ -8,6 +8,7 @@ export interface WaitForSentinelOptions {
   timeoutMs?: number;
   settleMs?: number;
   pollMs?: number;
+  minSeq?: number;
 }
 
 function sentinelPath(appDir: string): string {
@@ -72,6 +73,7 @@ export async function waitForBuildSentinelFiles(
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const settleMs = opts.settleMs ?? 500;
   const pollMs = opts.pollMs ?? 50;
+  const minSeq = opts.minSeq ?? 0;
   await sleep(pollMs); // Give the build a chance to start before we poll status sentinel files
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -81,7 +83,7 @@ export async function waitForBuildSentinelFiles(
     const startSeq = readStartSentinel(appDir);
     const done = parseDone(doneRaw);
 
-    if (done !== null && doneRaw !== baseline) {
+    if (done !== null && doneRaw !== baseline && done.seq >= minSeq) {
       if (done.status === 'error') {
         throw new Error(`Build reported an error (done=${doneRaw}).`);
       }
