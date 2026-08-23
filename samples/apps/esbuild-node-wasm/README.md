@@ -7,7 +7,7 @@ An esbuild-bundled Node CLI that boots the shared
 browser-only).
 
 Same C# as [`vite-vanilla-wasm`](../vite-vanilla-wasm) and
-[`farm-vue-wasm`](../farm-vue-wasm).
+[`farm-react-wasm`](../farm-react-wasm).
 
 ## Run
 

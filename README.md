@@ -61,9 +61,9 @@ pnpm dev:sample:webpack-blazor
 pnpm build:sample:rsbuild-react
 pnpm dev:sample:rsbuild-react
 
-# Farm + Vue + WASM library
-pnpm build:sample:farm-vue
-pnpm dev:sample:farm-vue
+# Farm + React + WASM library
+pnpm build:sample:farm-react
+pnpm dev:sample:farm-react
 
 # esbuild + Node CLI + WASM library
 pnpm build:sample:esbuild-node
