@@ -1,34 +1,34 @@
-# farm-vue-wasm
+# farm-react-wasm
 
-A Vue 3 + Farm front-end that boots the shared
+A React + Farm front-end that boots the shared
 [`WasmLibrary`](../../libraries/WasmLibrary) via
 [`unplugin-dotnet-wasm`](../../../unplugin-dotnet-wasm) and drives the TypeShim
-`Counter` from a single-file component.
+`Counter` from a React component.
 
 Same C# as [`vite-vanilla-wasm`](../vite-vanilla-wasm); Farm is the host, and
-Vue owns the UI.
+React owns the UI.
 
 ## Run
 
 From the repo root (Node 24+, .NET 10 SDK, `pnpm install` already done):
 
 ```bash
-pnpm build:sample:farm-vue
-pnpm dev:sample:farm-vue
+pnpm build:sample:farm-react
+pnpm dev:sample:farm-react
 # or serve the built dist without the Farm dev server
-# pnpm preview:sample:farm-vue
+# pnpm preview:sample:farm-react
 ```
 
 Production (`dotnet publish` + Farm production mode):
 
 ```bash
-pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm build:release
+pnpm --filter @unplugin-dotnet-wasm/farm-react-wasm build:release
 ```
 
 ## How the host boots .NET
 
-[`src/App.vue`](src/App.vue) boots the runtime in `onMounted` and keeps a
-`Counter` instance in the setup closure:
+[`src/App.tsx`](src/App.tsx) boots the runtime in `useEffect` and keeps a
+`Counter` instance in a ref:
 
 ```ts
 import { dotnet } from '_framework/dotnet';
@@ -45,10 +45,13 @@ Farm needs extra asset config the other bundlers do not: declare `.wasm` /
 
 ## What's special
 
-- **TypeShim in Vue.** `Counter` is a real TypeScript class used from an SFC,
+- **TypeShim in React.** `Counter` is a real TypeScript class used from JSX,
   not `invokeMethod`.
 - **Farm asset ceremony.** `compilation.assets.include` and
   `targetEnv: 'browser-esnext'` — easy to miss, and required for this bundler.
+- **Farm + pnpm aliases.** Farm does not follow React's package exports under
+  pnpm; `farm.config.ts` aliases `react`, `react-dom`, `scheduler`, and
+  `react-refresh` to real files.
 
 ## Layout
 
@@ -56,9 +59,9 @@ Farm needs extra asset config the other bundlers do not: declare `.wasm` /
 samples/
 ├── libraries/WasmLibrary/     # shared with vite-vanilla-wasm and esbuild-node-wasm
 │   └── Counter.cs
-└── apps/farm-vue-wasm/        # Vue 3 + Farm host
-    ├── src/App.vue
-    ├── src/main.ts
+└── apps/farm-react-wasm/      # React + Farm host
+    ├── src/App.tsx
+    ├── src/main.tsx
     ├── index.html
     └── farm.config.ts
 ```

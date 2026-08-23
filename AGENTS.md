@@ -13,7 +13,7 @@ Run all commands from repo root unless noted.
 ## Samples - `samples/`
 
 Shared .NET libraries in `samples/libraries/` (`WasmLibrary`, `BlazorElements`, `BlazorApp`).
-Hosts in `samples/apps/` (vanilla Vite/Webpack, Rsbuild+React, Farm+Vue, esbuild Node).
+Hosts in `samples/apps/` (vanilla Vite/Webpack, Rsbuild+React, Farm+React, esbuild Node).
 
 ```
 pnpm build:sample:vite-wasm
@@ -28,8 +28,8 @@ pnpm dev:sample:webpack-blazor
 pnpm build:sample:rsbuild-react
 pnpm dev:sample:rsbuild-react
 
-pnpm build:sample:farm-vue
-pnpm dev:sample:farm-vue
+pnpm build:sample:farm-react
+pnpm dev:sample:farm-react
 
 pnpm build:sample:esbuild-node
 pnpm start:sample:esbuild-node

@@ -32,9 +32,9 @@
     "dev:sample:rsbuild-react": "pnpm --filter @unplugin-dotnet-wasm/rsbuild-react-blazor dev",
     "preview:sample:rsbuild-react": "pnpm --filter @unplugin-dotnet-wasm/rsbuild-react-blazor preview",
 
-    "build:sample:farm-vue": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm build",
-    "dev:sample:farm-vue": "pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm dev",
-    "preview:sample:farm-vue": "pnpm --filter @unplugin-dotnet-wasm/farm-vue-wasm preview",
+    "build:sample:farm-react": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/farm-react-wasm build",
+    "dev:sample:farm-react": "pnpm --filter @unplugin-dotnet-wasm/farm-react-wasm dev",
+    "preview:sample:farm-react": "pnpm --filter @unplugin-dotnet-wasm/farm-react-wasm preview",
 
     "start:sample:esbuild-node": "pnpm --filter @unplugin-dotnet-wasm/esbuild-node-wasm start",
     "build:sample:esbuild-node": "dotnet build samples/libraries/WasmLibrary/WasmLibrary.csproj -c Debug && pnpm --filter @unplugin-dotnet-wasm/esbuild-node-wasm build",

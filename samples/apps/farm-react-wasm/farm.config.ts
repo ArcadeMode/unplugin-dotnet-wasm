@@ -1,15 +1,18 @@
 import { defineConfig } from '@farmfe/core';
 import farmPostcss from '@farmfe/js-plugin-postcss';
-import vue from '@vitejs/plugin-vue';
+import react from '@farmfe/plugin-react';
 import DotnetWasm from 'unplugin-dotnet-wasm/farm';
 import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const require = createRequire(import.meta.url);
-// Farm + pnpm cannot follow Vue's nested @vue/* imports; the browser ESM build is self-contained.
-const vueEntry = resolve(require.resolve('vue/package.json'), '../dist/vue.runtime.esm-browser.js');
+// Farm + pnpm cannot follow React's package exports; alias to the real package dirs.
+const reactDir = dirname(require.resolve('react/package.json'));
+const reactDomDir = dirname(require.resolve('react-dom/package.json'));
+const schedulerDir = dirname(require.resolve('scheduler/package.json', { paths: [reactDomDir] }));
+const reactRefreshDir = dirname(require.resolve('react-refresh/package.json'));
 
 export default defineConfig(() => {
   const isRelease = process.env.DOTNET_RELEASE === '1';
@@ -33,17 +36,22 @@ export default defineConfig(() => {
       minify: false,
       persistentCache: false,
       progress: false,
-      define: {
-        __VUE_OPTIONS_API__: 'true',
-        __VUE_PROD_DEVTOOLS__: 'false',
-        __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
-      },
       resolve: {
-        alias: { vue: vueEntry },
+        alias: {
+          'react-dom/client': resolve(reactDomDir, 'client.js'),
+          'react-dom': reactDomDir,
+          'react/jsx-dev-runtime': resolve(reactDir, 'jsx-dev-runtime.js'),
+          'react/jsx-runtime': resolve(reactDir, 'jsx-runtime.js'),
+          'react-refresh/runtime': resolve(reactRefreshDir, 'runtime.js'),
+          'react-refresh': reactRefreshDir,
+          react: reactDir,
+          scheduler: schedulerDir,
+        },
       },
     },
     server: { port: 5176, strictPort: true },
     plugins: [
+      react({ runtime: 'automatic' }),
       // Farm does not run postcss.config.mjs on its own; Tailwind v4 needs this plugin.
       farmPostcss(),
       DotnetWasm({
@@ -55,6 +63,5 @@ export default defineConfig(() => {
         logLevel: 'info',
       }),
     ],
-    vitePlugins: [vue()], // @vitejs/plugin-vue 6+ uses a hook Farm 1 does not support
   };
 });
