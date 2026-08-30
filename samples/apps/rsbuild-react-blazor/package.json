@@ -17,7 +17,7 @@
     "unplugin-dotnet-wasm": "workspace:*"
   },
   "devDependencies": {
-    "@rsbuild/core": "^2.1.10",
+    "@rsbuild/core": "^2.1.13",
     "@rsbuild/plugin-react": "^2.1.0",
     "@rsbuild/plugin-tailwindcss": "^2.0.3",
     "@types/react": "^19.1.12",
