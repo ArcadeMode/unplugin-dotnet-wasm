@@ -14,7 +14,7 @@ export class IdempotentFileWriter {
     }
 
     await mkdir(dirname(absPath), { recursive: true });
-    await writeFile(absPath, content, 'utf8');
+    await writeFile(absPath, content);
     return true;
   }
 }
