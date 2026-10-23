@@ -11,14 +11,14 @@
     "clean": "rimraf test-results"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
-    "@types/node": "^26.2.0",
-    "rimraf": "^6.0.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@unplugin-dotnet-wasm/fixture-builder": "workspace:*",
-    "execa": "^10.0.1"
+    "execa": "catalog:"
   }
 }
