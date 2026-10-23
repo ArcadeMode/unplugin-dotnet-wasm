@@ -15,9 +15,21 @@ type RollupLoadThis = LoadHandlerContext & {
 
 export type ViteServerHookResult = () => void | Promise<void>;
 
+/** Subset of the Rollup `resolveFileUrl` hook argument we rely on. */
+export interface ResolveFileUrlMeta {
+  referenceId: string;
+  relativePath: string;
+}
+
+/** `this` for `resolveFileUrl`; Vite exposes the active environment, Rollup/Rolldown do not. */
+type ResolveFileUrlThis = {
+  environment?: { config?: { consumer?: string } };
+};
+
 export interface RollupFamilyHooks {
   buildStart(this: unknown): Promise<void>;
   resolveId(source: string, importer?: string): string | null;
+  resolveFileUrl(this: unknown, meta: ResolveFileUrlMeta): string | null;
   vite: {
     configResolved(config: { root: string; command: string }): void;
     configureServer(server: ViteDevServer): ViteServerHookResult | void | Promise<void>;
@@ -54,6 +66,9 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   let isServe = false;
   let isWatch = false;
 
+  // Reference ids of the dotnet assets we emit, used to scope `resolveFileUrl`.
+  const emittedAssetRefs = new Set<string>();
+
   function invalidateAllVirtualModules(server: ViteDevServer): void {
     const graph = (server as { moduleGraph?: ViteModuleGraphLike }).moduleGraph;
     if (!graph) return;
@@ -79,6 +94,19 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       }
     },
     resolveId,
+    // Vite 8.3+ renders emitted asset references for the `server` (Node) consumer
+    // as root-absolute `/assets/...` strings. Node has no server origin, so MONO's
+    // `fetch`/`new URL()` boot code fails with "Failed to parse URL". Re-wrap our
+    // emitted assets in `new URL(..., import.meta.url)` so the Node runtime resolves
+    // them against the on-disk output file (the form Vite <=8.2 produced itself).
+    // Scoped to the server consumer so Vite's browser output (origin/base-relative)
+    // is untouched; Rollup/Rolldown expose no `environment` and already emit this form.
+    resolveFileUrl(this: unknown, meta: ResolveFileUrlMeta): string | null {
+      if (!emittedAssetRefs.has(meta.referenceId)) return null;
+      const consumer = (this as ResolveFileUrlThis).environment?.config?.consumer;
+      if (consumer !== 'server') return null;
+      return `new URL(${JSON.stringify(meta.relativePath)}, import.meta.url).href`;
+    },
     vite: {
       configResolved(config: { root: string; command: string }): void {
         ctx.setConsumerRoot(config.root);
@@ -131,6 +159,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           for (const manifest of ctx.manifestPaths) this.addWatchFile(manifest);
           const source = await readFile(id);
           const refId = this.emitFile({ type: 'asset', name: basename(id), source });
+          emittedAssetRefs.add(refId);
           return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
         }
       },
