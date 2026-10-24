@@ -22,9 +22,17 @@ Built on [unplugin](https://github.com/unjs/unplugin): Vite, Webpack, Rollup, Ro
 npm i -D unplugin-dotnet-wasm
 ```
 
-Usage, configuration, and per-bundler examples: **[unplugin-dotnet-wasm/README.md](unplugin-dotnet-wasm/README.md)**.
+## Usage
 
-Why the plugin is shaped this way: [docs/architecture.md](docs/architecture.md).
+**[unplugin-dotnet-wasm/README.md#usage](unplugin-dotnet-wasm/README.md#usage)**.
+
+## Bundler support
+
+**[unplugin-dotnet-wasm/README.md#bundler-support](unplugin-dotnet-wasm/README.md#bundler-support)**.
+
+## Bundler examples
+
+**[unplugin-dotnet-wasm/README.md#bundler-examples](unplugin-dotnet-wasm/README.md#bundler-examples)**.
 
 ## Run the samples
 
