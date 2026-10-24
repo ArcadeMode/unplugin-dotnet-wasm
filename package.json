@@ -50,13 +50,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "cross-env": "^10.1.0",
-    "eslint": "^10.9.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.2.1",
-    "prettier": "^3.9.6",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.67.0"
+    "@eslint/js": "catalog:",
+    "cross-env": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-plugin-prettier": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   }
 }

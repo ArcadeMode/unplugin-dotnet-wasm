@@ -458,7 +458,7 @@ DotnetWasm({
 ## Bundler support
 
 | Bundler | Version | Browser | Node | Dev server | Watch mode |
-|---||---|---|---|---|---|
+|---|---|---|---|---|---|
 | Vite | `>=6` | ✅ | ✅[^vite-node-env] | ✅ | ✅ |
 | Rollup | `>=4.40` | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
 | Rolldown | `>=1.0` | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |

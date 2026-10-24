@@ -3,7 +3,10 @@ import { basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ConnectMiddleware } from '../../core/dev-server/asset-middleware';
 import { BINARY_EXTENSIONS_REGEX, VIRTUAL_ROUTE_ID_REGEX } from '../../core/constants';
-import { buildLiteralPathExportModule } from '../../core/asset-resolution/asset-url-module';
+import {
+  buildLiteralPathExportModule,
+  newUrlAgainstImportMeta,
+} from '../../core/asset-resolution/asset-url-module';
 import { isVirtualId, routeFromVirtualId } from '../../core/asset-resolution/virtual-id';
 import { ManifestWatcher } from '../../core/dev-server/manifest-watcher';
 import type { PluginContext } from '../context';
@@ -15,9 +18,20 @@ type RollupLoadThis = LoadHandlerContext & {
 
 export type ViteServerHookResult = () => void | Promise<void>;
 
+export interface ResolveFileUrlMeta {
+  referenceId: string;
+  relativePath: string;
+}
+
+// Vite exposes the active environment on `this`; Rollup/Rolldown do not.
+type ResolveFileUrlThis = {
+  environment?: { config?: { consumer?: string } };
+};
+
 export interface RollupFamilyHooks {
   buildStart(this: unknown): Promise<void>;
   resolveId(source: string, importer?: string): string | null;
+  resolveFileUrl(this: unknown, meta: ResolveFileUrlMeta): string | null;
   vite: {
     configResolved(config: { root: string; command: string }): void;
     configureServer(server: ViteDevServer): ViteServerHookResult | void | Promise<void>;
@@ -54,6 +68,9 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
   let isServe = false;
   let isWatch = false;
 
+  // Reference ids of the dotnet assets we emit, used to scope `resolveFileUrl`.
+  const emittedAssetRefs = new Set<string>();
+
   function invalidateAllVirtualModules(server: ViteDevServer): void {
     const graph = (server as { moduleGraph?: ViteModuleGraphLike }).moduleGraph;
     if (!graph) return;
@@ -79,6 +96,16 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       }
     },
     resolveId,
+    // Vite 8.3+ emits our asset refs for the `server` consumer as root-absolute
+    // `/assets/...`, which Node can't resolve (no origin). Re-wrap in
+    // `new URL(..., import.meta.url)` against the relative path. Scoped to `server`
+    // so browser output and Rollup/Rolldown (no `environment`) are untouched.
+    resolveFileUrl(this: unknown, meta: ResolveFileUrlMeta): string | null {
+      if (!emittedAssetRefs.has(meta.referenceId)) return null;
+      const consumer = (this as ResolveFileUrlThis).environment?.config?.consumer;
+      if (consumer !== 'server') return null;
+      return newUrlAgainstImportMeta(JSON.stringify(meta.relativePath));
+    },
     vite: {
       configResolved(config: { root: string; command: string }): void {
         ctx.setConsumerRoot(config.root);
@@ -131,6 +158,7 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
           for (const manifest of ctx.manifestPaths) this.addWatchFile(manifest);
           const source = await readFile(id);
           const refId = this.emitFile({ type: 'asset', name: basename(id), source });
+          emittedAssetRefs.add(refId);
           return `export default import.meta.ROLLUP_FILE_URL_${refId};`;
         }
       },
