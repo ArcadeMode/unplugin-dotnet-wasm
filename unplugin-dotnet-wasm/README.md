@@ -469,6 +469,22 @@ DotnetWasm({
 | Farm | ✅ | ✅[^farm-node-esm] | ✅ | ✅ |
 | Bun | ✅ | ✅ | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
+### Supported versions
+
+Declared as optional `peerDependencies`. Each floor is the oldest version that passed the full e2e suite (browser and Node, build, watch, dev server).
+
+| Bundler | Supported | Notes |
+|---|---|---|
+| Vite | `>=6` | Vite 5 fails Node targets |
+| Rollup | `>=4.40` | Watch mode failed on 4.0 and 4.20 |
+| Rolldown | `>=1.0` | |
+| Webpack | `>=5.101` | 5.90 passes browser but not Node ESM output |
+| Rspack | `>=1.7.12` | |
+| Rsbuild | `>=2` | Rsbuild 1 passes browser but not Node |
+| esbuild | `>=0.21.5` | |
+| Farm | `>=1.7` | 1.5 lacks `compiler.invalidateModule` |
+| Bun | `>=1.2` | |
+
 ## Status & roadmap
 
 **Done**
