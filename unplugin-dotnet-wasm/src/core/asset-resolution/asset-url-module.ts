@@ -2,11 +2,16 @@ export function buildLiteralPathExportModule(path: string): string {
   return `export default ${JSON.stringify(path)};`;
 }
 
+/** `new URL(<expr>, import.meta.url).href`, resolving `expr` against the current module. */
+export function newUrlAgainstImportMeta(expr: string): string {
+  return `new URL(${expr}, import.meta.url).href`;
+}
+
 /**
  * re-import the real asset and resolve it to a URL relative to the proxy module.
  */
 export function buildNewUrlAssetProxyModule(innerSpecifier: string): string {
-  return `import u from ${JSON.stringify(innerSpecifier)};\nexport default new URL(u, import.meta.url).href;`;
+  return `import u from ${JSON.stringify(innerSpecifier)};\nexport default ${newUrlAgainstImportMeta('u')};`;
 }
 
 /**
