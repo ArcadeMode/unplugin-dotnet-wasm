@@ -15,13 +15,12 @@ type RollupLoadThis = LoadHandlerContext & {
 
 export type ViteServerHookResult = () => void | Promise<void>;
 
-/** Subset of the Rollup `resolveFileUrl` hook argument we rely on. */
 export interface ResolveFileUrlMeta {
   referenceId: string;
   relativePath: string;
 }
 
-/** `this` for `resolveFileUrl`; Vite exposes the active environment, Rollup/Rolldown do not. */
+// Vite exposes the active environment on `this`; Rollup/Rolldown do not.
 type ResolveFileUrlThis = {
   environment?: { config?: { consumer?: string } };
 };
@@ -94,13 +93,10 @@ export function createRollupFamily(ctx: PluginContext): RollupFamilyHooks {
       }
     },
     resolveId,
-    // Vite 8.3+ renders emitted asset references for the `server` (Node) consumer
-    // as root-absolute `/assets/...` strings. Node has no server origin, so MONO's
-    // `fetch`/`new URL()` boot code fails with "Failed to parse URL". Re-wrap our
-    // emitted assets in `new URL(..., import.meta.url)` so the Node runtime resolves
-    // them against the on-disk output file (the form Vite <=8.2 produced itself).
-    // Scoped to the server consumer so Vite's browser output (origin/base-relative)
-    // is untouched; Rollup/Rolldown expose no `environment` and already emit this form.
+    // Vite 8.3+ emits root-absolute `/assets/...` refs for the `server` consumer, which
+    // Node can't resolve (no origin). Re-wrap our assets in `new URL(..., import.meta.url)`
+    // (the form Vite <=8.2 produced). Scoped to `server` so browser output and
+    // Rollup/Rolldown (no `environment`) are untouched.
     resolveFileUrl(this: unknown, meta: ResolveFileUrlMeta): string | null {
       if (!emittedAssetRefs.has(meta.referenceId)) return null;
       const consumer = (this as ResolveFileUrlThis).environment?.config?.consumer;
