@@ -4,6 +4,7 @@ packages:
   - 'test/fixture-builder'
   - 'test/e2e'
 allowBuilds:
+  bun: false
   core-js: true
   esbuild: true
 

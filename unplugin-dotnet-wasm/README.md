@@ -457,17 +457,17 @@ DotnetWasm({
 
 ## Bundler support
 
-| Bundler | Browser | Node | Dev server | Watch mode |
-|---|---|---|---|---|
-| Vite | ✅ | ✅[^vite-node-env] | ✅ | ✅ |
-| Rollup | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
-| Rolldown | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
-| Webpack | ✅ | ✅[^webpack-node-esm] | ✅ | ✅ |
-| Rspack | ✅ | ✅[^rspack-node-esm] | ✅ | ✅ |
-| Rsbuild | ✅ | ✅[^rsbuild-node-esm] | ✅ | ✅ |
-| esbuild | ✅ | ✅ | -[^esbuild-no-dev-server] | ✅ |
-| Farm | ✅ | ✅[^farm-node-esm] | ✅ | ✅ |
-| Bun | ✅ | ✅ | -[^bun-no-dev-server] | -[^bun-no-watch] |
+| Bundler | Version | Browser | Node | Dev server | Watch mode |
+|---|---|---|---|---|---|
+| Vite | `>=6` | ✅ | ✅[^vite-node-env] | ✅ | ✅ |
+| Rollup | `>=4.40` | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
+| Rolldown | `>=1.0` | ✅ | ✅ | -[^rollup-family-no-dev-server] | ✅ |
+| Webpack | `>=5.101` | ✅ | ✅[^webpack-node-esm] | ✅ | ✅ |
+| Rspack | `>=1.7.12` | ✅ | ✅[^rspack-node-esm] | ✅ | ✅ |
+| Rsbuild | `>=2` | ✅ | ✅[^rsbuild-node-esm] | ✅ | ✅ |
+| esbuild | `>=0.21.5` | ✅ | ✅ | -[^esbuild-no-dev-server] | ✅ |
+| Farm | `>=1.7` | ✅ | ✅[^farm-node-esm] | ✅ | ✅ |
+| Bun | `>=1.2` | ✅ | ✅ | -[^bun-no-dev-server] | -[^bun-no-watch] |
 
 ## Status & roadmap
 
